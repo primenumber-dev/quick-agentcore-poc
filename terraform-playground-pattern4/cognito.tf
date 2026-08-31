@@ -46,6 +46,13 @@ resource "aws_cognito_resource_server" "mcp" {
   user_pool_id = aws_cognito_user_pool.main.id
   identifier   = "${aws_apigatewayv2_api.main.api_endpoint}/mcp"
   name         = "quick-mcp-poc-mcp"
+
+  # DCR実装(docs/08-weekly-verification-plan.md §2)向けに追加。
+  # 動的登録クライアントに付与する固定スコープ。
+  scope {
+    scope_name        = "invoke"
+    scope_description = "Invoke MCP tools"
+  }
 }
 
 resource "aws_cognito_user_pool_domain" "main" {

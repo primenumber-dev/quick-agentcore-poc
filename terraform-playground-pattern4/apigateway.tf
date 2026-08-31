@@ -39,6 +39,13 @@ resource "aws_apigatewayv2_stage" "main" {
   api_id      = aws_apigatewayv2_api.main.id
   name        = "$default"
   auto_deploy = true
+
+  # DCR実装(docs/08 §2.4)の乱用対策: 未認証の/registerだけ低いレートに絞る。
+  route_settings {
+    route_key              = "POST /register"
+    throttling_burst_limit = 5
+    throttling_rate_limit  = 2
+  }
 }
 
 resource "aws_apigatewayv2_vpc_link" "main" {
@@ -77,24 +84,29 @@ resource "aws_apigatewayv2_integration" "alb" {
   connection_id      = aws_apigatewayv2_vpc_link.main.id
 
   request_parameters = {
-    "overwrite:header.x-cognito-sub" = "$context.authorizer.jwt.claims.sub"
+    # DCR実装(docs/08 §2.1)でJWT型AuthorizerからLambda Authorizerに置き換えたため、
+    # 検証済みsubの参照元も $context.authorizer.jwt.claims.sub から
+    # Lambdaのsimple response context($context.authorizer.<key>)に変更。
+    "overwrite:header.x-cognito-sub" = "$context.authorizer.sub"
   }
 }
 
-resource "aws_apigatewayv2_authorizer" "cognito" {
-  api_id           = aws_apigatewayv2_api.main.id
-  authorizer_type  = "JWT"
-  name             = "cognito"
-  identity_sources = ["$request.header.Authorization"]
+resource "aws_apigatewayv2_integration" "dcr_register" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.dcr_register.invoke_arn
+  payload_format_version = "2.0"
+}
 
-  jwt_configuration {
-    # 検証で判明した修正案: audienceはCognito resource serverのidentifier(URL)ではなく、
-    # App Client ID(ID tokenのaud/access tokenのclient_idと一致する値)にする必要がある。
-    # 元の設定(resource_server.identifier)では、実際に発行されるどのトークンも一致せず
-    # 常に401になることをplaygroundで実機確認した(docs/07-vpc-waf-cost-verification.md参照)。
-    audience = [aws_cognito_user_pool_client.mcp.id]
-    issuer   = "https://cognito-idp.ap-northeast-1.amazonaws.com/${aws_cognito_user_pool.main.id}"
-  }
+resource "aws_apigatewayv2_authorizer" "lambda" {
+  api_id                            = aws_apigatewayv2_api.main.id
+  authorizer_type                   = "REQUEST"
+  name                               = "dcr-jwt-authorizer"
+  authorizer_uri                    = aws_lambda_function.dcr_authorizer.invoke_arn
+  authorizer_payload_format_version = "2.0"
+  enable_simple_responses           = true
+  identity_sources                  = ["$request.header.Authorization"]
+  authorizer_result_ttl_in_seconds  = 300
 }
 
 resource "aws_apigatewayv2_route" "well_known" {
@@ -121,7 +133,14 @@ resource "aws_apigatewayv2_route" "token" {
 resource "aws_apigatewayv2_route" "mcp" {
   api_id             = aws_apigatewayv2_api.main.id
   route_key          = "ANY /{proxy+}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.lambda.id
   target             = "integrations/${aws_apigatewayv2_integration.alb.id}"
+}
+
+resource "aws_apigatewayv2_route" "register" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /register"
+  authorization_type = "NONE"
+  target             = "integrations/${aws_apigatewayv2_integration.dcr_register.id}"
 }

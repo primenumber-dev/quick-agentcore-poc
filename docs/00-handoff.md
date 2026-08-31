@@ -85,7 +85,7 @@ aws sso login --profile quick-agentcore-poc-playground    # 検証用アカウ�
 | IAM実行ロール | `arn:aws:iam::883660531246:role/quick-mcp-poc-agentcore-execution-role` |
 | ECRリポジトリ | `883660531246.dkr.ecr.ap-northeast-1.amazonaws.com/quick-mcp-poc-agentcore-verification:verification-1` |
 | DynamoDBテーブル | `quick-mcp-poc-users`(テストユーザー1件: `USER#agentcore-verification-user`) |
-| AgentCore Runtime | `arn:aws:bedrock-agentcore:ap-northeast-1:883660531246:runtime/quickMcpPocVerification-Aoo0d23yyj`(version 7、`networkMode: VPC`、ステータス: READY) |
+| AgentCore Runtime | `arn:aws:bedrock-agentcore:ap-northeast-1:883660531246:runtime/quickMcpPocVerification-Aoo0d23yyj`(version 10、`networkMode: VPC`、ステータス: READY。2026-08-31に`requestHeaderAllowlist`からの`x-cognito-sub`除去でversion 10に更新、[08番§1](./08-weekly-verification-plan.md)参照) |
 | 検証用VPC | `quick-mcp-poc-verification-vpc`(`vpc-0df861e536fad4aab`, `10.99.0.0/24`)。2026-08-21、VPCモード検証のために新規作成。private subnet ×2(`subnet-0c56f317a1a50a6f4`, `subnet-004618218ccfed812`)、SG(`sg-04798ee8dda54dfc3`、自己参照443許可)、route table(`rtb-05c946adb3e34e90b`) |
 | VPCエンドポイント | S3 Gateway・DynamoDB Gateway・ECR API Interface・ECR DKR Interface(いずれも上記VPCに作成。詳細は[05-security-compliance-verification.md §4.1.1](./05-security-compliance-verification.md)参照) |
 | WAF検証用CloudFront + WAFv2 | Distribution `E3IBSB361TGZEQ`(`d22imwd0soxmb2.cloudfront.net`、オリジン=`bedrock-agentcore.ap-northeast-1.amazonaws.com`)+ Web ACL `quick-mcp-poc-verification-webacl`(us-east-1、`AWSManagedRulesCommonRuleSet`)。2026-08-21、WAF代替構成検証のために新規作成。詳細は05番ドキュメント参照 |
@@ -100,6 +100,16 @@ aws sso login --profile quick-agentcore-poc-playground    # 検証用アカウ�
 | Webアプリ用Cognito App Client | `quick-mcp-poc-web-demo`(client_id: `54cjhrb2bmba52upo8tfem4jlq`、public/PKCE専用)。AgentCore Runtimeの`allowedClients`に追加済み |
 | ECS+API Gateway playground複製一式 | `terraform-playground-pattern4/`(本番相当`terraform/`とは別state・別ディレクトリ、production backendには一切触れていない)。VPC(`vpc-04703dc42d1f7fef8`)、ECSクラスター`quick-mcp-poc-cluster`、API Gateway `https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com`、Cognito User Pool `ap-northeast-1_XrU8FcC1w`(ドメイン`quick-mcp-poc-pattern4-verify`)、DynamoDBテーブル`quick-mcp-poc-pattern4-verify-users`(未使用、後述の理由で実際はAgentCore検証と共用の`quick-mcp-poc-users`テーブルを参照) |
 | ECS用テストユーザー | Cognito: `pattern4-verify-user@example.com`(このために新規作成したプール内、実クライアントデータとは無関係)。DynamoDB `quick-mcp-poc-users`テーブルにレコード追加済み(`services.quick.plan=standard`) |
+
+### 追加リソース(2026-08-31実施、DCR実装)
+
+| リソース | 識別子 |
+|---|---|
+| DCR Register Lambda | `quick-mcp-poc-dcr-register`(`terraform-playground-pattern4/lambda.tf`) |
+| DCR Authorizer Lambda | `quick-mcp-poc-dcr-authorizer`(同上)。`terraform-playground-pattern4`のJWT型Authorizerを置き換え済み |
+| `POST /register`ルート | `https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/register` |
+
+詳細は[10-dcr-implementation.md](./10-dcr-implementation.md)参照。**注意**: この変更により`terraform-playground-pattern4`の認可方式はJWT型AuthorizerからLambda Authorizerに変わっている。次回セッションでこの環境を触る際は、`aws_apigatewayv2_authorizer.cognito`はもう存在しない前提で作業すること。
 
 **重要な発見**: playground複製環境で実機検証したところ、本番相当`terraform/apigateway.tf`のJWT Authorizer`audience`設定(`aws_cognito_resource_server.mcp.identifier`を指定)は、Cognitoが実際に発行するトークンの`aud`/`client_id`(App Client ID)と一致せず、**正当な認証済みトークンでも常に401になる**ことが判明した。`audience`を`aws_cognito_user_pool_client.mcp.id`に変更したところ解消した。本番環境自体は書き込み禁止のため未確認だが、同一ロジックのため本番でも同様の可能性が高い。詳細は[07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)参照。**本番担当者への早期共有を推奨**。
 
@@ -303,6 +313,15 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 ## 12. 今週の追加検証計画(2026-08-31合意、**未着手**)
 
 > このセクションはスコープ合意のみで終わったセッションの記録。次回セッションはここから着手する。
+
+**追記(2026-08-31・同日、プランニング実施)**: 本セクションで合意した3項目について、実装前の設計・見積もり検証を実施した。結論を[08-weekly-verification-plan.md](./08-weekly-verification-plan.md)にまとめた。要点:
+
+- **【重大・確認済み・修正済み】クロステナントなりすまし脆弱性を発見し即日修正(2026-08-31)**: AgentCore Runtimeの`requestHeaderConfiguration.requestHeaderAllowlist`に`x-cognito-sub`が含まれており、クライアントが送った値がそのままコンテナに転送されていた(ECS経路のような`overwrite:`保護がAgentCore経路には無かった)。実際に、正当なJWTを持ちながら`x-cognito-sub`ヘッダーで他テナントのsubを騙り、そのテナントとして認可される(成功レスポンスを得る)ことを実機で確認した。**対応**: `requestHeaderAllowlist`を`["Authorization"]`のみに変更(Runtime version 9→10、`update-agent-runtime`のみでコード変更・再デプロイ不要)。修正後、同じ手法でのなりすましが失敗する(Bearerトークンの`sub`に正しくフォールバックする)ことを再検証済み。詳細な経緯・図解は[09-cross-tenant-impersonation-finding.md](./09-cross-tenant-impersonation-finding.md)、要約は[08-weekly-verification-plan.md §1](./08-weekly-verification-plan.md)
+- **12.1 DCR実装の見積もり改訂**: 3-5人日→**7-9人日**。現在のJWT Authorizerは`audience`に固定値しか設定できず、DCRで動的に増えるclient_idに対応するには**Lambda Authorizerへの置き換えが必須**と判明(当初見積もりに未反映)。ユーザー確認の上、この見積もりを受け入れて選択肢Bを継続する方針(詳細は08番§2)
+- **12.2 応答時間チューニングのスコープ変更**: AWS公式ドキュメントにより、ステートレスMCPサーバーのままでも`Mcp-Session-Id`によるmicroVMスティッキーロイティングが機能することが判明。**サーバーのステートフル化(大改修)は不要**で、検証スクリプト(`scripts/invoke_agentcore_mcp_jwt.py`)がこのヘッダーを再送していないことが既存の実測結果の説明として十分。大改修(Phase 2)は今回のスコープから外し、Phase 0(スクリプト修正+計測ログ)のみ実施する方針(詳細は08番§3)。あわせて、既存の「AgentCoreはECSの約20倍遅い」という比較([07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md))が非対称な計測だった可能性を記録
+- **12.3 コストシミュレーター**: **実装・公開済み(2026-08-31)**。既存の`02-cost-simulation.md`の数値を逆算する過程で、ALB LCU・CloudFront平均レスポンスサイズという2つの未記載パラメータ、DynamoDB/Logsコストの非対称計上、損益分岐点の簡略化式という3点を新規発見。インタラクティブなArtifactとして実装し、既存ドキュメントの14個の掲載数値を許容誤差$0.5以内で再現することを確認済み(詳細は08番§4.5)
+- **12.1 DCR実装(2026-08-31実施)**: タスク1〜6(Lambda Authorizer実装・Register Lambda実装・discoveryメタデータ・乱用対策の一部・CLI管理コマンド)を`terraform-playground-pattern4`に実装し、実機で(a)既存静的クライアントの回帰確認、(b)DCR新規登録→client_credentialsでのMCP呼び出し成功、(c)DynamoDB失効フラグによる即時アクセス遮断、の3点を確認済み。詳細・詰まりどころは[10-dcr-implementation.md](./10-dcr-implementation.md)。残タスク: Claude Code/Claude.aiからの実際の自己登録によるE2E確認(Cognito Managed Login UI v2がブラウザ操作前提のため簡易スクリプトでは代替できず)、セキュリティレビュー、本番相当`terraform/`への移植(書き込み禁止のためapply自体はユーザー判断)
+- 12.2(応答時間チューニングPhase 0、約3人日)は**未着手**。次回セッションは08番ドキュメントの「§5 実施順序」の残タスクから着手する
 
 ユーザーから今週の検証項目として次の3点が提示され、スコープを確認した。**実際の作業は未着手**(SSOトークン確認の直後にセッションを次回に持ち越すことになったため)。
 

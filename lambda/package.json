@@ -1,0 +1,20 @@
+{
+  "name": "quick-mcp-poc-dcr-lambdas",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1025.0",
+    "@aws-sdk/client-dynamodb": "^3.1025.0",
+    "@aws-sdk/lib-dynamodb": "^3.1025.0",
+    "aws-jwt-verify": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.155",
+    "@types/node": "^25.5.2",
+    "esbuild": "^0.24.2",
+    "typescript": "^6.0.2"
+  }
+}

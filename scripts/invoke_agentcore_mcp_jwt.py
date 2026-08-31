@@ -132,21 +132,27 @@ def login_and_get_tokens(username, password):
     return tokens
 
 
-def call_mcp(access_token, method, params):
+def call_mcp(access_token, method, params, spoof_sub=None):
     endpoint = (
         "https://bedrock-agentcore.ap-northeast-1.amazonaws.com/runtimes/"
         + urllib.parse.quote(AGENT_RUNTIME_ARN, safe="")
         + "/invocations?qualifier=DEFAULT"
     )
     payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
+    if spoof_sub:
+        # security probe (docs/08-weekly-verification-plan.md §1): checks whether
+        # AgentCore Runtime passes this header through uninspected, the way ECS's
+        # API Gateway does *not* (it overwrites it with the JWT-verified sub).
+        headers["x-cognito-sub"] = spoof_sub
     req = urllib.request.Request(
         endpoint,
         data=payload,
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-        },
+        headers=headers,
         method="POST",
     )
     start = time.monotonic()
@@ -166,6 +172,7 @@ def main():
     parser.add_argument("params", nargs="?", default="{}")
     parser.add_argument("--username", default=os.environ.get("MCP_TEST_USERNAME", "quick-mcp-poc-verify"))
     parser.add_argument("--reuse-token", action="store_true", help="既存のトークンキャッシュを再利用する(再ログインしない)")
+    parser.add_argument("--spoof-sub", default=None, help="セキュリティ検証用: x-cognito-subヘッダーを指定値で付与する(docs/08 §1)")
     args = parser.parse_args()
 
     tokens = None
@@ -177,7 +184,7 @@ def main():
             sys.exit("環境変数 MCP_TEST_PASSWORD にテストユーザーのパスワードを設定してください")
         tokens = login_and_get_tokens(args.username, password)
 
-    result, elapsed = call_mcp(tokens["access_token"], args.method, json.loads(args.params))
+    result, elapsed = call_mcp(tokens["access_token"], args.method, json.loads(args.params), spoof_sub=args.spoof_sub)
     print(f"elapsed_seconds={elapsed:.3f}")
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

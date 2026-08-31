@@ -49,9 +49,12 @@ paths:
                   "issuer": "${API_GW_FRONT_BASE_URL}",
                   "authorization_endpoint": "${API_GW_FRONT_BASE_URL}/authorize",
                   "token_endpoint": "${API_GW_FRONT_BASE_URL}/token",
+                  "registration_endpoint": "${API_GW_FRONT_BASE_URL}/register",
                   "response_types_supported": ["code"],
                   "code_challenge_methods_supported": ["S256"],
-                  "token_endpoint_auth_methods_supported": ["none", "client_secret_basic", "client_secret_post"]
+                  "token_endpoint_auth_methods_supported": ["none", "client_secret_basic", "client_secret_post"],
+                  "grant_types_supported": ["authorization_code", "refresh_token", "client_credentials"],
+                  "scopes_supported": ["openid", "email", "profile"]
                 }
         passthroughBehavior: "when_no_match"
 

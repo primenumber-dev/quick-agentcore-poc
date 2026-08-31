@@ -2,6 +2,8 @@ import { inviteUser } from "./invite-user.js";
 import { deleteUser } from "./delete-user.js";
 import { updateServices } from "./update-services.js";
 import { listUsers } from "./list-users.js";
+import { listClients } from "./list-clients.js";
+import { deleteClient } from "./delete-client.js";
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
@@ -66,9 +68,35 @@ switch (command) {
     break;
   }
 
+  case "list-clients": {
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) {
+      console.error("COGNITO_USER_POOL_ID is required");
+      process.exit(1);
+    }
+    await listClients(poolId);
+    break;
+  }
+
+  case "delete-client": {
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) {
+      console.error("COGNITO_USER_POOL_ID is required");
+      process.exit(1);
+    }
+    if (args.length < 1) {
+      console.error("Usage: cli delete-client <client_id>");
+      process.exit(1);
+    }
+    const [clientId] = args;
+    await deleteClient({ userPoolId: poolId, clientId });
+    console.log(`Client deleted: ${clientId}`);
+    break;
+  }
+
   default:
     console.error(
-      "Commands: invite-user, delete-user, update-services, list-users"
+      "Commands: invite-user, delete-user, update-services, list-users, list-clients, delete-client"
     );
     process.exit(1);
 }
