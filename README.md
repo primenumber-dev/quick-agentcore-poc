@@ -1,5 +1,15 @@
 # quick-mcp-poc
 
+MCPサーバー(本リポジトリ)を Amazon Bedrock AgentCore Runtime にデプロイし、既存の API Gateway + ECS 構成と比較検証するプロジェクト。
+
+## ドキュメント
+
+- **[docs/00-handoff.md](./docs/00-handoff.md)** — 作業を再開・引き継ぐ場合はまずここ(前回セッションの状況、AWSアカウントの使い分け、既知のはまりどころ)
+- **[docs/README.md](./docs/README.md)** — 検証レポート一式の目次(アーキテクチャ比較、コスト試算、セキュリティ/コンプライアンス検証、OAuth接続検証など)
+- **[CLAUDE.md](./CLAUDE.md)** — このリポジトリで作業する際の注意点(AWSアカウントの取り扱い等)
+
+以下はアプリケーション自体のセットアップ手順。
+
 ## Required
 
 - Node.js v24+
