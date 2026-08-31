@@ -1,0 +1,98 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ECRImageAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ],
+      "Resource": [
+        "arn:aws:ecr:ap-northeast-1:883660531246:repository/quick-mcp-poc-agentcore-verification"
+      ]
+    },
+    {
+      "Sid": "ECRTokenAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LogGroupAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogStreams",
+        "logs:CreateLogGroup"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-northeast-1:883660531246:log-group:/aws/bedrock-agentcore/runtimes/*"
+      ]
+    },
+    {
+      "Sid": "LogGroupPolicyAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:PutResourcePolicy"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-northeast-1:883660531246:log-group:/aws/bedrock-agentcore/runtimes/quickMcpPocVerification-*"
+      ]
+    },
+    {
+      "Sid": "LogGroupsDescribe",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogGroups"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-northeast-1:883660531246:log-group:*"
+      ]
+    },
+    {
+      "Sid": "LogStreamAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-northeast-1:883660531246:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*"
+      ]
+    },
+    {
+      "Sid": "XRayAccess",
+      "Effect": "Allow",
+      "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+        "xray:GetSamplingRules",
+        "xray:GetSamplingTargets"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Sid": "CloudWatchMetrics",
+      "Effect": "Allow",
+      "Resource": "*",
+      "Action": "cloudwatch:PutMetricData",
+      "Condition": {
+        "StringEquals": {
+          "cloudwatch:namespace": "bedrock-agentcore"
+        }
+      }
+    },
+    {
+      "Sid": "DynamoDBUserLookup",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:ap-northeast-1:883660531246:table/quick-mcp-poc-users"
+      ]
+    }
+  ]
+}

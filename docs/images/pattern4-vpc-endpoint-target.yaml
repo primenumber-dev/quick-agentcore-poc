@@ -1,0 +1,101 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - Client
+        - AWSCloud
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "顧客社内網\n(専用線/VPN)"
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: horizontal
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - VPC
+    VPC:
+      Type: AWS::EC2::VPC
+      Direction: vertical
+      Title: "VPC(改修後・閉域構成案)"
+      Children:
+        - EndpointStack
+        - ALB
+        - PrivateSubnetStack
+    EndpointStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - APIGWEndpoint
+        - ECREndpoint
+        - LogsEndpoint
+    APIGWEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Title: "VPCE\n(Private API GW)"
+    ECREndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Title: "VPCE\n(ECR)"
+    LogsEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Title: "VPCE\n(CloudWatch Logs)"
+    ALB:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Preset: "Application Load Balancer"
+    PrivateSubnetStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - PrivateSubnet1
+    PrivateSubnet1:
+      Type: AWS::EC2::Subnet
+      Preset: PrivateSubnet
+      Children:
+        - ECSCluster
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Title: "ECS Cluster"
+      Children:
+        - ECSService
+    ECSService:
+      Type: AWS::ECS::Service
+      Title: "Fargateタスク"
+
+  Links:
+    - Source: Client
+      SourcePosition: E
+      Target: APIGWEndpoint
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+      Labels:
+        AutoRight:
+          Title: "IGW/NAT非経由"
+    - Source: APIGWEndpoint
+      SourcePosition: S
+      Target: ALB
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+    - Source: ALB
+      SourcePosition: S
+      Target: ECSService
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+    - Source: ECSService
+      SourcePosition: N
+      Target: ECREndpoint
+      TargetPosition: S
+      TargetArrowHead:
+        Type: Open
+    - Source: ECSService
+      SourcePosition: NNE
+      Target: LogsEndpoint
+      TargetPosition: S
+      TargetArrowHead:
+        Type: Open

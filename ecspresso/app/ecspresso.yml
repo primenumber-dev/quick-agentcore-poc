@@ -1,0 +1,10 @@
+region: ap-northeast-1
+cluster: quick-mcp-poc-cluster
+service: app
+service_definition: ecs-service-def.json
+task_definition: ecs-task-def.json
+timeout: "10m"
+plugins:
+  - name: tfstate
+    config:
+      url: s3://terraform.tfstate.professional-services-quick-poc/terraform.tfstate

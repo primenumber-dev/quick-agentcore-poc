@@ -1,0 +1,62 @@
+openapi: "3.0.1"
+info:
+  title: "quick-mcp-poc-metadata"
+  version: "0.0.1"
+paths:
+  /.well-known/oauth-protected-resource/mcp:
+    get:
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      x-amazon-apigateway-integration:
+        type: "mock"
+        requestTemplates:
+          application/json: '{"statusCode":200}'
+        responses:
+          default:
+            statusCode: "200"
+            responseTemplates:
+              application/json: |
+                {
+                  "authorization_servers":["${API_GW_FRONT_BASE_URL}"],
+                  "resource":"${API_GW_FRONT_BASE_URL}/mcp"
+                }
+        passthroughBehavior: "when_no_match"
+
+  /.well-known/oauth-authorization-server:
+    get:
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      x-amazon-apigateway-integration:
+        type: "mock"
+        requestTemplates:
+          application/json: '{"statusCode":200}'
+        responses:
+          default:
+            statusCode: "200"
+            responseTemplates:
+              application/json: |
+                {
+                  "issuer": "${API_GW_FRONT_BASE_URL}",
+                  "authorization_endpoint": "${API_GW_FRONT_BASE_URL}/authorize",
+                  "token_endpoint": "${API_GW_FRONT_BASE_URL}/token",
+                  "response_types_supported": ["code"],
+                  "code_challenge_methods_supported": ["S256"],
+                  "token_endpoint_auth_methods_supported": ["none", "client_secret_basic", "client_secret_post"]
+                }
+        passthroughBehavior: "when_no_match"
+
+components:
+  schemas:
+    Empty:
+      title: "Empty Schema"
+      type: "object"

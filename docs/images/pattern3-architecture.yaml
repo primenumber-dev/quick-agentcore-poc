@@ -1,0 +1,72 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - AWSCloud
+        - Client
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: horizontal
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - AgentCoreRuntime
+        - SupportStack
+    AgentCoreRuntime:
+      Type: AWS::Diagram::Resource
+      Preset: "Amazon Bedrock"
+      Title: "AgentCore Runtime (port 8000)"
+    SupportStack:
+      Type: AWS::Diagram::VerticalStack
+      Children:
+        - ECR
+        - DynamoDB
+        - CloudWatchLogs
+    ECR:
+      Type: AWS::ECR
+      Title: "ECR"
+    DynamoDB:
+      Type: AWS::DynamoDB::Table
+      Title: "DynamoDB"
+    CloudWatchLogs:
+      Type: AWS::CloudWatch
+      Title: "CloudWatch Logs"
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "Client (SigV4)"
+
+  Links:
+    - Source: Client
+      SourcePosition: N
+      Target: AgentCoreRuntime
+      TargetPosition: S
+      TargetArrowHead:
+        Type: Open
+      Labels:
+        AutoRight:
+          Title: "InvokeAgentRuntime"
+    - Source: AgentCoreRuntime
+      SourcePosition: NNE
+      Target: ECR
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+    - Source: AgentCoreRuntime
+      SourcePosition: E
+      Target: DynamoDB
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+    - Source: AgentCoreRuntime
+      SourcePosition: SSE
+      Target: CloudWatchLogs
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open

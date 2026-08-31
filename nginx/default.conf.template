@@ -1,0 +1,36 @@
+log_format token_debug '$remote_addr "$request" status=$status '
+                       'ct="$http_content_type" ua="$http_user_agent" '
+                       'body="$request_body"';
+
+server {
+    listen 80;
+
+    # OAuth Discovery metadata
+    location = /.well-known/oauth-protected-resource/mcp {
+        default_type application/json;
+        return 200 '{"authorization_servers":["http://localhost:8080"],"resource":"http://localhost:8080/mcp"}';
+    }
+
+    location = /.well-known/oauth-authorization-server {
+        default_type application/json;
+        return 200 '{"issuer":"http://localhost:8080","authorization_endpoint":"http://localhost:8080/authorize","token_endpoint":"http://localhost:8080/token","response_types_supported":["code"],"code_challenge_methods_supported":["S256"],"token_endpoint_auth_methods_supported":["none","client_secret_basic","client_secret_post"]}';
+    }
+
+    # OAuth proxy to Cognito
+    location = /authorize {
+        return 302 ${COGNITO_HOST}/oauth2/authorize?$args;
+    }
+
+    location = /token {
+        access_log /var/log/nginx/access.log token_debug;
+        proxy_pass ${COGNITO_HOST}/oauth2/token;
+        proxy_set_header Content-Type $http_content_type;
+    }
+
+    # MCP server
+    location / {
+        proxy_pass http://host.docker.internal:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

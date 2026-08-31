@@ -1,0 +1,50 @@
+{
+  "family": "quick-mcp-poc-app",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "app",
+      "image": "{{ tfstate `output.ecr_repository_url` }}:{{ must_env `IMAGE_TAG` }}",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "{{ tfstate `output.ecs_cloudwatch_log_group_name` }}",
+          "awslogs-region": "ap-northeast-1",
+          "awslogs-stream-prefix": "app"
+        }
+      },
+      "environment": [
+        {
+          "name": "PORT",
+          "value": "3000"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "QUICK_API_BASE",
+          "valueFrom": "{{ tfstate `output.ssm_prefix` }}/quick-api/base"
+        },
+        {
+          "name": "QUICK_API_USER",
+          "valueFrom": "{{ tfstate `output.ssm_prefix` }}/quick-api/user"
+        },
+        {
+          "name": "QUICK_API_PASS",
+          "valueFrom": "{{ tfstate `output.ssm_prefix` }}/quick-api/pass"
+        }
+      ]
+    }
+  ],
+  "taskRoleArn": "{{ tfstate `output.ecs_app_task_role_arn` }}",
+  "executionRoleArn": "{{ tfstate `output.ecs_task_execution_role_arn` }}"
+}

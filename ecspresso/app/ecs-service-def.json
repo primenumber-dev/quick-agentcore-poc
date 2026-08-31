@@ -1,0 +1,25 @@
+{
+  "serviceName": "app",
+  "taskDefinition": "quick-mcp-poc-app",
+  "desiredCount": 1,
+  "launchType": "FARGATE",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": {{ tfstate `output.ecs_private_subnet_ids` }},
+      "securityGroups": ["{{ tfstate `output.ecs_security_group_id` }}"],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "loadBalancers": [
+    {
+      "targetGroupArn": "{{ tfstate `output.alb_target_group_arn` }}",
+      "containerName": "app",
+      "containerPort": 3000
+    }
+  ],
+  "healthCheckGracePeriodSeconds": 60,
+  "deploymentConfiguration": {
+    "maximumPercent": 200,
+    "minimumHealthyPercent": 100
+  }
+}

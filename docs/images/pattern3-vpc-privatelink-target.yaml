@@ -1,0 +1,100 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - Client
+        - AWSCloud
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "顧客社内網\n(専用線/VPN)"
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: horizontal
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - VPC
+        - AgentCoreRuntime
+        - SupportStack
+    VPC:
+      Type: AWS::EC2::VPC
+      Direction: vertical
+      Title: "顧客専用VPC(networkMode: VPC)"
+      Children:
+        - PrivateSubnetStack
+    PrivateSubnetStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - PrivateSubnet1
+    PrivateSubnet1:
+      Type: AWS::EC2::Subnet
+      Preset: PrivateSubnet
+      Children:
+        - VPCEndpoint
+    VPCEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Title: "Interface VPCE\n(bedrock-agentcore)"
+    AgentCoreRuntime:
+      Type: AWS::Diagram::Resource
+      Preset: "Amazon Bedrock"
+      Title: "AgentCore Runtime"
+    SupportStack:
+      Type: AWS::Diagram::VerticalStack
+      Children:
+        - ECR
+        - DynamoDB
+        - CloudWatchLogs
+    ECR:
+      Type: AWS::ECR
+      Title: "ECR"
+    DynamoDB:
+      Type: AWS::DynamoDB::Table
+      Title: "DynamoDB"
+    CloudWatchLogs:
+      Type: AWS::CloudWatch
+      Title: "CloudWatch Logs"
+
+  Links:
+    - Source: Client
+      SourcePosition: E
+      Target: VPCEndpoint
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+      Labels:
+        AutoRight:
+          Title: "IGW/NAT非経由"
+    - Source: VPCEndpoint
+      SourcePosition: E
+      Target: AgentCoreRuntime
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+      Labels:
+        AutoRight:
+          Title: "PrivateLink"
+    - Source: AgentCoreRuntime
+      SourcePosition: NNE
+      Target: ECR
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+    - Source: AgentCoreRuntime
+      SourcePosition: E
+      Target: DynamoDB
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+    - Source: AgentCoreRuntime
+      SourcePosition: SSE
+      Target: CloudWatchLogs
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open

@@ -1,0 +1,129 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - AWSCloud
+        - Client
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: horizontal
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - FrontStack
+        - VPC
+    FrontStack:
+      Type: AWS::Diagram::VerticalStack
+      Children:
+        - APIGateway
+        - Cognito
+    APIGateway:
+      Type: AWS::ApiGatewayV2::Api
+      Title: "API Gateway\n(JWT Authorizer)"
+    Cognito:
+      Type: AWS::Cognito::UserPool
+      Title: "Cognito"
+    VPC:
+      Type: AWS::EC2::VPC
+      Direction: vertical
+      Children:
+        - PublicSubnetStack
+        - ALB
+        - PrivateSubnetStack
+      BorderChildren:
+        - Position: N
+          Resource: IGW
+    PublicSubnetStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - PublicSubnet1
+        - PublicSubnet2
+    PublicSubnet1:
+      Type: AWS::EC2::Subnet
+      Preset: PublicSubnet
+      Children:
+        - NatInstance1
+    NatInstance1:
+      Type: AWS::EC2::Instance
+      Title: "NAT (t3.nano)"
+    PublicSubnet2:
+      Type: AWS::EC2::Subnet
+      Preset: PublicSubnet
+      Children:
+        - NatInstance2
+    NatInstance2:
+      Type: AWS::EC2::Instance
+      Title: "NAT (t3.nano)"
+    ALB:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Preset: "Application Load Balancer"
+    PrivateSubnetStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - PrivateSubnet1
+    PrivateSubnet1:
+      Type: AWS::EC2::Subnet
+      Preset: PrivateSubnet
+      Children:
+        - ECSCluster
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Title: "ECS Cluster"
+      Children:
+        - ECSService
+    ECSService:
+      Type: AWS::ECS::Service
+      Title: "Fargateタスク\n(0.25vCPU/0.5GB)"
+    IGW:
+      Type: AWS::EC2::InternetGateway
+      IconFill:
+        Type: rect
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "Client (Cognito JWT)"
+
+  Links:
+    - Source: Client
+      SourcePosition: N
+      Target: APIGateway
+      TargetPosition: S
+      TargetArrowHead:
+        Type: Open
+    - Source: APIGateway
+      SourcePosition: N
+      Target: Cognito
+      TargetPosition: S
+      TargetArrowHead:
+        Type: Open
+    - Source: APIGateway
+      SourcePosition: E
+      Target: ALB
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+    - Source: ALB
+      SourcePosition: S
+      Target: ECSService
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+    - Source: IGW
+      SourcePosition: S
+      Target: NatInstance1
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+    - Source: IGW
+      SourcePosition: S
+      Target: NatInstance2
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open

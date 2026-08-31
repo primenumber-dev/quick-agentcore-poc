@@ -1,0 +1,94 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - Client
+        - AWSCloud
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "Claude Code\n(MCPクライアント)"
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: horizontal
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - Cognito
+        - AgentCoreRuntime
+        - SupportStack
+    Cognito:
+      Type: AWS::Cognito::UserPool
+      Title: "Cognito\n(agentcore-mcp-pool)\nCustom JWT Authorizerの発行元"
+    AgentCoreRuntime:
+      Type: AWS::Diagram::Resource
+      Preset: "Amazon Bedrock"
+      Title: "AgentCore Runtime\n(Custom JWT Authorizer)"
+    SupportStack:
+      Type: AWS::Diagram::VerticalStack
+      Children:
+        - ECR
+        - DynamoDB
+        - CloudWatchLogs
+    ECR:
+      Type: AWS::ECR
+      Title: "ECR"
+    DynamoDB:
+      Type: AWS::DynamoDB::Table
+      Title: "DynamoDB"
+    CloudWatchLogs:
+      Type: AWS::CloudWatch
+      Title: "CloudWatch Logs"
+
+  Links:
+    - Source: Client
+      SourcePosition: W
+      Target: Cognito
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Labels:
+        AutoRight:
+          Title: "① OAuth認可コード+PKCE\n(ブラウザ)"
+    - Source: Client
+      SourcePosition: E
+      Target: AgentCoreRuntime
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Labels:
+        AutoRight:
+          Title: "② Authorization: Bearer <token>"
+    - Source: AgentCoreRuntime
+      SourcePosition: N
+      Target: Cognito
+      TargetPosition: E
+      TargetArrowHead:
+        Type: Open
+      Labels:
+        AutoRight:
+          Title: "discoveryUrl/JWKS検証"
+    - Source: AgentCoreRuntime
+      SourcePosition: NNE
+      Target: ECR
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+    - Source: AgentCoreRuntime
+      SourcePosition: E
+      Target: DynamoDB
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+    - Source: AgentCoreRuntime
+      SourcePosition: SSE
+      Target: CloudWatchLogs
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
