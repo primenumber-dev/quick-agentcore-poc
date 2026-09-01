@@ -39,6 +39,8 @@ flowchart LR
 | 10 | [10-dcr-implementation.md](./10-dcr-implementation.md) | DCR(動的クライアント登録)の実装レポート。Lambda Authorizerへの置き換えが必要だった理由、なぜAgentCore Runtimeではなくpattern4(ECS)で実装したか、実装で踏んだ詰まりどころ(-target部分適用でのIAM権限漏れ等)、実機での動作確認結果(登録・認可・失効)をまとめる | エンジニア(再現・引き継ぎ用) |
 | 11 | [11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md) | Cognito→Auth0移行の机上見積もり。AgentCore RuntimeホスティングのままDCRを実現する経路として検討。追加コスト($800/月〜)、エンジニアリング工数(7〜10人日)、本番41ユーザーの移行リスク、データレジデンシー等のコンプライアンス懸念をまとめる | 意思決定者、アーキテクト |
 | 12 | [12-mcp-protocol-v2-upgrade-impact.md](./12-mcp-protocol-v2-upgrade-impact.md) | MCPプロトコルv1(2025-11-25)→v2(2026-07-28)移行の影響調査。SDKのバージョンアップで旧バージョンのMCPクライアントとの互換性を保てるか、AgentCore Runtimeへの影響をまとめる | エンジニア、アーキテクト |
+| 13 | [13-weekly-report-2026-09.md](./13-weekly-report-2026-09.md) | 今週(2026-08-31〜09-02)の検証活動の統合サマリー。08〜12番の要点をまとめた週次レポート | 意思決定者、エンジニア |
+| 14 | [14-step1-spec-confirmation-answers.md](./14-step1-spec-confirmation-answers.md) | Step1仕様確認シートへの回答。AgentCore Runtime移行に関する7件の質問(OAuthエンドポイント・呼び出しプロトコル・Shim・リクエストヘッダー・セッション隔離・Inbound・想定MCPクライアント)に本プロジェクトの実機検証結果を根拠に回答 | 仕様確認シート提起者、アーキテクト |
 | — | [agentcore-iam/](./agentcore-iam/) | AgentCore Runtime実行ロール用のIAMポリシー一式 | 本番アカウント適用時の管理者 |
 | — | [images/](./images/) | 構成図のPNGおよび生成元YAML([awsdac](https://github.com/awslabs/diagram-as-code)形式) | 図を再生成・改変したい人 |
 
