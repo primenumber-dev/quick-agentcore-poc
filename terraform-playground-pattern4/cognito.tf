@@ -33,7 +33,10 @@ resource "aws_cognito_user_pool_client" "mcp" {
 
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_flows_user_pool_client = true
-  allowed_oauth_scopes                 = ["openid", "email", "profile"]
+  # invokeスコープを追加(セキュリティレビュー2026-09-02): Lambda Authorizerがスコープ検証を
+  # 必須にしたため、このクライアントも要求できるようにする。実際に付与されるにはOAuth
+  # フローのscopeパラメータにも含める必要がある(scripts/invoke_agentcore_mcp_jwt.py等参照)。
+  allowed_oauth_scopes                 = ["openid", "email", "profile", "${aws_apigatewayv2_api.main.api_endpoint}/mcp/invoke"]
   supported_identity_providers         = ["COGNITO"]
   explicit_auth_flows                  = ["ALLOW_USER_PASSWORD_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
 

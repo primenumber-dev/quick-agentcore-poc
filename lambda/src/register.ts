@@ -4,7 +4,7 @@ import {
   CreateUserPoolClientCommand,
   DeleteUserPoolClientCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import { putClientRecord, deleteClientRecord, putServiceAccountUser } from "./shared/db.js";
+import { putClientRecord, deleteClientRecord } from "./shared/db.js";
 
 const cognito = new CognitoIdentityProviderClient({});
 const USER_POOL_ID = process.env.USER_POOL_ID!;
@@ -114,9 +114,14 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
       status: "active",
       source: "dcr",
     });
-    if (isClientCredentials) {
-      await putServiceAccountUser(clientId);
-    }
+    // セキュリティレビュー(2026-09-02)で指摘: 以前はここで client_credentials 登録に
+    // USER#<clientId> を自動作成し、他の招待済みテナントと同じ "standard" プランの
+    // サービスアクセスを無審査で即座に付与していた。resolveAuthorization()
+    // (server/src/auth.ts) はUSER#レコードの有無だけでアクセスを許可し、
+    // services.plan の値自体はツール登録(registerQuickTools)では一切参照されないため、
+    // 実質「登録した瞬間に無審査でフルアクセスを付与する」ことと同義だった。
+    // クライアント登録(このLambda)とテナントとしての利用許可(invite-user相当の
+    // 人手の審査)を分離し、USER#レコードの作成は引き続き admin 操作のみとする。
   } catch (e) {
     console.error("DynamoDB provisioning failed, rolling back Cognito client", e);
     try {

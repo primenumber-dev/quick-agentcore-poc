@@ -36,7 +36,9 @@ flowchart LR
 | 7c | [07-vpc-waf-cost-verification-client.md](./07-vpc-waf-cost-verification-client.md) | 07番のクライアント向け版(用語解説付き、対外報告用) | クライアント(QUICK様) |
 | 8 | [08-weekly-verification-plan.md](./08-weekly-verification-plan.md) | 今週の追加検証3点(DCR実装・応答時間チューニング・コストシミュレーター)の実装前プラン。セキュリティ懸念の新規発見、DCR見積もり改訂、応答時間チューニングのスコープ変更を含む | エンジニア(再現・引き継ぎ用) |
 | 9 | [09-cross-tenant-impersonation-finding.md](./09-cross-tenant-impersonation-finding.md) | AgentCore Runtime経路で発見・即日修正したクロステナントなりすまし脆弱性の詳細レポート。ECS経路との構造比較図、攻撃シナリオ図、実機での確証手順、修正の技術的根拠を図解付きでまとめる | エンジニア、アーキテクト、セキュリティレビュー担当 |
-| 10 | [10-dcr-implementation.md](./10-dcr-implementation.md) | DCR(動的クライアント登録)の実装レポート。Lambda Authorizerへの置き換えが必要だった理由、実装で踏んだ詰まりどころ(-target部分適用でのIAM権限漏れ等)、実機での動作確認結果(登録・認可・失効)をまとめる | エンジニア(再現・引き継ぎ用) |
+| 10 | [10-dcr-implementation.md](./10-dcr-implementation.md) | DCR(動的クライアント登録)の実装レポート。Lambda Authorizerへの置き換えが必要だった理由、なぜAgentCore Runtimeではなくpattern4(ECS)で実装したか、実装で踏んだ詰まりどころ(-target部分適用でのIAM権限漏れ等)、実機での動作確認結果(登録・認可・失効)をまとめる | エンジニア(再現・引き継ぎ用) |
+| 11 | [11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md) | Cognito→Auth0移行の机上見積もり。AgentCore RuntimeホスティングのままDCRを実現する経路として検討。追加コスト($800/月〜)、エンジニアリング工数(7〜10人日)、本番41ユーザーの移行リスク、データレジデンシー等のコンプライアンス懸念をまとめる | 意思決定者、アーキテクト |
+| 12 | [12-mcp-protocol-v2-upgrade-impact.md](./12-mcp-protocol-v2-upgrade-impact.md) | MCPプロトコルv1(2025-11-25)→v2(2026-07-28)移行の影響調査。SDKのバージョンアップで旧バージョンのMCPクライアントとの互換性を保てるか、AgentCore Runtimeへの影響をまとめる | エンジニア、アーキテクト |
 | — | [agentcore-iam/](./agentcore-iam/) | AgentCore Runtime実行ロール用のIAMポリシー一式 | 本番アカウント適用時の管理者 |
 | — | [images/](./images/) | 構成図のPNGおよび生成元YAML([awsdac](https://github.com/awslabs/diagram-as-code)形式) | 図を再生成・改変したい人 |
 

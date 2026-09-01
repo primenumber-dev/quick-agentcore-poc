@@ -12,6 +12,11 @@ const verifier = CognitoJwtVerifier.create({
   clientId: null,
 });
 
+// セキュリティレビュー(2026-09-02)で指摘: clientId:null はプール内の任意のクライアントの
+// トークンを受理するため、scopeクレームも合わせて確認しないと「MCP呼び出し用に発行された
+// わけではないトークン」まで通ってしまう(confused deputy)。invokeスコープの保有を必須にする。
+const REQUIRED_SCOPE = process.env.REQUIRED_SCOPE!;
+
 type Context = { sub: string; clientId: string };
 
 export async function handler(
@@ -35,6 +40,9 @@ export async function handler(
 
   const clientId = payload.client_id as string;
   if (!clientId) return deny;
+
+  const scopes = ((payload.scope as string) ?? "").split(" ");
+  if (!scopes.includes(REQUIRED_SCOPE)) return deny;
 
   const record = await getClientRecord(clientId);
   if (record && record.status === "revoked") return deny;

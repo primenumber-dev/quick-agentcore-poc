@@ -76,6 +76,8 @@ request_parameters = {
 
 [00-handoff.md §11・§12.1](./00-handoff.md)で選択肢B(Cognitoの手前に立つ自作DCR/CIMDプロキシ)を採用する方針が決まっていた。今回、実装可能な粒度まで設計を詰めたところ、当初の3-5人日という見積もりには含まれていなかった構造的な制約が見つかった。
 
+**実装対象について**: 以下の設計・実装はAgentCore Runtime(パターン3)ではなく、`terraform-playground-pattern4`(ECS+API Gateway、パターン4)を対象に行う。AgentCore Runtimeには`/register`を追加できるAPI Gateway相当の層が存在せず、認可方式(`allowedClients`固定リスト)もLambda Authorizerに差し替え不可能なため、現時点の仕様ではDCRを実装できない。詳細は[10-dcr-implementation.md §0](./10-dcr-implementation.md)を参照。
+
 ### 2.1 見積もりを変えた発見: JWT Authorizerは動的client_idに対応できない
 
 `terraform/apigateway.tf`の既存Authorizerは次の設定になっている。

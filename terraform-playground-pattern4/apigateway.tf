@@ -106,7 +106,9 @@ resource "aws_apigatewayv2_authorizer" "lambda" {
   authorizer_payload_format_version = "2.0"
   enable_simple_responses           = true
   identity_sources                  = ["$request.header.Authorization"]
-  authorizer_result_ttl_in_seconds  = 300
+  # セキュリティレビュー(2026-09-02): 300秒キャッシュだと`cli delete-client`による
+  # 失効が最大5分遅延して反映されない問題があった。失効の即時性を優先し短縮する。
+  authorizer_result_ttl_in_seconds  = 0
 }
 
 resource "aws_apigatewayv2_route" "well_known" {

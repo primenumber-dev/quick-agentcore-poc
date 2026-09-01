@@ -16,6 +16,57 @@
 | 3 | 実機確認できたこと | (a) 既存の静的クライアントが引き続き認証できる(回帰確認)、(b) 新規登録した`client_credentials`クライアントがMCPツール呼び出しに成功するまでエンドツーエンド、(c) DynamoDBの失効フラグでクライアントを個別に無効化できる、の3点(§4) |
 | 4 | 一番時間を溶かした詰まりどころ | `-target`オプションでの部分適用を繰り返した際、IAMロールの権限ポリシー(`dynamodb:GetItem`やCognito権限)とAWSLambdaBasicExecutionRoleのアタッチメントを対象から漏らし、Lambda自体は作成されるが権限が無くて500になる、という事象を2段階で踏んだ(§3.2) |
 | 5 | 未実施・残作業 | Claude Code/Claude.aiからの実際の自己登録によるE2E確認(Cognitoの新しいManaged Login UIがブラウザ操作を前提とした構造で、簡易スクリプトでは代替しづらいことが判明)、登録数上限の実装、セキュリティレビュー(§5) |
+| 6 | なぜAgentCore Runtimeではなくpattern4(ECS)で実装したか | 選択の余地は無かった。AgentCore Runtimeには`/register`を追加できるAPI Gateway相当の層が存在せず、認可方式(`allowedClients`)もLambda Authorizerに差し替え不可能な固定リストのため、そのままではDCRを実装できない(詳細は§0) |
+
+---
+
+## 0. なぜAgentCore Runtimeではなくpattern4(ECS)で実装したか
+
+DCRの実装対象として`terraform-playground-pattern4`(ECS+API Gateway)を選んだのは、検証のしやすさではなく、**現時点のAgentCore Runtimeの仕様ではDCRを構造的に実装できない**という技術的制約による。
+
+### 0.1 AgentCore Runtimeには`/register`を置く場所が無い
+
+AgentCore Runtimeのデータプレーンは`/invocations`という単一エンドポイントのみで、API Gateway/HTTP APIのように任意のルートを追加できる層が存在しない。pattern4の`aws_apigatewayv2_route.register`に相当する差し込み口が、AgentCore Runtime側には無い。
+
+### 0.2 AgentCore Runtimeの認可はLambda Authorizerに差し替えられない
+
+AgentCore Runtimeの認可は`authorizerConfiguration.customJWTAuthorizer`という単一の仕組みしか提供されない。今回の検証で使っている`quickMcpPocVerification-Aoo0d23yyj`(version 10)の実際の設定は次の通り(2026-08-31時点、[00-handoff.md §4](./00-handoff.md)参照)。
+
+```json
+"authorizerConfiguration": {
+  "customJWTAuthorizer": {
+    "discoveryUrl": "https://cognito-idp.ap-northeast-1.amazonaws.com/.../.well-known/openid-configuration",
+    "allowedClients": ["f9b41piv9irn56d49d16i9shc", "54cjhrb2bmba52upo8tfem4jlq", "7gtknlcn9imrhihetq3aauojaj"],
+    "allowedScopes": ["openid", "mcp/invoke"]
+  }
+}
+```
+
+`allowedClients`は**Runtimeリソース自体に紐づくAWSマネージドの固定リスト**であり、これはpattern4で最初につまずいた「JWT型Authorizerの`audience`が固定リストしか持てない」のと**全く同型の制約**である。しかもAgentCore Runtimeには、pattern4で行ったような「JWT型からLambda(REQUEST型)Authorizerへの差し替え」という選択肢自体が存在しない。`customJWTAuthorizer`がAgentCore Runtimeで選べる唯一の認可方式である。
+
+```mermaid
+flowchart TB
+    subgraph p4["pattern4 (ECS+API Gateway) — DCR実装可能"]
+        R1["API Gateway<br/>(HTTP API)"] -->|"ルート追加自由"| Reg1["POST /register<br/>(新規Lambda)"]
+        R1 -->|"Authorizer差し替え自由"| Auth1["JWT型 → Lambda型<br/>に変更できた"]
+    end
+    subgraph p3["pattern3 (AgentCore Runtime) — DCR実装不可"]
+        R2["/invocations<br/>(単一エンドポイント)"] -.->|"❌ ルートを追加する層が無い"| Reg2["/register を置けない"]
+        R2 -->|"❌ 差し替え不可"| Auth2["customJWTAuthorizer<br/>(allowedClients固定リストのみ)"]
+    end
+```
+
+### 0.3 前段プロキシを作っても、根本問題は残る
+
+AgentCore Runtime向けにDCRを実現するなら、Runtimeの手前に別のAPI Gateway+Lambdaプロキシを新設し、`/register`・`/authorize`・`/token`を中継する構成が考えられる。しかしこの場合でも、最終的に`/invocations`を呼び出す段階ではAgentCore自身の`allowedClients`チェックを必ず通過する必要があるため、**新規クライアントを登録するたびに`update-agent-runtime`で`allowedClients`に追記する**処理が結局必要になる。
+
+これは「登録のたびに静的リストを書き換える」という、pattern4の元のJWT Authorizerと同じ問題を抱えているだけでなく、**pattern4には無い深刻な運用上のリスクが追加される**。`update-agent-runtime`はRuntimeの新バージョンを発行し、`UPDATING`状態を経由する(このセッションの§1のセキュリティ修正でも実測: 約30秒〜数分)。つまり、**1クライアントが登録するたびに、その時点で接続している全ての既存クライアントに影響しうる、サービス全体のレベルの更新が走る**ことになる。API GatewayのLambda Authorizerはリクエスト単位で動作するため、こうした全体影響は発生しない。
+
+### 0.4 結論、そして「Cognitoをやめる」という代替経路
+
+AgentCore RuntimeでDCRを実現するには、上記の前段プロキシ構成に加えて、この「登録のたびにRuntimeバージョンが上がる」問題自体への対策(例えばバッチでの`allowedClients`更新、あるいはAWSの機能追加を待つ)が別途必要になる。今回はこの追加検討をスコープ外とし、DCRが技術的に成立するpattern4で先に実装・検証を行った。
+
+その後の調査で、この制約の根本原因は実はAgentCore Runtime自体ではなく、**Cognitoのアクセストークンに`aud`クレームが無い**という仕様にあることが判明した。AgentCore Runtimeの認可設定は`allowedClients`(client_id照合、動的登録に非対応)だけでなく`allowedAudience`(aud照合)も選べるため、DCR対応かつ`aud`を正しく発行するIdP(例: Auth0)に乗り換えれば、`allowedAudience`を固定1件のまま運用でき、**AgentCore Runtimeホスティングを維持したままDCRが成立する可能性が高い**。この代替経路のコスト・移行リスクの見積もりは[11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md)にまとめた。
 
 ---
 
@@ -152,6 +203,21 @@ IAM権限を修正した直後に同じアクセストークンで再テスト�
 いずれのテストも、確認後に作成したテスト用クライアント・DynamoDBレコードを削除し、環境を汚さないようクリーンアップ済み。
 
 ---
+
+## 4.5 セキュリティレビュー(2026-09-02実施)と修正
+
+`/security-review`スキルで新規コード(Lambda 2つ・terraform変更)をレビューし、4件の候補を洗い出した上で、各候補を独立エージェントによる誤検知フィルタリングにかけた。3件が確定(High 2件・Medium 1件)、1件は誤検知として除外された。
+
+| 重大度 | 内容 | 修正 |
+|---|---|---|
+| High | `POST /register`が匿名で`client_credentials`登録を受け付け、`USER#<client_id>`を自動作成して**無審査で正規の有料テナントと同じアクセス権を即座に付与**していた。`resolveAuthorization()`(`server/src/auth.ts`)はUSER#レコードの有無のみで許可判定しており、`services.plan`の値自体はツール登録では一切参照されない(`registerQuickTools`が無条件に全ツール登録)ため、実質「登録した瞬間に無審査でフルアクセス」と同義だった | `client_credentials`登録時のUSER#レコード自動作成を廃止。クライアント登録(このLambda)とテナントとしての利用許可(人手の審査)を分離し、アクセス許可には別途admin操作が必要とした |
+| High | Lambda Authorizerが`clientId: null`でプール内の任意のクライアントのトークンを受理する一方、`scope`クレームを一切検証していなかった。既存の静的クライアント(`openid`/`email`/`profile`のみ許可、`invoke`スコープ無し)のトークンでも`/mcp`が通ってしまうことを確認 | Authorizerに`invoke`スコープの保有チェックを追加。静的クライアントの`allowed_oauth_scopes`にも`invoke`を追加 |
+| Medium | Authorizerの結果が300秒キャッシュされ、`cli delete-client`で失効させても、直前にキャッシュされた同一トークンでのアクセスが最大5分間成功し続けてしまう | `authorizer_result_ttl_in_seconds`を0に短縮。あわせて失効チェックの`GetCommand`に`ConsistentRead: true`を追加 |
+| ~~Medium~~ | ~~`client_credentials`グラントを`token_endpoint_auth_method: "none"`(シークレット無し)で登録できてしまう~~ | **誤検知として除外**(confidence 2/10)。Cognitoの`CreateUserPoolClient`はこの組み合わせをサーバー側で拒否する(`InvalidOAuthFlowException`)ため、実際には悪用不可能と判断 |
+
+**修正の副産物としての発見**: 上記の検証中、これまでこのセッションで「回帰確認」に使っていた`InitiateAuth`(`USER_PASSWORD_AUTH`)方式のトークンは、`scope=aws.cognito.signin.user.admin`という**OAuthのリソースサーバースコープとは無関係な内部スコープ**を持つことが判明した。つまり今回のスコープチェック導入後、このテスト方式では実際のOAuthフロー(認可コード)を使うクライアントの挙動を正しく代替できない。今後の検証では`client_credentials`フロー、または実際のOAuth認可コードフローで取得したトークンを使う必要がある。
+
+修正はすべて`terraform-playground-pattern4`で実機再検証済み(`client_credentials`での新規登録→即座に403「User not found」、admin操作でUSER#レコード作成後は200、失効後は同一トークンで即座に403)。
 
 ## 5. 未実施・残作業
 

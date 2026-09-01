@@ -18,7 +18,9 @@ export interface ClientRecord {
 
 export async function getClientRecord(clientId: string): Promise<ClientRecord | null> {
   const result = await docClient.send(
-    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `CLIENT#${clientId}` } })
+    // ConsistentRead: 失効直後の読み取りが古いレプリカに当たらないようにする
+    // (セキュリティレビュー2026-09-02、Authorizerキャッシュ短縮とあわせて対応)
+    new GetCommand({ TableName: TABLE_NAME, Key: { PK: `CLIENT#${clientId}` }, ConsistentRead: true })
   );
   return (result.Item as ClientRecord) ?? null;
 }

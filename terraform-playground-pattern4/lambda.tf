@@ -60,7 +60,8 @@ resource "aws_lambda_function" "dcr_authorizer" {
 
   environment {
     variables = {
-      USER_POOL_ID = aws_cognito_user_pool.main.id
+      USER_POOL_ID   = aws_cognito_user_pool.main.id
+      REQUIRED_SCOPE = "${aws_cognito_resource_server.mcp.identifier}/invoke"
     }
   }
 }
