@@ -38,7 +38,7 @@ flowchart TB
         direction LR
         C1["Cognito User Pool"] --> C2["App Client(固定)"]
         C2 -->|"aud無し、client_idのみ"| C3["AgentCore Runtime<br/>allowedClients(固定リスト)"]
-        C1 -.->|"DCR非対応"| C4["❌ 動的クライアント登録不可"]
+        C1 -.->|"DCR非対応"| C4["動的クライアント登録不可"]
     end
     subgraph after["移行後: Auth0"]
         direction LR
@@ -71,12 +71,12 @@ DCR機能は**Professionalプラン以上でのみ有効化可能**(ダッシュ
 
 | プラン区分 | 最低月額 | MAU上限 | DCR対応 |
 |---|---|---|---|
-| Free | $0 | 25,000 | ❌ 非対応 |
-| Essentials (B2C) | $35 | 500 | ❌ 非対応 |
-| Essentials (B2B) | $150 | 500 | ❌ 非対応 |
-| **Professional (B2C)** | **$240** | 1,000 | ✅ |
-| **Professional (B2B)** | **$800** | 1,000 | ✅ |
-| Enterprise | 要問い合わせ(目安$10,000+) | 応相談 | ✅ |
+| Free | $0 | 25,000 | 非対応 |
+| Essentials (B2C) | $35 | 500 | 非対応 |
+| Essentials (B2B) | $150 | 500 | 非対応 |
+| **Professional (B2C)** | **$240** | 1,000 | 対応 |
+| **Professional (B2B)** | **$800** | 1,000 | 対応 |
+| Enterprise | 要問い合わせ(目安$10,000+) | 応相談 | 対応 |
 
 「金融機関を複数テナントとして外販する」という本サービスの性質上、B2B区分が実態に近い。**最低でも月額$800(≈12万円/月)が新規発生**する。現状のCognitoは実クライアント41ユーザーの規模ではほぼ無償(Cognitoの無料枠は月間アクティブユーザー50,000人まで無料)であるため、この差額はまるごと新規コストとなる。
 
@@ -152,6 +152,8 @@ sequenceDiagram
 3. **本番41ユーザーの移行リスクを許容できるか**(§4.4)
 
 これらがクリアできない場合の代替案は、[08-weekly-verification-plan.md §2.5](./08-weekly-verification-plan.md)で触れた「選択肢A: `oauth_anthropic_creds`」(個別コネクタとして展開し、DCR自体を不要にする)、または現状のCognito+自前DCR実装(今回`terraform-playground-pattern4`で構築したもの)をECS+API Gateway経路限定で採用し、AgentCore Runtimeは非DCRの静的クライアント運用に留める、という切り分けである。
+
+**【2026-09-02追記・次回優先確認】より安価な代替仮説**: 本ドキュメントの検討中に、Auth0移行より遥かに安く済む可能性のある仮説が新たに見つかった。AgentCore Runtimeの認可設定は`allowedClients`を完全に外し、Cognitoトークンが持つ`scope`クレームのみ(`allowedScopes`)で運用できる可能性がある。これが機能すれば、Cognitoを維持したままDCRがpattern3(AgentCore Runtime)でも成立し、本ドキュメントの月額$800〜という追加コスト自体が不要になる。**Auth0移行の実施判断は、この仮説をplaygroundで実機検証してから行うことを強く推奨する**(詳細は[10-dcr-implementation.md §0.5](./10-dcr-implementation.md))。
 
 Sources:
 - [Configure inbound JWT authorizer](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html)

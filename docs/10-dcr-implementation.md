@@ -51,8 +51,8 @@ flowchart TB
         R1 -->|"Authorizer差し替え自由"| Auth1["JWT型 → Lambda型<br/>に変更できた"]
     end
     subgraph p3["pattern3 (AgentCore Runtime) — DCR実装不可"]
-        R2["/invocations<br/>(単一エンドポイント)"] -.->|"❌ ルートを追加する層が無い"| Reg2["/register を置けない"]
-        R2 -->|"❌ 差し替え不可"| Auth2["customJWTAuthorizer<br/>(allowedClients固定リストのみ)"]
+        R2["/invocations<br/>(単一エンドポイント)"] -.->|"ルートを追加する層が無い"| Reg2["/register を置けない"]
+        R2 -->|"差し替え不可"| Auth2["customJWTAuthorizer<br/>(allowedClients固定リストのみ)"]
     end
 ```
 
@@ -67,6 +67,16 @@ AgentCore Runtime向けにDCRを実現するなら、Runtimeの手前に別のAP
 AgentCore RuntimeでDCRを実現するには、上記の前段プロキシ構成に加えて、この「登録のたびにRuntimeバージョンが上がる」問題自体への対策(例えばバッチでの`allowedClients`更新、あるいはAWSの機能追加を待つ)が別途必要になる。今回はこの追加検討をスコープ外とし、DCRが技術的に成立するpattern4で先に実装・検証を行った。
 
 その後の調査で、この制約の根本原因は実はAgentCore Runtime自体ではなく、**Cognitoのアクセストークンに`aud`クレームが無い**という仕様にあることが判明した。AgentCore Runtimeの認可設定は`allowedClients`(client_id照合、動的登録に非対応)だけでなく`allowedAudience`(aud照合)も選べるため、DCR対応かつ`aud`を正しく発行するIdP(例: Auth0)に乗り換えれば、`allowedAudience`を固定1件のまま運用でき、**AgentCore Runtimeホスティングを維持したままDCRが成立する可能性が高い**。この代替経路のコスト・移行リスクの見積もりは[11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md)にまとめた。
+
+### 0.5 【未検証・次回申し送り】Cognitoのままでも`allowedScopes`単独運用で解決する可能性(2026-09-02追記)
+
+Auth0移行(§11)を検討する過程で、AgentCore Runtimeの`CustomJWTAuthorizerConfiguration`の仕様を改めて確認したところ、`allowedClients`・`allowedAudience`・`allowedScopes`はいずれも任意項目で、**3つのうち最低1つを指定すればよい**(全て空にはできないが、`allowedClients`単独である必要はない)ことが分かった。
+
+Cognitoのアクセストークンには`aud`クレームは無いが、**`scope`クレームは持っている**(既存のRuntime設定でも`allowedScopes: ["openid", "mcp/invoke"]`を実際に使用している)。もし`allowedClients`を完全に外し、`allowedScopes`(例: `mcp/invoke`)だけで運用できれば、DCRで動的に作成したCognitoクライアントでも、正しいスコープさえ付与されていればRuntimeの設定変更(`update-agent-runtime`、§0.3で指摘した全体影響のリスク)を一切経由せずに即座に信頼される可能性がある。これが機能するなら、**Auth0移行(月額$800〜)よりはるかに安く、Cognitoのままpattern3(AgentCore Runtime)でDCRを実現できる**ことになる。
+
+あわせて、pattern4(ECS+API Gateway)側についても、今回はHTTP API(`aws_apigatewayv2_*`)+自作Lambda Authorizerで解決したが、**API Gateway REST API(v1)のネイティブ`COGNITO_USER_POOLS`型オーソライザーは「許可するclient ID」の指定が任意で、空にすればプール内の任意のApp Clientを信頼する**仕様であることも判明した。REST APIに切り替えれば、Lambda Authorizerを自作しなくてもネイティブ機能だけで同じ問題を解決できていた可能性がある(参考: [Zenn記事によるAPI Gateway REST API + CognitoでのDCR実装例](https://zenn.dev/manaty226/articles/20250614_aws-mcp-managed-architecture)。`/register`もLambdaを使わずVTLマッピングテンプレートで`CreateUserPoolClient`に直接変換する設計)。
+
+**どちらも本セッションでは実機検証していない机上の仮説**であり、次回セッションでの検証を推奨する。検証コストはAuth0移行よりはるかに低い(playgroundのRuntime設定変更のみ、または既存のterraform-playground-pattern4をREST APIに置き換える比較検証)。
 
 ---
 
@@ -90,11 +100,11 @@ DCRは「利用者が使うたびに新しいCognito App Clientを動的に作�
 flowchart TB
     subgraph before["修正前: JWT型Authorizer"]
         C1[新規DCRクライアント登録] -.->|"audienceリストに追加できない"| A1[JWT Authorizer<br/>固定audienceリスト]
-        A1 -->|"未登録client_idは常に401"| X1[❌ DCR運用不可]
+        A1 -->|"未登録client_idは常に401"| X1[DCR運用不可]
     end
     subgraph after["修正後: Lambda型Authorizer"]
         C2[新規DCRクライアント登録] --> A2[Lambda Authorizer<br/>プール全体を信頼]
-        A2 -->|"DynamoDBの失効リストのみ確認"| X2[✓ 個別クライアントを<br/>動的に許可・失効可能]
+        A2 -->|"DynamoDBの失効リストのみ確認"| X2[個別クライアントを<br/>動的に許可・失効可能]
     end
 ```
 
@@ -178,7 +188,7 @@ RuntimeError: login form parse failed:
 flowchart LR
     A["terraform apply<br/>-target=aws_lambda_function.X"] --> B{"依存関係は<br/>参照ベースで自動追跡"}
     B -->|"role = aws_iam_role.X.arn<br/>(参照あり→追従)"| C["IAMロール自体は作成される"]
-    B -->|"ポリシーは別リソース<br/>(参照なし→追従しない)"| D["❌ ポリシーは<br/>-targetに無いと未適用"]
+    B -->|"ポリシーは別リソース<br/>(参照なし→追従しない)"| D["ポリシーは<br/>-targetに無いと未適用"]
     D --> E["Lambdaは存在するが<br/>実行時に権限エラー"]
 ```
 
@@ -194,11 +204,11 @@ IAM権限を修正した直後に同じアクセストークンで再テスト�
 
 | # | シナリオ | 結果 |
 |---|---|---|
-| 1 | 既存の静的クライアント(`quick-mcp-poc-mcp-client`)による`/mcp`呼び出し(回帰確認) | ✅ 200、`tools/list`成功。Lambda Authorizerへの切替後も既存クライアントは無停止で動作継続 |
-| 2 | `POST /register`での新規クライアント登録(authorization_code) | ✅ 201、`client_id`発行、`invoke`スコープ含む正しいスコープ文字列を確認 |
-| 3 | `POST /register`での新規クライアント登録(client_credentials) | ✅ 201、`client_id`/`client_secret`発行 |
-| 4 | 登録した`client_credentials`クライアントでトークン取得→`/mcp`呼び出し | ✅ 200、`tools/list`成功。DynamoDBへの`USER#<client_id>`サービスアカウント自動作成が機能していることを確認(登録直後、追加の手動プロビジョニングなしでアクセス可能) |
-| 5 | DynamoDBの`CLIENT#`レコードを`status: revoked`に変更した後、同じ(失効前に発行済みで暗号学的には有効な)トークンで`/mcp`呼び出し | ✅ 403 Forbidden。Cognito自体のトークン失効を待たずに、アプリ側の失効リストで即座にアクセスを止められることを確認 |
+| 1 | 既存の静的クライアント(`quick-mcp-poc-mcp-client`)による`/mcp`呼び出し(回帰確認) | 200、`tools/list`成功。Lambda Authorizerへの切替後も既存クライアントは無停止で動作継続 |
+| 2 | `POST /register`での新規クライアント登録(authorization_code) | 201、`client_id`発行、`invoke`スコープ含む正しいスコープ文字列を確認 |
+| 3 | `POST /register`での新規クライアント登録(client_credentials) | 201、`client_id`/`client_secret`発行 |
+| 4 | 登録した`client_credentials`クライアントでトークン取得→`/mcp`呼び出し | 200、`tools/list`成功。DynamoDBへの`USER#<client_id>`サービスアカウント自動作成が機能していることを確認(登録直後、追加の手動プロビジョニングなしでアクセス可能) |
+| 5 | DynamoDBの`CLIENT#`レコードを`status: revoked`に変更した後、同じ(失効前に発行済みで暗号学的には有効な)トークンで`/mcp`呼び出し | 403 Forbidden。Cognito自体のトークン失効を待たずに、アプリ側の失効リストで即座にアクセスを止められることを確認 |
 
 いずれのテストも、確認後に作成したテスト用クライアント・DynamoDBレコードを削除し、環境を汚さないようクリーンアップ済み。
 

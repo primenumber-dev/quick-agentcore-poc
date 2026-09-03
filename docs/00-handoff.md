@@ -1,7 +1,9 @@
-# セッション引き継ぎメモ(2026-08-20時点)
+# セッション引き継ぎメモ(2026-09-02時点)
 
 > **この章で分かること**
 > 前回セッションで何をどこまでやったか、次に何をすべきか、そして再開する上で最初につまずきそうな点(PATH、SSOトークン、サンドボックス制限)を先回りしてまとめる。次回セッションはまずこのファイルを読んでから作業を再開すること。
+>
+> **最新の状況(2026-09-02時点)は末尾の「13. セッション完了サマリー(2026-09-02)」を先に読むこと。** それより前の記述は2026-08-20〜31時点の古い状態を含む(誤りではないが、一部は§13で更新・訂正されている)。
 
 ## 1. 状況サマリー
 
@@ -353,3 +355,71 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 2. 12.2の「セッションID使い回し仮説」はコード変更不要で最も安く検証できるため最初に試す
 3. 12.3のコストシミュレーターはAWSアクセス不要で並行して進められる
 4. 12.1のDCR実装は初回git commitの合意が前提になるため、着手前にユーザーに確認する
+
+---
+
+## 13. セッション完了サマリー(2026-09-02〜09-03実施)
+
+> このセクションが本ファイルの最新状態。§12までの記述と矛盾する場合はこちらを優先すること。
+
+### 13.1 リポジトリのGitHub化(今セッション最初に実施)
+
+- 初回git commit・GitHub push を完了。**`https://github.com/primenumber-dev/quick-agentcore-poc`(private)**
+- コミット署名(SSH署名)必須のリポジトリルールがあり、`~/.ssh/id_ed25519_signing`鍵を新規作成してGitHubにSigning Keyとして登録済み。ローカルのgit設定(`gpg.format=ssh`, `commit.gpgsign=true`, `user.signingkey`)は`.git/config`に反映済み(リポジトリ固有設定、他リポジトリには影響しない)
+- commit時の`user.email`は`mamoru_1992@outlook.jp`(GitHub検証済みメール)。`mamoru.ishino@primenumber.co.jp`ではないので注意
+- `node_modules`・`.terraform`・`tfstate`が誤ってコミットされていないことを確認済み。秘密情報のスキャンも実施し問題なし
+
+### 13.2 §12の今週の検証3項目の実施結果
+
+| 項目 | 状態 |
+|---|---|
+| DCR実装(選択肢B) | **完了**(タスク1〜6+セキュリティレビュー)。`terraform-playground-pattern4`に実装、実機確認済み。詳細は[10-dcr-implementation.md](./10-dcr-implementation.md) |
+| コストシミュレーター | **完了**。[Artifact公開済み](https://claude.ai/code/artifact/8f9d8cfc-aec8-4eb2-8970-6e3e1947f8c3)、既存資料の14数値を再現することを検証済み |
+| 応答時間チューニング(Phase 0) | **未着手**。次回セッション最優先。手順は[08-weekly-verification-plan.md §3](./08-weekly-verification-plan.md)に整理済み。あわせて§3.5・[13-weekly-verification-report.md §7.4](./13-weekly-verification-report.md)に「コンテナ起動オーバーヘッド自体を縮められるかもしれない」という追加候補(ウォームプール検証・コードデプロイモード比較)も次回検証項目として記録済み |
+
+### 13.3 スコープ外で見つかった重大な追加成果
+
+- **【最重要・修正済み】x-cognito-subヘッダーによるクロステナントなりすまし脆弱性**: AgentCore Runtime経路で発見・実機確認・即日修正(設定変更のみ、コード変更不要)。詳細は[09-cross-tenant-impersonation-finding.md](./09-cross-tenant-impersonation-finding.md)。**AgentCore Runtimeは現在version 10**(修正反映済み)
+- **DCR実装後のセキュリティレビュー**: 4件の候補中3件を確定・修正(無審査アクセス付与、スコープ未検証、失効の最大5分遅延)。1件は誤検知として除外。詳細は[10-dcr-implementation.md §4.5](./10-dcr-implementation.md)
+- **Cognito→Auth0移行の机上見積もり**: [11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md)。技術的に成立しそうだが月額$800〜の新規コストとデータレジデンシー懸念あり
+- **【次回最優先で試すべき、Auth0移行よりはるかに安い代替仮説(未検証)】**: AgentCore Runtimeの`allowedClients`を外し`allowedScopes`のみで運用すれば、Cognitoのままpattern3でもDCRが成立する可能性がある。また、pattern4もAPI Gateway REST API(v1)のネイティブ`COGNITO_USER_POOLS`オーソライザー(client ID指定が任意)に置き換えれば、自作Lambda Authorizerが不要になる可能性がある。詳細は[10-dcr-implementation.md §0.5](./10-dcr-implementation.md)、[08-weekly-verification-plan.md §2.9](./08-weekly-verification-plan.md)
+- **MCPプロトコルv2(2026-07-28)移行の影響調査**: [12-mcp-protocol-v2-upgrade-impact.md](./12-mcp-protocol-v2-upgrade-impact.md)。**重要な訂正**: 当初「v2 SDKは現状ベータ版」と誤って結論づけたが、追加確認で**v2は仕様と同時に2026-07-28に既にGA済み**と判明し訂正済み。「GAを待つ」という判断根拠は無くなっている
+- **Step1仕様確認シートへの回答**: [14-step1-spec-confirmation-answers.md](./14-step1-spec-confirmation-answers.md)。特にx-cognito-subヘッダーに関する質問は、上記の脆弱性発見と直結する内容だった
+- **今週の統合レポート**: [13-weekly-verification-report.md](./13-weekly-verification-report.md)(PDF化済み: `docs/13-weekly-verification-report.pdf`)。既存の06/07番と同フォーマット(TL;DR・AWS構成図・Mermaidシーケンス図・図の解説・出典)で、この週の全内容を1本のレポートに統合
+
+### 13.4 PDF化パイプラインの重要な修正(次回以降に影響)
+
+`scripts/render-pdf.sh`に、**複数のMermaid図を含む文書でSVGが誤った位置に重なって描画される既知のバグ**を発見・修正した。
+
+- 原因: Mermaidの一括処理API(`mermaid.run()`)が、1ページに複数の図が並ぶ文書で、図同士の描画位置を取り違えることがある
+- 対応: `mermaid.render(id, definition)`を図ごとに明示的なユニークIDで個別呼び出しし、結果を該当のプレースホルダー要素にだけ差し込む方式に変更済み(スクリプトは修正済み、今後生成するPDFはこの修正が自動的に反映される)
+- 図が2〜3個程度の文書では発生しにくく、[13-weekly-verification-report.md](./13-weekly-verification-report.md)のように図が10個を超えるあたりから顕在化した。**今後、複数図を含む長いレポートをPDF化する際は、生成後に必ず全ページを目視確認すること**(`pdftoppm`で1ページずつPNG化して確認する手順が確立済み)
+
+### 13.5 現在のAWSリソース状態(playgroundアカウント、883660531246)
+
+§4の記載から以下が更新されている。
+
+| リソース | 状態 |
+|---|---|
+| AgentCore Runtime(`quickMcpPocVerification-Aoo0d23yyj`) | **version 10**(§13.3のセキュリティ修正反映済み、`requestHeaderAllowlist`は`["Authorization"]`のみ) |
+| `terraform-playground-pattern4` | DCR実装(Lambda Authorizer + DCR Register Lambda)を追加。JWT型AuthorizerからLambda型に切替済み。認可結果のキャッシュTTLは0秒に短縮済み。既存の静的クライアント(`quick-mcp-poc-mcp-client`)は`invoke`スコープも許可済み |
+| `lambda/`(新規ディレクトリ) | DCR用の2 Lambda(`authorizer.ts`, `register.ts`)のソース一式。ビルド成果物(`dist/`)は`.gitignore`対象 |
+
+テスト用に作成したDCRクライアント・DynamoDBレコードはすべて検証後にクリーンアップ済み(playground環境を汚していない)。
+
+### 13.6 次回セッションの優先順位(推奨)
+
+1. **AWS SSOログイン状態を確認**(`quick-agentcore-poc-playground`プロファイル。本セッションでも複数回失効した)
+2. **§13.3の「Auth0移行より安い代替仮説」を先に検証**(`allowedScopes`単独運用、REST API Gatewayネイティブオーソライザー)。Auth0移行の意思決定はこの結果を見てから行う
+3. 応答時間チューニングPhase 0(セッションID使い回し検証)に着手。CloudWatch LogsのVPCエンドポイント追加が前提
+4. DCRのタスク7(Claude Code/Claude.aiからの実際の自己登録E2E確認)は、Cognito Managed Login UI v2のブラウザ操作制約が壁になっている。回避策の検討が必要
+5. 本番相当`terraform/`へのDCR実装の移植は、書き込み禁止のためapply自体はユーザー判断待ち
+
+### 13.7 学び(次回以降に活かすべき点)
+
+- **`terraform apply -target`で多数の新規リソースを部分適用する際は、IAMポリシー・ポリシーアタッチメントまで含めて対象を列挙すること**。Terraformの依存関係は「参照」からしか自動導出されないため、Lambda関数本体だけを`-target`に含めても、アタッチされた権限ポリシーは別リソースとして扱われ、対象から漏れやすい(今回2段階で同じミスを踏んだ)
+- **Authorizerの結果キャッシュ(`authorizer_result_ttl_in_seconds`)がある場合、修正の検証は必ず新しいトークン・新しい認可対象で行うこと**。同じトークンでの再試行はキャッシュの影響を切り分けられず誤診断につながる
+- **セキュリティ関連のなりすまし検証では、「成功する」ことより「失敗するはずのケースが失敗すること」を確認する方が確実**。今回の`x-cognito-sub`検証も、DCRの失効検証も、この「否定的なテスト」のアプローチで確証を得た
+- **PDF化で複数のMermaid図を扱う場合、`mermaid.run()`の一括処理に頼らず、図ごとに明示的なIDで`mermaid.render()`すること**(§13.4参照)
+- **AWS公式ドキュメントの「ベータ版」情報は鵜呑みにせず、日付が新しい一次情報(仕様サイト・GitHubリリースページ)で裏を取ること**。MCPプロトコルv2のGA時期を一度誤って報告した(§13.3参照)
+- **セキュリティレビューやコストの数字は、ユーザーの要望に応じて「言い回し」を調整してよいが、事実(何を発見し、何を直したか)は変えないこと**。今回「クロステナントなりすまし」という表現を「x-cognito-subヘッダー処理の修正」に和らげたが、技術的内容自体は変更していない

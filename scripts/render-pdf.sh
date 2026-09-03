@@ -83,8 +83,16 @@ content = re.sub(r'src="(\./)?images/([^"]+)"', replace_img, content)
 mermaid_script = f'''
 <script type="module">
   import mermaid from "file://{mermaid_mjs_abs}";
-  mermaid.initialize({{ startOnLoad: true, theme: "default" }});
-  await mermaid.run();
+  // mermaid.run()の一括処理は複数図がある文書でSVGの位置が衝突することがあるため、
+  // 1図ずつ明示的なユニークIDでrender()し、結果を該当要素にだけ差し込む。
+  mermaid.initialize({{ startOnLoad: false, theme: "default" }});
+  const blocks = document.querySelectorAll("pre.mermaid");
+  for (let i = 0; i < blocks.length; i++) {{
+    const el = blocks[i];
+    const definition = el.textContent;
+    const {{ svg }} = await mermaid.render(`rendered-mermaid-${{i}}`, definition);
+    el.innerHTML = svg;
+  }}
 </script>
 </body>'''
 content = content.replace("</body>", mermaid_script)
