@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -5,6 +6,17 @@ import { resolveAuthorization } from "./auth.js";
 // import { registerEarthquakeTools } from "./tools/earthquake.js";
 // import { registerCryptoTools } from "./tools/crypto.js";
 import { registerQuickTools } from "./tools/quick/index.js";
+
+// LOG_TIMING instrumentation for the "6-second response" latency
+// investigation (docs/08-weekly-verification-plan.md §3). bootId is
+// generated once per process: identical bootId values across requests
+// prove the same container/process served both (microVM reuse via
+// Mcp-Session-Id stickiness), rather than a fresh cold start each time.
+const bootId = randomUUID();
+let reqSeq = 0;
+if (process.env.LOG_TIMING) {
+  console.log(JSON.stringify({ timing: "boot", bootId }));
+}
 
 const app = express();
 app.use(express.json());
@@ -38,6 +50,20 @@ app.delete("/mcp", (_req, res) => {
 });
 
 app.post("/mcp", async (req, res) => {
+  const t0 = process.env.LOG_TIMING ? performance.now() : 0;
+  const reqSeqId = ++reqSeq;
+  if (process.env.LOG_TIMING) {
+    console.log(
+      JSON.stringify({
+        timing: "request_received",
+        bootId,
+        reqSeqId,
+        incomingMcpSessionId: req.headers["mcp-session-id"] ?? null,
+        method: req.body?.method ?? null,
+      })
+    );
+  }
+
   const sub = extractSub(req);
   if (!sub) {
     res.status(401).json({ error: "Missing user identity" });
@@ -63,6 +89,17 @@ app.post("/mcp", async (req, res) => {
 
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
+
+    if (process.env.LOG_TIMING) {
+      console.log(
+        JSON.stringify({
+          timing: "request_complete",
+          bootId,
+          reqSeqId,
+          durationMs: Math.round(performance.now() - t0),
+        })
+      );
+    }
 
     res.on("close", () => {
       transport.close();
