@@ -1,6 +1,6 @@
 import express from "express";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
 import { resolveAuthorization } from "./auth.js";
 // import { registerEarthquakeTools } from "./tools/earthquake.js";
 // import { registerCryptoTools } from "./tools/crypto.js";
@@ -29,49 +29,45 @@ function extractSub(req: express.Request): string | undefined {
   }
 }
 
-app.get("/mcp", (_req, res) => {
-  res.status(405).json({ error: "SSE not supported in stateless mode" });
+// v2 SDK: MCP protocol 2026-07-28. `legacy: "stateless"` (the default) keeps
+// serving 2025-era clients over the same per-request stateless idiom as
+// before (sessionIdGenerator: undefined equivalent), and answers legacy
+// GET/DELETE on /mcp with 405 automatically — no hand-rolled stubs needed.
+const mcpHandler = createMcpHandler(() => {
+  const server = new McpServer({
+    name: "quick-mcp-poc",
+    version: "1.0.0",
+  });
+
+  // registerEarthquakeTools(server, userContext.allowedTools);
+  // registerCryptoTools(server, userContext.allowedTools);
+  registerQuickTools(server);
+
+  return server;
 });
 
-app.delete("/mcp", (_req, res) => {
-  res.status(200).json({ message: "Session terminated" });
-});
+const nodeHandler = toNodeHandler(mcpHandler);
 
-app.post("/mcp", async (req, res) => {
-  const sub = extractSub(req);
-  if (!sub) {
-    res.status(401).json({ error: "Missing user identity" });
-    return;
+app.all("/mcp", async (req, res) => {
+  // Only POST performs an actual invocation; GET/DELETE fall through to the
+  // v2 handler's own legacy-mode routing (405) without an auth check, same
+  // as the v1 stub behavior.
+  if (req.method === "POST") {
+    const sub = extractSub(req);
+    if (!sub) {
+      res.status(401).json({ error: "Missing user identity" });
+      return;
+    }
+    try {
+      await resolveAuthorization(sub);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Internal server error";
+      res.status(403).json({ error: message });
+      return;
+    }
   }
 
-  try {
-    const userContext = await resolveAuthorization(sub);
-
-    const server = new McpServer({
-      name: "quick-mcp-poc",
-      version: "1.0.0",
-    });
-
-    // registerEarthquakeTools(server, userContext.allowedTools);
-    // registerCryptoTools(server, userContext.allowedTools);
-    registerQuickTools(server);
-
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
-
-    res.on("close", () => {
-      transport.close();
-      server.close();
-    });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Internal server error";
-    res.status(403).json({ error: message });
-  }
+  await nodeHandler(req, res, req.body);
 });
 
 const port = parseInt(process.env.PORT ?? "8000", 10);

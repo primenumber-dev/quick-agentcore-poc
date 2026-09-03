@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { registerGetQuote } from "./get_quote.js";
 import { registerGetPriceHistory } from "./get_price_history.js";
 import { registerGetIntradayHistory } from "./get_intraday_history.js";

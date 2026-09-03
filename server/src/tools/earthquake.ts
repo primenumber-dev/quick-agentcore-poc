@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 
 const BASE_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0";
 
