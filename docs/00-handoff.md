@@ -1,9 +1,9 @@
-# セッション引き継ぎメモ(2026-09-02時点)
+# セッション引き継ぎメモ(2026-09-03時点)
 
 > **この章で分かること**
 > 前回セッションで何をどこまでやったか、次に何をすべきか、そして再開する上で最初につまずきそうな点(PATH、SSOトークン、サンドボックス制限)を先回りしてまとめる。次回セッションはまずこのファイルを読んでから作業を再開すること。
 >
-> **最新の状況(2026-09-02時点)は末尾の「13. セッション完了サマリー(2026-09-02)」を先に読むこと。** それより前の記述は2026-08-20〜31時点の古い状態を含む(誤りではないが、一部は§13で更新・訂正されている)。
+> **最新の状況(2026-09-03時点)は末尾の「14. セッション完了サマリー(2026-09-03)」を先に読むこと。** それより前の記述は2026-08-20〜09-02時点の古い状態を含む(誤りではないが、一部は§13・§14で更新・訂正されている)。
 
 ## 1. 状況サマリー
 
@@ -423,3 +423,51 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 - **PDF化で複数のMermaid図を扱う場合、`mermaid.run()`の一括処理に頼らず、図ごとに明示的なIDで`mermaid.render()`すること**(§13.4参照)
 - **AWS公式ドキュメントの「ベータ版」情報は鵜呑みにせず、日付が新しい一次情報(仕様サイト・GitHubリリースページ)で裏を取ること**。MCPプロトコルv2のGA時期を一度誤って報告した(§13.3参照)
 - **セキュリティレビューやコストの数字は、ユーザーの要望に応じて「言い回し」を調整してよいが、事実(何を発見し、何を直したか)は変えないこと**。今回「クロステナントなりすまし」という表現を「x-cognito-subヘッダー処理の修正」に和らげたが、技術的内容自体は変更していない
+
+## 14. セッション完了サマリー(2026-09-03実施)
+
+> このセクションが本ファイルの最新状態。§13までの記述と矛盾する場合はこちらを優先すること。
+
+### 14.1 今週の検証4項目の実施結果
+
+ユーザーから提示された4項目すべてに着手し、完了した。
+
+| 項目 | 状態 |
+|---|---|
+| MCPプロトコルv2への載せ替え検証 | **完了(スパイクとして)**。`feature/mcp-protocol-v2-spike`ブランチで実装、LocalStackで動作確認済み。**mainには未マージ**(意図的にスパイク止まりの方針)。詳細は[12-mcp-protocol-v2-upgrade-impact.md §7](./12-mcp-protocol-v2-upgrade-impact.md) |
+| ECS(WAF・DCR)本番化検証・課題整理 | **完了**。既存`terraform-playground-pattern4`でのDCRデモ実演に加え、[10-dcr-implementation.md §0.5](./10-dcr-implementation.md)で未検証だった2つの仮説(AgentCore Runtime`allowedScopes`単独運用、ECS側REST APIネイティブ`COGNITO_USER_POOLS`オーソライザー)を実機で初検証し、いずれも成立を確認。WAFのSQLi未対応も新規発見。詳細は[15-ecs-production-readiness-gaps.md](./15-ecs-production-readiness-gaps.md) |
+| 応答時間チューニング(6秒問題) | **完了(Phase 0)**。セッションID再利用で約10倍高速化(6秒→0.5〜0.6秒)することを実機確認したが、効果の持続時間は30秒〜5分の間で失われることも判明(設定上の`idleRuntimeSessionTimeout`15分より短い) |
+| 今週の検証レポート作成 | **完了**。社内向け[16-weekly-verification-report-week3.md](./16-weekly-verification-report-week3.md)・クライアント向け[16-weekly-verification-report-week3-client.md](./16-weekly-verification-report-week3-client.md)(PDF化済み)を作成 |
+
+### 14.2 本番相当terraformのaudienceバグ修正パッチ
+
+[07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)で発見済みだった本番`terraform/apigateway.tf`の`audience`バグ(正当なトークンでも401になる)について、`fix/production-audience-config-proposal`ブランチとして修正パッチを用意した(`terraform validate`まで確認、本番へは未適用)。**次回セッション最優先で本番担当者への共有を推奨**。
+
+### 14.3 Gitブランチの状態(重要、mainには何もマージされていない)
+
+今回のセッションで作成した3つのブランチは、いずれも**mainにマージ・GitHubへのpushはしていない**(ユーザーへの確認なしに実施することを避けた)。次回セッション、またはユーザー自身の判断でマージ/push/PRを検討すること。
+
+| ブランチ | 内容 | 状態 |
+|---|---|---|
+| `feature/mcp-protocol-v2-spike` | MCPプロトコルv2への書き換え一式(`server/`)、`docs/12`§7への実機検証結果追記 | スパイクとして完結。mainへの反映は要判断 |
+| `fix/production-audience-config-proposal` | `terraform/apigateway.tf`の`audience`バグ修正(1行) | レビュー待ちの提案。本番担当者の確認後、mainへのマージ・本番適用を検討 |
+| `latency-tuning/session-id-reuse` | `LOG_TIMING`計装(`server/src/index.ts`, `db.ts`)、`scripts/invoke_agentcore_mcp_jwt.py`拡張、`docs/12`§7の復元(cherry-pick)、`docs/15`・`docs/16`(+client版・PDF) | 現在のHEAD。LOG_TIMING計装は既存挙動に影響しない(環境変数ガード付き)ため、mainへのマージは比較的低リスク |
+
+### 14.4 今回新規作成したAWSリソース(playgroundアカウント、883660531246)
+
+| リソース | 識別子 | 状態 |
+|---|---|---|
+| CloudWatch Logs VPCエンドポイント | `vpce-046556344264018d0`(`com.amazonaws.ap-northeast-1.logs`、検証用VPC`vpc-0df861e536fad4aab`に追加) | 稼働中、継続課金(月額約$20)。VPCモード切替後にログ配信が止まっていた問題への対処 |
+| 応答時間検証専用Runtime | `quickMcpPocLatencyLab-uC4Wd7EOWj`(`LOG_TIMING=1`、既存デモ用Runtimeとは完全に分離) | 稼働中(READY)。次回のコンテナ保持時間の境界特定(30秒〜5分の間)等の追加検証にそのまま再利用可能 |
+
+検証専用に一時作成したリソース(`quickMcpPocDcrScopeTest` Runtime、DCR仮説検証用Cognitoクライアント複数、スタンドアロンREST API、DCRデモ用クライアント)はすべて検証後に削除済み。playgroundアカウントを汚していない。
+
+### 14.5 学び(次回以降に活かすべき点)
+
+- **`git checkout <branch>`でブランチを切り替えると、Dockerイメージのビルドに使う`node_modules`(pnpm install済みの依存関係)は自動的に追従しない**。v1系SDKブランチとv2系SDKブランチを行き来する際、`pnpm install`をブランチ切り替えのたびに実行し直す必要があった(型チェックエラーの原因を数分探ってようやく気づいた)
+- **1つのAWSアカウントを複数の検証で共有する場合、`list-agent-runtimes`等で既存リソースを確認し、自分のプロジェクトと無関係なリソース(今回は`trocco`・`mcplatency_latencymcp`等、他プロジェクトのものと判明)に触れないよう名前でスコープを判別すること**。特に紛らわしい名前(`mcplatency_latencymcp`)のリソースは、作成日時やECRリポジトリ名・IAMロール名を確認して他人のものと判断した
+- **AWS SSOトークンの失効は、ユーザーに別ターミナルでの`aws sso login`実行を依頼する以外に解決策が無い**(ブラウザ認証が必要なため)。ログイン待ちの間もAWS非依存の作業(コードのスパイク実装、ローカル検証、terraformの`validate`)を並行して進めることで手待ちを減らせた
+- **`dangerouslyDisableSandbox`を使う際は`$TMPDIR`の値がサンドボックス有無で変わる**ことに注意。サンドボックス無効化コマンドで書いたファイルを、サンドボックス有効なコマンドの`$TMPDIR`から参照しようとすると`No such file or directory`になる(このセッションで複数回踏んだ)。同一コマンドブロック内で完結させるか、常に同じサンドボックス設定を使うことで回避できる
+- **AWS CLIの複数行出力を`read A B C`で複数変数に読み込む際、値が複数行にまたがっているとうまく読み込めない**(3個の値を1行目、1個を2行目に書いたファイルを`read A B C D`で読もうとして4個目が空になった)。ファイルに書き出す場合は1行1値、またはJSON/を使い`python3 -c`で確実にパースする方が安全
+- **AgentCore Runtimeは、クライアントのセッションID再利用が効いていても、設定上の`idleRuntimeSessionTimeout`(15分)よりずっと短い時間(30秒〜5分の間)でコンテナを破棄している**。公開されているタイムアウト設定値を鵜呑みにせず、実機の`bootId`計装ログで裏取りすることの重要性を再確認した
+- **査読専用サブエージェントは、ドキュメント間の相互参照(他ファイルの特定セクション番号)が実在するかまで機械的にチェックしてくれる**。今回、複数のfeature branchにまたがって作業したため、あるドキュメントが別ブランチにしか存在しないセクションを参照してしまうという見落としを査読エージェントが発見した。ブランチをまたいだドキュメント作業をする際は、参照先が「今、自分がいるブランチに実在するか」を意識する必要がある
