@@ -1,9 +1,9 @@
-# 今週の検証レポート: 疎通検証Webアプリのライブデモ拡充とAWSリソース整理(2026-09-03〜09-08)
+# 今週の検証レポート: ECS(API Gateway)アーキテクチャでのDCR・WAF対応検証とMCPプロトコルv2 SDK確認(2026-09-03〜09-08)
 
 > この章で分かること
-> 今週実施した、疎通検証Webアプリ(`web-demo`)への4つのライブデモパネル追加、クライアント向けデモログイン認証情報の再発行、複数セッションにわたり積み重なったAWSリソースの棚卸しドキュメント作成、MCPプロトコルv2のECS/AgentCore Runtime両方での検証とMCP基本機能テストスイートの新規作成についてまとめる。
+> 本番採用の方向性が固まったECS(API Gateway)アーキテクチャで、DCR(動的クライアント登録)・WAFに実際に対応できることを実機で確認する。特にWAFは、これまでAgentCore Runtime向けの代替構成でしか検証しておらず、採用方針であるECS側では今回初めて検証した。あわせて、MCPプロトコルv2 SDKへの対応状況をECS側を中心に検証し、AgentCore Runtime側は技術選定時の参考情報として補足する。検証結果をその場で確認できるデモツールを疎通検証Webアプリに追加したことにも短く触れる。
 
-作成日: 2026-09-08 | 検証方法: 実機検証(playgroundアカウント883660531246、`feature/web-demo-verification-panels`ブランチ(§1〜3)・`feature/mcp-protocol-v2-spike`ブランチ(§4)での実装・デプロイ・実リクエスト)。本番相当アカウント(620369151795)への書き込みなし。
+作成日: 2026-09-08 | 検証方法: 実機検証(playgroundアカウント883660531246)。本番相当アカウント(620369151795)への書き込みなし。
 
 ---
 
@@ -11,197 +11,151 @@
 
 | # | 論点 | 結論 |
 |---|---|---|
-| 1 | 疎通検証Webアプリへのライブデモパネル追加 | 応答時間・DCR・WAF・MCPプロトコルv2 SDKの4セクションを`quick-mcp-poc-web-demo`(Lambda Function URL)に追加した。いずれもログイン不要でボタン1つから実際のplaygroundリソースへライブでリクエストを送る方式。実装当初、v2 SDKサーバーのSSE形式レスポンスをJSONとして誤解釈するバグを作り込んだが、実機での確認により発覚・修正した(§1) |
-| 2 | クライアント向けデモログイン認証情報の発行 | 既存のテストユーザー`quick-mcp-poc-verify`(Cognitoプール`ap-northeast-1_WSvFtGhlV`)のパスワードを再発行し、ログイン→MCP呼び出しの成功をエンドツーエンドで確認した。新規ユーザーは作成していない(§2) |
-| 3 | 環境・AWSリソース整理ドキュメントの新規作成 | `docs/17-environment-resource-map.md`を新規作成し、AgentCore Runtime 3つ・ECS 1系統・Lambda 3つ等を実機棚卸しした。web-demoの各デモセクションが呼ぶリソースの対応表、構成図(awsdac)、共有playgroundアカウント内の無関係リソースへの注意喚起を含む(§3) |
-| 4 | MCPプロトコルv2のECS/AgentCore Runtime両方での検証とテストスイート拡充 | ECS側にもv2 SDKを新規デプロイし、MCP基本機能テストスイート(8項目)を4環境(v1/v2 × ECS/AgentCore Runtime)に自動実行、**32/32件合格**。未知のツール名へのエラー応答形式がv1/v2で異なる(SDKバージョン起因、ホスティング方式非依存)という新規発見あり(§4) |
-| 5 | 来週へのアクションプラン | `feature/web-demo-verification-panels`・`feature/mcp-protocol-v2-spike`両ブランチのmainマージ判断、前週から持ち越しの4件の意思決定確認、v1/v2のエラー応答形式差のクライアント実装への反映が主要項目(§5) |
+| 1 | ECS(API Gateway)でのDCR対応 | 自己登録→未承認→admin承認→成功→失効→即時遮断という一連のフローを実機で確認済み(先週確立、今週デモとして再確認)。ECS側でAPI Gateway REST API(v1)のネイティブ`COGNITO_USER_POOLS`オーソライザーに切り替えれば自作Lambda Authorizerを削減できる可能性も先週実機検証済み(§1) |
+| 2 | ECS(API Gateway)でのWAF対応(今週新規検証) | **API Gateway HTTP API(v2)にはWAFを直接アタッチできない**ことが判明。前段のALBに直接アタッチすれば、MCPのJSON-RPCリクエストボディ内の攻撃パターン(XSS・SQLインジェクション)を正しく検査・遮断できることを実機確認した(§2) |
+| 3 | MCPプロトコルv2 SDKへの対応確認 | ECS側に新規デプロイして検証し、MCP基本機能テストスイート(8項目)で全項目合格を確認した。書き換えの影響範囲も実装ファイル単位で整理した。**AgentCore Runtime側は今回の技術選定でホスティング方式として不採用となったため、参考情報としてのみ補足する**(§3) |
+| 4 | 検証結果を確認できるデモツール | 疎通検証Webアプリに、応答時間・DCR・WAF・SDK対応の4項目についてどんな応答が返ってくるかをその場で確認できるデモパネルを追加した。本レポートの主眼ではなく、検証結果を見せるための補助ツールという位置づけ(§4) |
+| 5 | 来週へのアクションプラン | WAFのALBアタッチ方針決定、DCR実装の本番`terraform/`への移植要否、MCPプロトコルv2移行の本格着手判断が主要項目(§5) |
 
 ---
 
-## 1. 疎通検証Webアプリへのライブデモパネル追加
+## 1. ECS(API Gateway)アーキテクチャでのDCR対応
 
-### 1.1 背景と全体像
+本番採用の方向性は、AgentCore Runtimeへの全面移行ではなく、**現行のECS(API Gateway)アーキテクチャをベースに、DCR(動的クライアント登録)とWAF対応を追加する**方針で固まっている。DCRの一連のフロー・実装の軽量化可能性は先週の検証で確立済みのため、今週はこれを踏まえて簡潔にまとめ、WAF対応(§2、今週新規検証)に重点を置く。
 
-ユーザーから「今回検証した内容を実機で確認できるデモ画面がほしい」との依頼を受け、`feature/web-demo-verification-panels`ブランチで、既存の疎通検証Webアプリ(`quick-mcp-poc-web-demo`、Lambda Function URL)に4つの新規デモセクションを追加した。いずれもログイン不要、ボタン1つで実際にplaygroundアカウントのAWSリソースへライブでリクエストを送る方式である。
+### 1.1 DCRの一連のフロー(先週確立、今週デモで再確認)
 
-このLambdaのソースコードはこれまでリポジトリに一切コミットされておらず、デプロイ済みのzipにのみ存在していた。今回`aws lambda get-function`で取得・復元し、`web-demo/index.mjs`として初めてコミットした(以後はリポジトリが正)。詳細な機能一覧・環境変数・デプロイ手順は[web-demo/README.md](../web-demo/README.md)を参照。
-
-```mermaid
-flowchart TB
-    User["利用者(ブラウザ)"] --> App["quick-mcp-poc-web-demo<br/>(Lambda Function URL)"]
-    App --> D1["1. 応答時間デモ"]
-    App --> D2["2. DCRデモ"]
-    App --> D3["3. WAFデモ"]
-    App --> D4["4. MCPプロトコルv2 SDKデモ"]
-    D1 --> R1["quickMcpPocLatencyLab<br/>Runtime"]
-    D2 --> R2["pattern4 API Gateway<br/>(自己登録→承認→失効)"]
-    D3 --> R3["CloudFront + WAFv2"]
-    D4 --> R4a["quickMcpPocLatencyLab<br/>(v1 SDK側)"]
-    D4 --> R4b["quickMcpPocV2SdkDemo<br/>(v2 SDK側、新規)"]
-```
-
-**図の解説**: 4つのデモはすべて同じLambda(`quick-mcp-poc-web-demo`)を入口としつつ、それぞれ異なるバックエンドリソースを呼び分けている。応答時間デモとSDKデモのv1側は既存の`quickMcpPocLatencyLab` Runtimeを共用し、SDKデモのv2側だけが今回新規にデプロイした`quickMcpPocV2SdkDemo` Runtimeを呼ぶ。各リソースの詳細な対応関係・識別子は[17-environment-resource-map.md §2](./17-environment-resource-map.md)にまとめてある。
-
-### 1.2 応答時間デモ
-
-**先週までの検証**: AgentCore Runtimeは毎回のリクエストで新しいコンテナを起動するため約6秒かかっていたところ、レスポンスヘッダーの`Mcp-Session-Id`を次回リクエストで再送すると同じコンテナが再利用され高速化するという仮説を、検証専用Runtime`quickMcpPocLatencyLab`で実機検証した。0秒・30秒・5分・20分の4チェックポイントで計測した結果、30秒後まではセッション再利用の効果が持続する(約6秒→約0.5〜0.6秒、約10倍の高速化)一方、5分後には効果が失われ(CloudWatch Logsの`boot_id`計装で新規コンテナへの切り替わりを確認)、設定上の`idleRuntimeSessionTimeout`(15分)よりも実際のコンテナ保持時間はずっと短いという結論を得た(詳細は[16-weekly-verification-report-week3.md §1](./16-weekly-verification-report-week3.md))。
-
-**今週の検証**: この実機検証結果を、誰でもその場で再現・確認できるライブデモとして可視化した。ボタン1つで、セッションID再送なしのベースライン呼び出し(赤カード「先週までの挙動」)とセッションID再送ありの呼び出し(緑カード「今回できるようになったこと」)を連続実行し、実測値をその場で並べて表示する。既存の`quickMcpPocLatencyLab` Runtimeをそのまま呼び出しており、新規のAWSリソース作成は不要だった。
-
-```mermaid
-flowchart LR
-    subgraph before["先週までの挙動(赤カード)"]
-        direction TB
-        B1["リクエストのたびに<br/>Mcp-Session-Idを再送しない"] --> B2["毎回新規コンテナ起動<br/>約6秒"]
-    end
-    subgraph after["今回できるようになったこと(緑カード)"]
-        direction TB
-        A1["初回応答のMcp-Session-Idを<br/>次回リクエストで再送"] --> A2["同一コンテナに<br/>ルーティング、約0.5秒"]
-    end
-```
-
-**図の解説**: 同じ`quickMcpPocLatencyLab` Runtimeに対して、`Mcp-Session-Id`ヘッダーを再送するかどうかだけを変数にして2通りのリクエストを送り、応答時間の差をその場で実測する。左右比較はボタン1つで両方のケースを連続実行し、結果をカード形式で並べて表示する構成。
-
-### 1.3 DCRデモ
-
-**先週までの検証**: DCR(動的クライアント登録)の自己登録→admin承認→失効という一連のフロー自体は、それ以前のセッション(2026-08-31、[10-dcr-implementation.md](./10-dcr-implementation.md))でpattern4(ECS)環境にLambda Authorizer+Register Lambdaとして実装済みだった。先週([15-ecs-production-readiness-gaps.md](./15-ecs-production-readiness-gaps.md))はこれを実機で再実演したのに加え、2つの新しい安価な代替仮説を実機検証した: (a) AgentCore Runtime側で`allowedClients`を使わず`allowedScopes`のみで運用すればCognitoのままDCRが成立する(Auth0移行(月額$800〜)が不要になる)、(b) ECS側でもAPI Gateway REST API(v1)のネイティブ`COGNITO_USER_POOLS`オーソライザーを使えば自作Lambda Authorizerが不要になる可能性がある。いずれも実機で成立を確認した。
-
-**今週の検証**: 先週実機確認したpattern4環境での一連のフロー(自己登録→未承認403→承認→200→失効→403)を、誰でも見られるライブデモとして可視化した。あわせて、静的な左右比較カードとして「先週までの認識: Lambda Authorizerへの置き換えが必須」対「今回判明したこと: `allowedScopes`のみで成立」という認識の変化も並べて提示している。以下のシーケンス図は、実演される一連のやり取りを示す。
+利用者の自己登録から、admin承認を経てアクセス可能になり、失効すると即座にアクセスできなくなる、という一連のフローをECS環境(API Gateway経由)で実演確認した。
 
 ```mermaid
 sequenceDiagram
-    participant Demo as web-demo(DCRデモ)
-    participant Reg as pattern4 API Gateway<br/>(POST /register)
+    participant Client as 新規クライアント
+    participant Reg as API Gateway<br/>(POST /register)
     participant App as MCPサーバー(ECS)
     participant DDB as DynamoDB
 
-    Demo->>Reg: 自己登録(RFC 7591)
-    Reg-->>Demo: 201、client_id発行
-    Demo->>App: 承認前にPOST /mcp
-    App-->>Demo: 403(未承認)
-    Demo->>DDB: 管理者操作として承認レコードを書き込み
-    Demo->>App: 再度POST /mcp
-    App-->>Demo: 200
-    Demo->>DDB: 失効操作(レコード更新)
-    Demo->>App: 再度POST /mcp(同一トークン)
-    App-->>Demo: 403(失効)
-    Demo->>DDB: テスト用クライアント・レコードを自動削除
+    Client->>Reg: 自己登録(RFC 7591)
+    Reg-->>Client: 201、client_id発行
+    Client->>App: 承認前にPOST /mcp
+    App-->>Client: 403(未承認)
+    Note over DDB: 管理者操作として承認レコードを書き込み
+    Client->>App: 再度POST /mcp
+    App-->>Client: 200
+    Note over DDB: 失効操作(レコード更新)
+    Client->>App: 再度POST /mcp(同一トークン)
+    App-->>Client: 403(失効)
 ```
 
-**図の解説**: 自己登録→未承認403→承認→200→失効→403という一連の流れをワンボタンで実演する。承認・失効の管理者操作は`quick-mcp-poc-web-demo`のLambda実行ロールに追加したインラインポリシー(`quick-mcp-poc-users`テーブル限定の`dynamodb:PutItem/UpdateItem/DeleteItem/GetItem`、pattern4プール限定の`cognito-idp:DeleteUserPoolClient`)で行っており、実演後は作成したテスト用Cognitoクライアント・DynamoDBレコードを自動的にクリーンアップする。
+**図の解説**: 自己登録は無審査で誰でも呼べるが、それだけではアクセス権は付与されない。admin操作(DynamoDBへのレコード追加)を経て初めてアクセス可能になり、失効操作後は暗号学的に有効なトークンであっても即座にアクセスが遮断される。この設計により、登録自体は開放しつつテナントとしての利用許可は個別に審査できる。今週はこのフローを疎通検証Webアプリのデモパネル(§4)として可視化した。
 
-### 1.4 WAFデモ
+### 1.2 DCRの実装をより軽量化できる可能性(先週実機検証済み)
 
-**先週までの検証**: AgentCore Runtime自体にはWAFを直接アタッチできないため、CloudFront+WAFv2をリバースプロキシとして前段に配置する代替構成を、それ以前のセッション(2026-08-21、[05-security-compliance-verification.md §4.5](./05-security-compliance-verification.md))で実機構築し、正常リクエストの通過・XSS攻撃パターンの403ブロックを確認していた。先週([15-ecs-production-readiness-gaps.md §4](./15-ecs-production-readiness-gaps.md))はこれを再検証した上で、実際にアタッチされているマネージドルールグループを確認したところ`AWSManagedRulesCommonRuleSet`のみで、SQLインジェクション特化の`AWSManagedRulesSQLiRuleSet`が付いておらず、単純なSQLiパターン(`?id=1' OR '1'='1`)が素通りするという課題を新規に発見した。
+現状のECS(API Gateway)実装は、認可判定を自作のLambda Authorizerに任せている。先週、API Gateway REST API(v1)のネイティブ`COGNITO_USER_POOLS`型オーソライザーに切り替えれば、この自作Lambda Authorizerを削減できる可能性があることを実機検証した。ネイティブオーソライザーは「許可するクライアントID」の指定が任意で、空にすればプール内の任意のクライアントを信頼する仕様のため、動的に追加されるDCRクライアントをそのまま認可できる。
 
-**今週の検証**: 正常リクエスト・XSSパターン・SQLiパターンの3種類を、CloudFront+WAFv2ディストリビューション(`d22imwd0soxmb2.cloudfront.net`)に直接送り、通過/遮断の結果をその場で実測表示するライブデモとして可視化した。正常リクエストがオリジン(AgentCore Runtime)まで到達して404が返ることがあるが、これはWAFを通過したことの確認が目的であり、実際のMCP呼び出しではない。SQLiパターンが遮断されずに通過する様子もそのまま表示されるため、[15-ecs-production-readiness-gaps.md §4](./15-ecs-production-readiness-gaps.md)で発見した課題を対外的にも実演できる。
+ただし、現状のLambda Authorizerが担っている「個別クライアントの即時失効」機能は、ネイティブオーソライザーだけでは実現できない(スコープの有無しか判定できないため)。個別失効を維持する場合は、Lambda Authorizerを引き続き使うか、失効時にクライアント自体を削除する運用に切り替えるかの設計判断が必要になる。
 
-### 1.5 MCPプロトコルv2 SDKデモ
+---
 
-**先週までの検証**: MCPプロトコルv2(2026-07-28)への移行影響は、それ以前のセッション(2026-08-31〜09-02)で机上調査し、SDKバージョンアップの互換性・AgentCore Runtimeへの影響を[12-mcp-protocol-v2-upgrade-impact.md](./12-mcp-protocol-v2-upgrade-impact.md)にまとめていた。先週(09-03)、実際にv2 SDKへの書き換えをスパイクブランチ(`feature/mcp-protocol-v2-spike`)で実装し、ローカル環境(LocalStack)で旧世代クライアント形式・新世代クライアント形式の両方が動作することを確認した。
+## 2. ECS(API Gateway)アーキテクチャでのWAF対応(今週新規検証)
 
-**今週の検証(前半、09-06〜08)**: v2スパイクサーバーをAgentCore Runtime実機(検証専用Runtime`quickMcpPocV2SdkDemo`を新規デプロイ)に載せ、現行デプロイ(v1 SDK、`quickMcpPocLatencyLab`)と並べて、classic形式(従来のinitializeハンドシェイクを使う旧世代クライアント相当)・modern形式(v2の`_meta`エンベロープを使う新世代クライアント相当)のリクエストを送り、結果を比較するライブデモとして可視化した。
+### 2.1 背景: これまでの検証はAgentCore Runtime向けの代替構成だった
+
+WAFの検証はこれまで、AgentCore Runtime自体にはWAFを直接アタッチできないという制約への対処として、CloudFront+WAFv2をRuntimeの前段に配置する代替構成で実施していた。この構成はAgentCore Runtime固有の回避策であり、**本番採用方針であるECS(API Gateway)アーキテクチャに対してWAFを検証したことはこれまで一度も無かった**。今週、この抜けを解消した。
+
+### 2.2 発見: API Gateway HTTP API(v2)にはWAFを直接アタッチできない
+
+現行のECSアーキテクチャが使っているAPI Gateway(HTTP API、v2)に対してWAFv2 Web ACLを直接アタッチしようと試みたところ、リソースタイプとして受け付けられないことが判明した。WAFv2がネイティブに対応するAPI Gatewayのリソースタイプは**REST API(v1)のみ**で、HTTP API(v2)は対象外である。
+
+一方、API Gatewayの後段にあるApplication Load Balancer(ALB、ECSへのVPC Link経由の接続先)には、WAFv2を直接アタッチできることを確認した。
 
 ```mermaid
-flowchart TB
-    subgraph v1demo["v1 SDK(quickMcpPocLatencyLab)"]
-        C1["classic形式リクエスト"] -->|成功| V1
-        C2["modern形式リクエスト"] -->|拒否| V1["v1サーバー"]
-    end
-    subgraph v2demo["v2 SDK(quickMcpPocV2SdkDemo、新規)"]
-        C3["classic形式リクエスト"] -->|成功| V2
-        C4["modern形式リクエスト"] -->|成功| V2["v2サーバー<br/>(createMcpHandler)"]
-    end
+flowchart LR
+    Client["クライアント"] --> APIGW["API Gateway<br/>(HTTP API v2)<br/>WAF直接アタッチ不可"]
+    APIGW --> ALB["ALB<br/>WAF直接アタッチ可能"]
+    ALB --> ECS["MCPサーバー(ECS)"]
 ```
 
-**図の解説**: v1サーバーはclassic形式のみを受理しmodern形式を拒否するのに対し、v2サーバーは両形式とも受理する。これは[12-mcp-protocol-v2-upgrade-impact.md §7](./12-mcp-protocol-v2-upgrade-impact.md)で調査した「新SDKは旧世代・新世代のクライアントを自動的に振り分ける設計」という机上の調査結果を、実際にplaygroundの2つのRuntimeに対するライブリクエストで裏付けたものである。
+**図の解説**: API Gateway(HTTP API)自体にはWAFを直接アタッチできないため、WAFによる防御はさらに後段のALBに対して行う必要がある。REST API(v1)への切り替えを検討しない限り、この構成が現実的な選択肢になる。
 
-**実装時に発見・修正したバグ**: 初回実装では、v2サーバーのレガシーフォールバック応答がSSE形式(`event: message\ndata: {...}`)で返ってくる場合があることを見落としており、これをそのまま`JSON.parse`しようとして失敗し、「v2サーバーはclassic形式に失敗する」という誤った結果を表示していた。実機で確認して初めて発覚し、レスポンス判定処理を`data: `行を抽出してからパースするよう修正した。今回の教訓として、「見える化」を求められた際は机上の想定で実装を始めず、先に実機で正確な挙動差を確認してから設計する方が手戻りが少ないことを再確認した。
+### 2.3 検証: MCPのJSON-RPCリクエストボディ内の攻撃パターンを検査・遮断できるか
 
-**今週の検証(後半)**: このAgentCore Runtime限定の比較だけでは「ECS側は未検証」という抜けが残っていたため、ECS側にもv2 SDKを実機デプロイし、MCP基本機能の自動テストスイートを新規作成して4環境すべてを横断的に検証した。詳細は§4を参照。
+ALBに`AWSManagedRulesCommonRuleSet`と`AWSManagedRulesSQLiRuleSet`(先週のRuntime向け検証で不足していたルール)の2つのマネージドルールグループを設定したWAFv2 Web ACLを検証用に作成し、実際に認可済みのMCPクライアントから、`tools/call`のJSON-RPCリクエストボディ内(ツールの引数)に攻撃パターンを埋め込んだリクエストを送信した。
+
+```mermaid
+flowchart LR
+    Q1["正常なMCPリクエスト"] -->|通過、200| OK["MCPサーバーが処理"]
+    Q2["XSS攻撃パターンを<br/>ツール引数に埋め込み"] -->|遮断、403| BLOCK1["WAFブロック"]
+    Q3["SQLインジェクションを<br/>ツール引数に埋め込み"] -->|遮断、403| BLOCK2["WAFブロック"]
+```
+
+**図の解説**: 正常なMCPリクエストは通過して200が返る一方、JSON-RPCボディの引数フィールドに埋め込んだXSS・SQLインジェクション攻撃パターンはいずれも403でブロックされた。CloudWatchメトリクスでも同時刻に2件のブロックが記録されており、WAFが実際にリクエストボディの内容まで検査していることを裏付けている。先週Runtime向け構成で発見した「SQLインジェクション特化ルールの不足」も、`AWSManagedRulesSQLiRuleSet`を追加することで解消することを確認した。
+
+**結論**: MCPプロトコル(JSON-RPC over HTTP POST)のトラフィックは、クエリ文字列ではなくリクエストボディに主要な情報が載る形式だが、WAFのマネージドルールグループはボディの内容も正しく検査対象にしており、ECS(API Gateway+ALB)アーキテクチャでMCP用のWAF対応は実現可能である。ただし、API Gateway自体ではなくALBへのアタッチが必要という制約は、構成図・運用手順に反映する必要がある。
+
+本検証は使い捨てのWeb ACLで実施し、検証後にALBから解除・削除済みで、既存の稼働環境への影響は残していない。
 
 ---
 
-## 2. クライアント向けデモログイン認証情報の発行
+## 3. MCPプロトコルv2 SDKへの対応確認
 
-クライアントに疎通検証Webアプリの既存機能(OAuth PKCEログイン→MCP呼び出し)を実際に試してもらえるよう、既存のテストユーザー`quick-mcp-poc-verify`(Cognitoユーザープール`agentcore-mcp-pool`、`ap-northeast-1_WSvFtGhlV`)のパスワードを再発行した。新規ユーザーは作成せず、既存ユーザーを再利用する方針とした。
+### 3.1 位置づけ
 
-再発行後、実際にこのユーザーでログイン→AgentCore Runtimeへの`tools/list`・`tools/call`呼び出しが成功することをエンドツーエンドで確認した。今回追加した4つのライブデモパネル(§1)とあわせて、既存のOAuth疎通確認デモも含めた全機能を実機で確認済みの状態になっている。
+MCPプロトコルには2026-07-28版(v2)があり、旧世代クライアント(`initialize`ハンドシェイクを使う)とは別に、ハンドシェイクを省略して自己申告形式で通信する新世代クライアントが今後登場してくる。この対応状況は、ホスティング方式の選定とは独立した検証項目として実施した。
 
----
+**なお、AgentCore Runtimeは今回の技術選定でホスティング方式として不採用となっている。** 本節でRuntime側の結果にも触れるが、これは技術選定の過程で得られた参考情報であり、本番採用方針である**ECS側の結果が本題**である。
 
-## 3. 環境・AWSリソース整理ドキュメントの新規作成
+### 3.2 現行コードからの書き換え影響範囲
 
-複数セッションにわたる検証の積み重ねで、AgentCore Runtime・ECS・Lambda等のAWSリソースが増え、どれがどの検証・デモ用かが分かりにくくなっていた。この状態を解消するため、`docs/17-environment-resource-map.md`を新規作成し、2026-09-08時点でplaygroundアカウントに実在するリソースを実機で棚卸しした。
+v1 SDK(`@modelcontextprotocol/sdk`)からv2 SDK(`@modelcontextprotocol/server`)への書き換えは、`server/src/index.ts`に局所化されており、ツール実装本体(6ツール)・認可ロジックは無改修で動く。
 
-| リソース種別 | 数 | 内容 |
+| 変更対象 | v1(現行) | v2(書き換え後) |
 |---|---|---|
-| AgentCore Runtime(パターン3) | 3 | `quickMcpPocVerification`(最初期からのデモ用)、`quickMcpPocLatencyLab`(応答時間チューニング検証用)、`quickMcpPocV2SdkDemo`(MCPプロトコルv2 SDKデモ用、今回新規) |
-| ECS(パターン4) | 1系統 | `quick-mcp-poc-cluster`/`app`。`terraform-playground-pattern4/`で管理、本番相当`terraform/`とは別物 |
-| Lambda | 3 | `quick-mcp-poc-web-demo`(デモ画面本体)、`quick-mcp-poc-dcr-register`・`quick-mcp-poc-dcr-authorizer`(パターン4のDCR実装) |
-| Cognitoユーザープール | 2 | `agentcore-mcp-pool`(パターン3側)、`quick-mcp-poc-pattern4-verify-users`(パターン4側) |
-| DynamoDBテーブル | 2(実質稼働1) | `quick-mcp-poc-users`が両パターン共通で実質稼働。`quick-mcp-poc-pattern4-verify-users`(上表のCognitoユーザープールと同名だが別リソース、terraformの命名がたまたま一致している)は未使用 |
+| import元 | `@modelcontextprotocol/sdk/server/mcp.js`等 | `@modelcontextprotocol/server` |
+| サーバー生成 | `new McpServer(...)`を1回だけ生成 | リクエストごとにファクトリ関数内で生成 |
+| トランスポート層 | `StreamableHTTPServerTransport`を手組み、`server.connect`・`transport.handleRequest`を個別に呼び出し | `createMcpHandler(factory)`をExpressアダプタ(`toNodeHandler`)でラップ |
+| GET/DELETE `/mcp`の応答 | 固定レスポンスを個別実装 | v2ハンドラが自動的に同等の405を返すため実装不要 |
+| 認可(`extractSub`・DynamoDB参照) | Expressミドルウェアとして実装 | 同じミドルウェアパターンをそのまま流用可能 |
+| ツール定義(6ツール) | `registerTool`にプレーンオブジェクト(`ZodRawShape`)形式でスキーマを渡す | 同じ記法が非推奨(`@deprecated`)ながら後方互換オーバーロードとして機能、無改修で動作 |
 
-[17-environment-resource-map.md](./17-environment-resource-map.md)には、awsdacによる全体構成図(`docs/images/web-demo-architecture.png`)と、疎通検証Webアプリの各デモセクションがどのリソースを呼んでいるかの対応表(本レポート§1の各デモに対応)を掲載している。
+変更が`index.ts`に閉じている理由は、v2 SDKがv1時代の構成要素(`McpServer`・Zod v4によるスキーマ定義)をほぼそのまま流用できる設計になっているため。ツールファイル単位の書き換えは不要だった。
 
-あわせて、playgroundアカウント(883660531246)は他プロジェクトとも共用されており、`list-agent-runtimes`・`list-clusters`を実行すると`trocco`・`mcplatency_latencymcp`・`pii-detection`等のquick-mcp-pocとは無関係なリソースが見えることへの注意喚起も記載した。特に`mcplatency_latencymcp`は名称が本プロジェクトの検証内容(応答時間・latency)と紛らわしいが、作成日時・ECRリポジトリ名・IAMロール名がいずれも別プロジェクトのものであり、無関係と判断済みであることを明記している。
+### 3.3 テスト内容
 
----
-
-## 4. MCPプロトコルv2のECS/AgentCore Runtime両方での検証とテストスイート拡充
-
-### 4.1 背景
-
-§1.5のSDKデモはAgentCore Runtime側のみの比較で、**ECS(パターン4)側ではMCPプロトコルv2 SDKを一度も検証していなかった**。あわせて、これまでのv2検証は`curl`での単発確認が中心で、MCP基本機能(認可・初期化・ツール一覧・エラーハンドリング等)を体系的にカバーしたテストにはなっていなかった。この2点を解消した。
-
-### 4.2 ECS側へのv2 SDKデプロイ
-
-`feature/mcp-protocol-v2-spike`ブランチの`server/`をamd64向けにビルドし、パターン4環境に検証専用サービス`quick-mcp-poc-v2-sdk-demo`(Fargate、タスク定義`quick-mcp-poc-v2-sdk-demo:1`)を新規作成した。既存のDCRデモ用サービス(`app`)には一切触れていない。直接検証用に、ポート3000を実行者の自宅グローバルIPのみへ限定したセキュリティグループを作成し、パブリックIPを付与している(API Gatewayを経由しない、コンテナへの直接アクセス)。
-
-### 4.3 MCP機能テストスイート
-
-`scripts/mcp_functional_tests.py`を新規作成した。以下の8項目を、v1-ECS(パターン4、API Gateway経由)・v2-ECS(`quick-mcp-poc-v2-sdk-demo`、直接)・v1-AgentCore(`quickMcpPocLatencyLab`)・v2-AgentCore(`quickMcpPocV2SdkDemo`)の4環境すべてに対して自動実行する。
+MCP基本機能を体系的に確認する自動テストスイートを新規作成し、ECS環境にデプロイした現行実装(v1 SDK)・v2試験実装の両方に対して実行した。
 
 | # | テスト項目 | 確認内容 |
 |---|---|---|
 | 1 | 未認証リクエストの拒否 | `Authorization`ヘッダーなしで401/403が返るか |
 | 2 | `initialize`ハンドシェイク | `protocolVersion`・`serverInfo.name`が正しく返るか |
-| 3 | `tools/list`のスキーマ完全性 | 想定6ツール(`get_quote`等)がすべて存在し、各ツールに`inputSchema`があるか |
+| 3 | `tools/list`のスキーマ完全性 | 想定6ツールがすべて存在し、各ツールに`inputSchema`があるか |
 | 4 | 不正な引数での`tools/call` | バリデーションエラーが構造化されて返るか |
-| 5 | 未知のツール名での`tools/call` | エラーとして扱われるか(結果の形はSDK間で差があってもよい) |
+| 5 | 未知のツール名での`tools/call` | エラーとして扱われるか |
 | 6 | 未知のメソッド | JSON-RPCエラー(`-32601`相当)が返るか |
 | 7 | `ping` | 正常に応答するか |
-| 8 | v2形式(`_meta`エンベロープ)リクエスト | v1サーバーは拒否・v2サーバーは受理という想定通りの挙動になっているか |
+| 8 | v2形式(`_meta`エンベロープ)リクエスト | v1実装は拒否・v2実装は受理という想定通りの挙動になっているか |
 
-### 4.4 テスト結果
+ECS上のv1実装・v2試験実装いずれも、**8項目すべて合格**した。
 
-初回実行時、v2-ECSのみ全項目がタイムアウトで失敗した。原因は検証環境側の単純な要因で、実行者のグローバルIPが検証中に変化し、IP制限したセキュリティグループのルールが古いIPのままだったことによる接続不可だった(アプリケーション側の問題ではない)。セキュリティグループのルールを現在のIPに更新したところ、再実行で**4環境×8項目=32件すべて合格**した。
-
-```mermaid
-flowchart LR
-    subgraph ECS["ECS(パターン4)"]
-        E1["v1-ECS<br/>8/8 合格"]
-        E2["v2-ECS<br/>8/8 合格"]
-    end
-    subgraph RT["AgentCore Runtime"]
-        R1["v1-AgentCore<br/>8/8 合格"]
-        R2["v2-AgentCore<br/>8/8 合格"]
-    end
-```
-
-**図の解説**: ホスティング方式(ECS/AgentCore Runtime)とSDKバージョン(v1/v2)の組み合わせ4通りすべてで、MCP基本機能テストが全項目合格した。これにより、v2 SDKへの移行が特定のホスティング方式に依存する問題ではないこと、既存のDCR・WAF・応答時間チューニングの検証成果(パターン4・パターン3双方)がv2移行後も引き続き有効である見込みが高いことを、机上ではなく実機で確認できた。
-
-### 4.5 v1/v2のエラー応答形式の違い
+### 3.4 新規発見: v1/v2でエラー応答の形が異なる
 
 項目5(未知のツール名での`tools/call`)で、SDKバージョン間の挙動差を発見した。
 
 - **v1 SDK**: `result.isError: true`(ツール呼び出し自体は受理し、実行結果としてエラーを返す)
-- **v2 SDK**: トップレベルのJSON-RPCエラー(`code: -32602`、リクエスト自体が不正というエラー)
+- **v2 SDK**: トップレベルのJSON-RPCエラー(`code: -32602`、リクエスト自体の不正としてのエラー)
 
-この違いはECS・AgentCore Runtimeいずれのホスティング方式でも同一だった(SDKバージョンに起因する挙動で、ホスティング方式には依存しない)。クライアント側の実装がエラーハンドリングを`result.isError`のみで判定している場合、v2移行後にこのケースを見逃す可能性があるため、Step1でv2 SDKを採用する際はクライアント側のエラーハンドリング実装を両方の形に対応させる必要がある。
+クライアント側の実装がエラーハンドリングを`result.isError`のみで判定している場合、v2移行後にこのケースを見逃す可能性があるため、v2 SDKを採用する際はクライアント側のエラーハンドリング実装を両方の形に対応させる必要がある。
 
-詳細は[12-mcp-protocol-v2-upgrade-impact.md §7.5](./12-mcp-protocol-v2-upgrade-impact.md)にまとめた。
+### 3.5 参考: AgentCore Runtime側の技術選定時の検証結果
+
+技術選定の過程で、AgentCore Runtime側でも同様の検証(v1/v2 SDK、classic/modern形式のリクエスト)を実施し、同じ8項目すべてに合格したこと、v1はmodern形式のリクエストを拒否する一方v2は受理することを確認していた。§3.4のエラー応答形式の違いも、ホスティング方式に関わらず共通する挙動だった。ホスティング方式としては不採用のため詳細は割愛するが、v2 SDKへの移行自体はホスティング方式に依存しない見込みであることの裏付けにはなっている。
+
+---
+
+## 4. 検証結果を確認できるデモツール(補足)
+
+上記の検証結果を、報告書だけでなく実際に画面上で確認できるよう、疎通検証Webアプリに4つのデモパネル(応答時間・DCR・WAF・SDK対応)を追加した。いずれもボタン1つで実際のシステムにリクエストを送り、どんな応答が返ってくるかをその場で確認できる、検証結果を見せるための補助ツールという位置づけである。今週の検証の主眼はあくまで§1・§2のECS(API Gateway)アーキテクチャでのDCR・WAF対応確認とMCPプロトコルv2対応確認であり、本ツールはその結果を分かりやすく提示する手段にすぎない。
+
+なお、デモパネルのうち応答時間の改善(セッションID再利用によるコンテナ再利用の効果)はAgentCore Runtime固有の挙動であり、ECS(API Gateway)アーキテクチャには該当しない。この点も§3同様、技術選定時の参考情報としての位置づけとなる。WAFデモパネルは§2で新規検証したALB直接アタッチ構成ではなく、既存のCloudFront経由(Runtime向け)構成を参照している点に注意。デモパネル側の構成更新は来週のアクションプランに含める。
 
 ---
 
@@ -209,9 +163,9 @@ flowchart LR
 
 | # | アクション | 担当・確認事項 |
 |---|---|---|
-| 1 | `feature/web-demo-verification-panels`・`feature/mcp-protocol-v2-spike`ブランチのmainマージ可否を判断する | マージ後、`docs/15`〜`docs/18`・`web-demo/`・`scripts/mcp_functional_tests.py`・関連画像がmain上で参照可能になり、本レポートおよび`docs/17`内の相互参照リンクが解消される |
-| 2 | `docs/README.md`目次への`docs/15`〜`docs/18`の追加、および本レポートの正式な番号確定 | 複数の未マージブランチ(`latency-tuning/session-id-reuse`、`feature/web-demo-verification-panels`、`feature/mcp-protocol-v2-spike`)がそれぞれ15〜18番を採番済みのため、マージ順序とあわせてメインセッションが最終確認する |
-| 3 | 前週から持ち越しの4件の意思決定状況を確認する | 本番`audience`バグ修正パッチの適用可否、DCR実装の本番`terraform/`への移植要否、`allowedScopes`単独運用への切り替え可否、MCPプロトコルv2移行の本格着手可否(いずれも[16-weekly-verification-report-week3.md §4](./16-weekly-verification-report-week3.md)) |
-| 4 | クライアント向けデモログイン認証情報(§2)の共有方法・有効期限運用を検討する | パスワードの共有経路、再発行の頻度・トリガーを決めておく |
-| 5 | v2 SDKデモ用リソース(`quickMcpPocV2SdkDemo` Runtime、`quick-mcp-poc-v2-sdk-demo` ECSサービス)のネットワーク設定を見直す | いずれもPUBLICネットワーク・直接アクセス用の緩めのSG(ECS側は自宅IPのみに制限済み)で構築したデモ専用リソース。デモ専用の位置づけを維持するか、VPCモードに揃えるかを判断する |
-| 6 | v1/v2のエラー応答形式の違い(§4.5)をStep1のクライアント実装方針に反映する | `result.isError`のみに依存しないエラーハンドリング設計を検討 |
+| 1 | WAFのALBアタッチ方針を正式に決定する(§2) | REST API(v1)への切り替えとALBアタッチのどちらを採用するか。`AWSManagedRulesSQLiRuleSet`の恒久導入も含めて設計する |
+| 2 | DCR実装(Lambda Authorizer方式、またはREST APIネイティブオーソライザー方式)の本番`terraform/`への移植要否・移植コストを判断する | §1の結果を踏まえ、どちらの方式を採用するか決定した上で移植を計画する |
+| 3 | MCPプロトコルv2移行の本格着手可否を判断する | ECS側での検証結果(§3.2〜3.4)を踏まえ、Step1での採用可否・時期を判断 |
+| 4 | v1/v2のエラー応答形式の違い(§3.4)をクライアント実装方針に反映する | `result.isError`のみに依存しないエラーハンドリング設計を検討 |
+| 5 | 疎通検証Webアプリのデモパネル(§4)を、今週判明したALBアタッチ構成に合わせて更新する | WAFデモパネルの参照先をCloudFront経由からALB経由へ切り替えるかを検討 |
+| 6 | デモツール(§4)のログイン用認証情報の共有方法を整理する | パスワードの共有経路、再発行の頻度・トリガーを決めておく |
