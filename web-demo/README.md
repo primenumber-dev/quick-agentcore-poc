@@ -14,6 +14,7 @@ playgroundアカウント(883660531246)にLambda Function URLとしてデプロ�
 2. **応答時間デモ**([16-weekly-verification-report-week3.md §1](../docs/16-weekly-verification-report-week3.md)): セッションID再利用の有無で応答時間がどう変わるかを、ログイン不要のボタン1つで実測・左右比較表示
 3. **DCRデモ**([15-ecs-production-readiness-gaps.md §1](../docs/15-ecs-production-readiness-gaps.md)): pattern4環境で自己登録→未承認403→承認→200→失効→403の一連の流れを実演。実行後にテスト用リソースを自動クリーンアップ
 4. **WAFデモ**([15-ecs-production-readiness-gaps.md §4](../docs/15-ecs-production-readiness-gaps.md)): 正常リクエスト・XSSパターン・SQLiパターンをCloudFront+WAFv2経由で送り、通過/遮断を実測
+5. **MCPプロトコルv2 SDKデモ**([12-mcp-protocol-v2-upgrade-impact.md §7](../docs/12-mcp-protocol-v2-upgrade-impact.md)): 現行デプロイ(v1 SDK)と`feature/mcp-protocol-v2-spike`ブランチのイメージを動かす専用Runtime(v2 SDK)の両方に、従来形式(initializeハンドシェイクを使う旧世代クライアント相当)・新形式(_metaエンベロープを使う新世代クライアント相当)のリクエストを送り、v1は新形式を拒否し、v2は両方に対応することを実測比較
 
 ## デプロイに必要な環境変数
 
@@ -22,6 +23,24 @@ playgroundアカウント(883660531246)にLambda Function URLとしてデプロ�
 | `CLIENT_ID` | `quick-mcp-poc-web-demo`のCognito App Client ID(既存、`54cjhrb2bmba52upo8tfem4jlq`) |
 | `M2M_CLIENT_ID` | `quick-mcp-poc-m2m-test`のCognito App Client ID(既存、`7gtknlcn9imrhihetq3aauojaj`) |
 | `M2M_CLIENT_SECRET` | `aws cognito-idp describe-user-pool-client --user-pool-id ap-northeast-1_WSvFtGhlV --client-id 7gtknlcn9imrhihetq3aauojaj --profile quick-agentcore-poc-playground`で取得(git管理外、デプロイ時に都度取得すること) |
+
+## SDKデモが依存するAgentCore Runtime
+
+| Runtime | 用途 | イメージ |
+|---|---|---|
+| `quickMcpPocLatencyLab-uC4Wd7EOWj`(応答時間デモと共用) | v1 SDK側("現行サーバー") | `quick-mcp-poc-agentcore-verification:latency-lab-1` |
+| `quickMcpPocV2SdkDemo-lxkNuS7moU` | v2 SDK側("v2アップデート後") | `quick-mcp-poc-agentcore-verification:v2-sdk-demo-1`(`feature/mcp-protocol-v2-spike`ブランチの`server/`をビルド) |
+
+v2側イメージの再ビルドが必要な場合:
+
+```bash
+git checkout feature/mcp-protocol-v2-spike
+cd server && pnpm install
+docker buildx build --platform linux/arm64 \
+  -t 883660531246.dkr.ecr.ap-northeast-1.amazonaws.com/quick-mcp-poc-agentcore-verification:v2-sdk-demo-1 \
+  --push .
+# Runtimeは自動的に最新イメージを使わないため、update-agent-runtimeで再デプロイが必要
+```
 
 ## 必要なIAM権限(実行ロールへのインラインポリシー`dcr-demo-permissions`)
 

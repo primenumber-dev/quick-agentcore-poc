@@ -15,6 +15,13 @@ const LATENCY_LAB_RUNTIME_ARN =
 const M2M_CLIENT_ID = process.env.M2M_CLIENT_ID;
 const M2M_CLIENT_SECRET = process.env.M2M_CLIENT_SECRET;
 
+// MCPプロトコルv2 SDKデモ(docs/12 §7)向けの設定。V1_RUNTIME_ARNは現行デプロイ(v1 SDK)と
+// 同一イメージ系統のLatencyLab Runtimeを流用、V2_RUNTIME_ARNはfeature/mcp-protocol-v2-spike
+// ブランチのイメージを動かす専用Runtime。
+const SDK_DEMO_V1_RUNTIME_ARN = LATENCY_LAB_RUNTIME_ARN;
+const SDK_DEMO_V2_RUNTIME_ARN =
+  "arn:aws:bedrock-agentcore:ap-northeast-1:883660531246:runtime/quickMcpPocV2SdkDemo-lxkNuS7moU";
+
 // DCRデモ(docs/15 §1)向けの設定(pattern4環境)
 const PATTERN4_API_BASE = "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com";
 const PATTERN4_COGNITO_DOMAIN = "quick-mcp-poc-pattern4-verify.auth.ap-northeast-1.amazoncognito.com";
@@ -116,6 +123,22 @@ function html(redirectUri) {
 <p>CloudFront+WAFv2経由で、正常なリクエストは通過し、既知の攻撃パターン(XSS)は403でブロックされる一方、現状のルールセットではSQLインジェクションパターンが素通りすることを実演する(<a href="https://github.com/primenumber-dev/quick-agentcore-poc/blob/main/docs/15-ecs-production-readiness-gaps.md">課題整理レポート §4</a>参照)。ログイン不要で実行できます。</p>
 <button id="wafBtn">デモを実行</button>
 <table id="wafResult"></table>
+</section>
+
+<section id="sdk-demo">
+<h2>MCPプロトコルv2 SDKデモ: 新世代クライアントへの対応</h2>
+<p>MCPプロトコルには2026-07-28版(v2)があり、旧世代クライアント(<code>initialize</code>ハンドシェイクを使う)とは別に、ハンドシェイクを省略して自己申告形式で通信する新世代クライアントが今後登場してくる。現行デプロイ済みのサーバー(v1 SDK)と、今回試験的に作成したv2 SDK版サーバーの両方に、新世代クライアント形式のリクエストを実際に送って比較する(<a href="https://github.com/primenumber-dev/quick-agentcore-poc/blob/main/docs/12-mcp-protocol-v2-upgrade-impact.md">v2移行影響調査レポート §7</a>参照)。ログイン不要で実行できます。</p>
+<button id="sdkBtn">デモを実行(約15秒)</button>
+<div class="compare-grid" id="sdkResult">
+  <div class="compare-col before">
+    <h3>現行サーバー(v1 SDK)</h3>
+    <ul class="step-list" id="sdkBefore"><li>-</li></ul>
+  </div>
+  <div class="compare-col after">
+    <h3>v2 SDKアップデート後(試験実装)</h3>
+    <ul class="step-list" id="sdkAfter"><li>-</li></ul>
+  </div>
+</div>
 </section>
 
 <script>
@@ -285,6 +308,37 @@ document.getElementById('wafBtn').addEventListener('click', async () => {
     btn.disabled = false;
   }
 });
+
+// --- MCPプロトコルv2 SDKデモ ---
+function renderSdkColumn(el, r) {
+  el.innerHTML =
+    '<li><span class="badge ' + (r.classic ? 'pass' : 'block') + '">' + (r.classic ? '成功' : '失敗') + '</span> 従来形式のリクエスト(initializeハンドシェイクを使う旧世代クライアント相当)</li>' +
+    '<li><span class="badge ' + (r.modern ? 'pass' : 'block') + '">' + (r.modern ? '成功' : '失敗') + '</span> 新形式のリクエスト(ハンドシェイクを省略する新世代クライアント相当)</li>';
+}
+document.getElementById('sdkBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('sdkBtn');
+  const beforeEl = document.getElementById('sdkBefore');
+  const afterEl = document.getElementById('sdkAfter');
+  btn.disabled = true;
+  beforeEl.innerHTML = '<li>実行中...</li>';
+  afterEl.innerHTML = '<li>実行中...</li>';
+  try {
+    const resp = await fetch('/api/sdk-demo', { method: 'POST' });
+    const data = await resp.json();
+    if (!resp.ok) {
+      beforeEl.innerHTML = '<li class="err">デモ実行に失敗: ' + JSON.stringify(data) + '</li>';
+      afterEl.innerHTML = '';
+      return;
+    }
+    renderSdkColumn(beforeEl, data.v1);
+    renderSdkColumn(afterEl, data.v2);
+  } catch (e) {
+    beforeEl.innerHTML = '<li class="err">エラー: ' + e.message + '</li>';
+    afterEl.innerHTML = '';
+  } finally {
+    btn.disabled = false;
+  }
+});
 </script>
 </body>
 </html>`;
@@ -323,6 +377,67 @@ async function callMcpEndpoint(runtimeArn, accessToken, method, params, sessionI
   });
   const text = await resp.text();
   return { status: resp.status, text, sessionId: resp.headers.get("mcp-session-id") };
+}
+
+// v2(2026-07-28)の"新世代クライアント"形式: initializeハンドシェイクを行わず、
+// 各リクエストの_metaでプロトコルバージョンを自己申告する(docs/12 §7参照)。
+async function callMcpEndpointModern(runtimeArn, accessToken, method, params) {
+  const encodedArn = encodeURIComponent(runtimeArn);
+  const url = `${MCP_ENDPOINT_BASE}/runtimes/${encodedArn}/invocations?qualifier=DEFAULT`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": method,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params: {
+        ...params,
+        _meta: {
+          "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+          "io.modelcontextprotocol/clientCapabilities": {},
+        },
+      },
+    }),
+  });
+  const text = await resp.text();
+  return { status: resp.status, text };
+}
+
+// --- MCPプロトコルv2 SDKデモ ---
+function isSuccessfulMcpResponse(status, text) {
+  if (status < 200 || status >= 300) return false;
+  // SSE形式("event: message\ndata: {...}")で返ることがあるため、data:行を抽出してからJSON化する
+  const dataLine = text.split("\n").find((line) => line.startsWith("data: "));
+  const jsonText = dataLine ? dataLine.slice("data: ".length) : text;
+  const parsed = safeJsonParse(jsonText);
+  return typeof parsed === "object" && parsed !== null && "result" in parsed;
+}
+
+async function runSdkDemo() {
+  const token = await getM2mToken();
+  const [v1Classic, v1Modern, v2Classic, v2Modern] = await Promise.all([
+    callMcpEndpoint(SDK_DEMO_V1_RUNTIME_ARN, token, "tools/list", {}),
+    callMcpEndpointModern(SDK_DEMO_V1_RUNTIME_ARN, token, "tools/list", {}),
+    callMcpEndpoint(SDK_DEMO_V2_RUNTIME_ARN, token, "tools/list", {}),
+    callMcpEndpointModern(SDK_DEMO_V2_RUNTIME_ARN, token, "tools/list", {}),
+  ]);
+  return {
+    v1: {
+      classic: isSuccessfulMcpResponse(v1Classic.status, v1Classic.text),
+      modern: isSuccessfulMcpResponse(v1Modern.status, v1Modern.text),
+    },
+    v2: {
+      classic: isSuccessfulMcpResponse(v2Classic.status, v2Classic.text),
+      modern: isSuccessfulMcpResponse(v2Modern.status, v2Modern.text),
+    },
+  };
 }
 
 // --- 応答時間デモ: client_credentialsでトークン取得しLatencyLab Runtimeを呼ぶ ---
@@ -499,6 +614,11 @@ export const handler = async (event) => {
     if (method === "POST" && path === "/api/waf-demo") {
       const results = await runWafDemo();
       return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ results }) };
+    }
+
+    if (method === "POST" && path === "/api/sdk-demo") {
+      const result = await runSdkDemo();
+      return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify(result) };
     }
   } catch (e) {
     return { statusCode: 500, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ error: e.message }) };
