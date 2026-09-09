@@ -1,0 +1,77 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - Client
+        - AWSCloud
+
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "MCPクライアント"
+
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: vertical
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - APIGateway
+        - WafAlbStack
+
+    APIGateway:
+      Type: AWS::ApiGatewayV2::Api
+      Title: "API Gateway\n(WAF直接アタッチ不可、v2のため)"
+
+    WafAlbStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - WAF
+        - ALB
+
+    WAF:
+      Type: AWS::WAF
+      Title: "WAFv2\n(CommonRuleSet+SQLiRuleSet)"
+
+    ALB:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Preset: "Application Load Balancer"
+      Title: "Application Load Balancer\n(WAF直接アタッチ可能)"
+
+  Links:
+    - Source: Client
+      SourcePosition: S
+      Target: APIGateway
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetLeft:
+          Title: "MCPリクエスト(JSON-RPC)"
+
+    - Source: APIGateway
+      SourcePosition: S
+      Target: ALB
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: WAF
+      SourcePosition: E
+      Target: ALB
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      LineStyle: dashed
+      Labels:
+        TargetLeft:
+          Title: "検証時にアタッチ"

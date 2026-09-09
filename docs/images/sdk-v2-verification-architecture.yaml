@@ -1,0 +1,61 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - Client
+        - AWSCloud
+
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "自動テストスイート\n(8項目)"
+
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: vertical
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - ECSCluster
+
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Title: "ECS"
+      Direction: horizontal
+      Children:
+        - V1Service
+        - V2Service
+
+    V1Service:
+      Type: AWS::ECS::Service
+      Title: "現行サービス\n(v1 SDK、稼働中)"
+
+    V2Service:
+      Type: AWS::ECS::Service
+      Title: "検証用サービス\n(v2 SDK試験実装、新規)"
+
+  Links:
+    - Source: Client
+      SourcePosition: SW
+      Target: V1Service
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetLeft:
+          Title: "classic/modern形式で8項目テスト"
+
+    - Source: Client
+      SourcePosition: SE
+      Target: V2Service
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
