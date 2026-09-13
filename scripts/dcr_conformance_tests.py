@@ -311,7 +311,7 @@ def test_registration_negative(ctx):
     cases = [
         ("7591-05", "response_types: [token] は invalid_client_metadata", {"redirect_uris": [CLAUDE_REDIRECT], "response_types": ["token"]}, (400,), "invalid_client_metadata"),
         ("7591-06", "フラグメント付き redirect_uri は invalid_redirect_uri(500にしない)", {"redirect_uris": [CLAUDE_REDIRECT + "#frag"]}, (400,), "invalid_redirect_uri"),
-        ("7591-09a", "129文字の client_name は400のRFC形式(Cognitoの400を500にしない)", {"redirect_uris": [CLAUDE_REDIRECT], "client_name": "x" * 129}, (400,), None),
+        ("7591-09a", "129文字の client_name は400のRFC形式または受理(500にしない。RFC 7591に長さ上限はない)", {"redirect_uris": [CLAUDE_REDIRECT], "client_name": "x" * 129}, (400, 201), None),
         ("7591-09b", "101件の redirect_uris は400のRFC形式", {"redirect_uris": [f"http://localhost:{p}/cb" for p in range(40000, 40101)]}, (400,), None),
         ("7591-09c", "非JSONボディは400 invalid_client_metadata", b"not json", (400,), "invalid_client_metadata"),
         ("7591-09d", "client_credentials + none は400(Cognitoの400を500にしない)", {"grant_types": ["client_credentials"], "token_endpoint_auth_method": "none"}, (400,), None),
@@ -336,6 +336,8 @@ def test_registration_negative(ctx):
         r = Result(cid, title)
         if status in expected and rfc_error(body) and (err is None or body["error"] == err):
             r.set("PASS", f"HTTP {status} error={body['error']}: {body.get('error_description', '')[:80]}")
+        elif status == 201 and 201 in expected:
+            r.set("PASS", f"HTTP 201 受理(client_id={body.get('client_id')})")
         elif status == 201:
             r.set("FAIL", f"受理されてしまった(201, client_id={body.get('client_id')})", response=body)
         else:
@@ -506,6 +508,50 @@ def test_expired(ctx):
     ctx.add(Result("MCP-04b", "不正な形式のトークンにも 401").set("PASS" if s == 401 else "FAIL", f"HTTP {s}"))
 
 
+# ---------------------------------------------------------------- authorizer: deny-on-missing
+
+def test_deny_on_missing(ctx):
+    """AUTHZ-01/02: CLIENT# レコードを失ったクライアントのトークンは即時拒否される(401)。
+    client_credentials クライアントを登録 → トークン取得 → /mcp 呼び出し(CLIENT# あり)→ CLIENT# を削除 →
+    同じトークンで再呼び出し(401 を期待)。AWS CLI(playground プロファイル)で DynamoDB を操作する。"""
+    print("\n== Authorizer deny-on-missing (AUTHZ-01 / AUTHZ-02)")
+    status, reg, _, _, raw = ctx.register({
+        "client_name": "conformance-deny-on-missing",
+        "grant_types": ["client_credentials"],
+        "token_endpoint_auth_method": "client_secret_basic",
+    })
+    r = Result("AUTHZ-02", "CLIENT# 削除直後に同一アクセストークンが拒否される(deny-on-missing)")
+    if status != 201:
+        ctx.add(r.set("SKIP", f"登録失敗 HTTP {status}: {raw[:120]}"))
+        return
+    token_ep = (ctx.as_meta or {}).get("token_endpoint", f"{ctx.base}/token")
+    basic = base64.b64encode(f"{reg['client_id']}:{reg['client_secret']}".encode()).decode()
+    s, t, _, _ = http(token_ep, "POST", {"content-type": "application/x-www-form-urlencoded", "authorization": f"Basic {basic}"},
+                      urllib.parse.urlencode({"grant_type": "client_credentials", "scope": ctx.invoke_scope}).encode())
+    try:
+        tok = json.loads(t).get("access_token")
+    except (json.JSONDecodeError, TypeError):
+        tok = None
+    if not tok:
+        ctx.add(r.set("SKIP", f"トークン取得失敗 HTTP {s}: {t[:120]}"))
+        return
+    mcp_headers = {"content-type": "application/json", "accept": "application/json, text/event-stream", "authorization": f"Bearer {tok}"}
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}).encode()
+    s_before, t_before, _, _ = http(f"{ctx.base}/mcp", "POST", mcp_headers, body)
+    res = subprocess.run(["aws", "--profile", ctx.args.profile, "--region", "ap-northeast-1", "dynamodb", "delete-item",
+                          "--table-name", ctx.args.table, "--key", json.dumps({"PK": {"S": f"CLIENT#{reg['client_id']}"}})],
+                         capture_output=True, text=True)
+    if res.returncode != 0:
+        ctx.add(r.set("SKIP", f"CLIENT# 削除に失敗: {res.stderr[:120]}"))
+        return
+    s_after, t_after, _, _ = http(f"{ctx.base}/mcp", "POST", mcp_headers, body)
+    detail = f"CLIENT#あり: HTTP {s_before} ({t_before[:60]!r}) → CLIENT#削除後: HTTP {s_after} ({t_after[:60]!r})"
+    # 削除前はAuthorizerを通過してECS側のテナント未承認(403 User not found)になるのが正常。削除後は401。
+    r.set("PASS" if s_after == 401 and s_before != 401 else "FAIL", detail, before=s_before, after=s_after)
+    ctx.add(r)
+    ctx.add(Result("AUTHZ-01", "CLIENT# レコードが存在しないクライアントは拒否される").set("PASS" if s_after == 401 else "FAIL", f"HTTP {s_after}"))
+
+
 # ---------------------------------------------------------------- cleanup / report
 
 def cleanup(args):
@@ -519,9 +565,14 @@ def cleanup(args):
         for cmd in (
             ["cognito-idp", "delete-user-pool-client", "--user-pool-id", args.user_pool_id, "--client-id", cid],
             ["dynamodb", "delete-item", "--table-name", args.table, "--key", json.dumps({"PK": {"S": f"CLIENT#{cid}"}})],
+            # 登録数上限カウンタ(COUNTER#dcr)は「現在のクライアント数」を表すので削除時に減算する
+            ["dynamodb", "update-item", "--table-name", args.table, "--key", json.dumps({"PK": {"S": "COUNTER#dcr"}}),
+             "--update-expression", "ADD #c :m", "--condition-expression", "#c > :zero",
+             "--expression-attribute-names", json.dumps({"#c": "count"}),
+             "--expression-attribute-values", json.dumps({":m": {"N": "-1"}, ":zero": {"N": "0"}})],
         ):
             res = subprocess.run(["aws", "--profile", args.profile, "--region", "ap-northeast-1", *cmd], capture_output=True, text=True)
-            if res.returncode != 0 and "ResourceNotFoundException" not in res.stderr:
+            if res.returncode != 0 and "ResourceNotFoundException" not in res.stderr and "ConditionalCheckFailedException" not in res.stderr:
                 print(f"  warn: {cmd[1]} {cid}: {res.stderr.strip()[:120]}")
         print(f"  deleted {cid}")
     os.remove(CREATED_PATH)
@@ -571,6 +622,8 @@ def main():
         test_auth_code(ctx)
     if selected(["MCP-04"]):
         test_expired(ctx)
+    if selected(["AUTHZ"]):
+        test_deny_on_missing(ctx)
 
     save_created(ctx)
 

@@ -313,6 +313,34 @@ sequenceDiagram
 | DS9 | 連続登録で429、上限到達で429、アクセスログにsourceIpと結果が残る |
 | DS10 | 要確認項目(F1 / F5 / F6 / F9 / A4 / クォータ)が全て「確認済み」に遷移 |
 
+### 2.10 実施済み(2026-09-13): 基準線取得と最小スコープの修正・再検証
+
+`scripts/dcr_conformance_tests.py`で修正前の基準線を取得した後、D4〜D6と D7 の一部を実装・playgroundへ適用し再検証した。証跡は[2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json)(修正前)、[2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json)(修正後)、[2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json)、[2026-09-13-dcr-authz.json](./evidence/2026-09-13-dcr-authz.json)。
+
+| 項目 | 修正前 | 修正後 |
+|---|---|---|
+| 合格 / 不合格(合否判定のある行) | 19 / 16 | 33 / 2 |
+| 残る不合格 | - | 9728-05(`WWW-Authenticate`。HTTP APIではヘッダ付与不可、§1 S12のCloudFront FunctionsまたはREST移行で扱う)、7592-01(RFC 7592、翌週以降) |
+
+修正前の基準線で新たに判明した事実(プランに無かったもの):
+
+- フラグメント付き`redirect_uri`、101件の`redirect_uris`、`client_credentials` + `none`の3ケースで、Cognitoの400が`server_error`の**500に化けていた**(7591-06、7591-09)。
+- `response_types: ["token"]`がそのまま受理されていた(7591-05)。
+- 連続8回登録では共有スロットルで1件のみ429になり、7件が登録された(7591-11。IP単位制限導入後は5件で停止)。
+
+適用した修正(`lambda/src/register.ts`、`lambda/src/authorizer.ts`、`lambda/src/shared/db.ts`、`terraform-playground-pattern4/openapi.yaml`、`apigateway.tf`、`lambda.tf`):
+
+- メタデータ: AS・PRM双方の`scopes_supported`に`invoke`スコープ、`jwks_uri`(Cognito JWKS)、`revocation_endpoint`(`POST /revoke`をCognito `/oauth2/revoke`へプロキシ)、ルートPRM、`/.well-known/openid-configuration`ミラー、`bearer_methods_supported`、`resource_name`。AS metadataはterraformの`locals.as_metadata`から`jsonencode`で生成。
+- 登録: `response_types`の整合性検証、`client_credentials` + `none`の400化、Cognito例外の翻訳(`InvalidParameterException`等 → 400、`LimitExceededException` → 429)、`redirect_uris`のフラグメント・件数・`client_name`長の事前検証、`Cache-Control: no-store` / `Pragma: no-cache`、`client_secret_expires_at`のsecret発行時限定、任意メタデータ(`client_uri`等)の保存と返却、リフレッシュトークンローテーション(`RefreshTokenRotation`)、Managed Loginブランディングの自動適用(`CreateManagedLoginBranding`、`UseCognitoProvidedValues: true`)、登録数上限(`COUNTER#dcr`、既定200)、IP単位レート制限(`RATE#<ip>#<分>`、既定5/分、DynamoDB TTL)。
+- Authorizer: `CLIENT#`が無いまたは`active`でないクライアントを拒否(deny-on-missing)、`aud`があれば`RESOURCE_SERVER_IDENTIFIER`と一致必須、**拒否時に例外を投げる方式(`DENY_MODE=throw`)でAPI Gatewayが401を返すことを実機確認**(従来は403。MCP-04解消、HTTP APIのままで実現)。
+- 静的クライアント(`quick-mcp-poc-mcp-client`)に`source: static`の`CLIENT#`を投入。テーブル名を`TABLE_NAME`環境変数化(Lambda / server / cli)。API Gatewayアクセスログ(`/quick-mcp-poc/apigw-access`、90日)を有効化。
+
+実機で判明した詰まり: リフレッシュトークンローテーションを有効にすると、Cognitoが`ExplicitAuthFlows: ALLOW_REFRESH_TOKEN_AUTH`との併用を拒否する(`ALLOW_REFRESH_TOKEN_AUTH is not a permitted ExplicitAuthFlow when refresh token rotation is enabled`)。認可コードフローのリフレッシュは`/oauth2/token`経由で行われるため`ExplicitAuthFlows`を外して解消した。
+
+未実施: Claude Code / Claude.aiからの自己登録E2E(ブラウザ操作が必要、DS1 / DS2 / DS5)、`--auth-code`による`resource` / `aud` / `iss`の記録(MCP-02 / MCP-03 / 8414-02)、RFC 7592(D10)。
+
+注意: `terraform plan`でNATインスタンス2台の置き換えが提案される(`data.aws_ami`の最新AMI変更によるドリフト、DCRとは無関係)。今回は`-target`でDCR関連リソースのみ適用した。playgroundの`vpc.tf`に`lifecycle { ignore_changes = [ami] }`を追加するか、本番同様にAMIを固定することを推奨する。
+
 ---
 
 ## 3. 本番運用チェックリストの体系化

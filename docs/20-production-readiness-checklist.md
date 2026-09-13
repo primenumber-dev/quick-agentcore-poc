@@ -12,7 +12,7 @@
 | # | 論点 | 結論 |
 |---|---|---|
 | 1 | チェックリストの位置づけ | WAF(`WAF-NN`)、DCR(仕様番号+連番)、運用(`OPS-NN`)を同一スキーマで管理する。自動テスト(`scripts/waf_attack_tests.py`、`scripts/dcr_conformance_tests.py`)の結果IDと1対1で対応させ、表の「状態」「最終実施」「証跡」列のみを更新する運用にする(§1) |
-| 2 | 2026-09-13時点の状態 | DCR: 基準線(修正前)を`scripts/dcr_conformance_tests.py`で取得し、30行を更新(合格12、不合格14、要確認3、未着手1)。WAF: 基準線(WAF未適用)を`scripts/waf_attack_tests.py`で取得し、45パターンのサーバー側応答を記録(11行が検証中)。Claude Code / Claude.aiからの自己登録E2Eは未実施(§2、§3) |
+| 2 | 2026-09-13時点の状態 | DCR: 最小スコープ修正後の再検証で合格33・不合格2(残りは`WWW-Authenticate`とRFC 7592)。deny-on-missing(AUTHZ-01/02)と無効トークン401(MCP-04)を実機確認。WAF: 基準線(WAF未適用)を取得し45パターンのサーバー側応答を記録(11行が検証中)。Claude Code / Claude.aiからの自己登録E2Eは未実施(§2、§3) |
 | 3 | 再評価のトリガー | `terraform/`または`terraform-playground-pattern4/`のWAF・API Gateway・Lambda関連ファイル変更時、月次、MCPプロトコル新版リリース時、Anthropicコネクタ仕様変更時(§5) |
 
 ---
@@ -90,49 +90,49 @@
 
 | ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
 |---|---|---|---|---|---|---|---|
-| 7591-01 | 登録エンドポイントはTLS上の`application/json` POST | RFC 7591 §3 | `--id 7591-01` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-02 | 理解しないクライアントメタデータは無視する | RFC 7591 §2 | `--id 7591-02`(`software_id`等を送信) | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-03 | 登録済みの全メタデータ(サーバーが置換した値を含む)をレスポンスで返す | RFC 7591 §3.2.1 | `--id 7591-03`(`client_name`とCognito側の名称の関係を文書化) | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-04 | `token_endpoint_auth_method`省略時の既定値が`client_secret_basic`である、または逸脱理由が文書化されている | RFC 7591 §2 | `--id 7591-04` | 推奨 | 要確認: 既定値=none, client_secret発行=なし (判断事項: RFC既定に合わせるか逸脱を文書化するか) | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-05 | `response_types`を受理し`grant_types`との整合性を検証する | RFC 7591 §2.1 | `--id 7591-05`(`response_types: ["token"]`で400) | 推奨 | 不合格: 受理されてしまった(201, client_id=38fhphgnaitiu37f71alhj461) | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-06 | `redirect_uris`を検証し、フラグメント付きURIを400で拒否する | RFC 7591 §2、RFC 6749 §3.1.2 | `--id 7591-06` | 必須 | 不合格: HTTP 500 body={"error":"server_error","error_description":"f | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-07 | `client_secret_expires_at`はsecret発行時のみ返す | RFC 7591 §3.2.1 | `--id 7591-07` | 推奨 | 不合格: client_secret=なし, client_secret_expires_at=あり | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-09 | エラーは400と`error`/`error_description`のRFC形式で返し、Cognito起因の400相当を500にしない | RFC 7591 §3.2.2 | `--id 7591-09`(129文字name、101件URI) | 必須 | 不合格: 受理されてしまった(201, client_id=4tstmcejqc5un201r636v9o0f0) | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-10 | レスポンスに`Cache-Control: no-store`と`Pragma: no-cache`を付ける | RFC 7591 §3.2.1(規範か例示かは要確認) | `--id 7591-10` | 推奨 | 不合格: cache-control='', pragma=None | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-11 | オープン登録に対するレート制限・登録数上限がある | RFC 7591 §5 | `--id 7591-11`(連続POSTで429)、`--flood` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7591-12 | メタデータを自己申告として扱い、`logo_uri`等の偽装対策方針が文書化されている | RFC 7591 §5 | コードレビュー | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
+| 7591-01 | 登録エンドポイントはTLS上の`application/json` POST | RFC 7591 §3 | `--id 7591-01` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-02 | 理解しないクライアントメタデータは無視する | RFC 7591 §2 | `--id 7591-02`(`software_id`等を送信) | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-03 | 登録済みの全メタデータ(サーバーが置換した値を含む)をレスポンスで返す | RFC 7591 §3.2.1 | `--id 7591-03`(`client_name`とCognito側の名称の関係を文書化) | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-04 | `token_endpoint_auth_method`省略時の既定値が`client_secret_basic`である、または逸脱理由が文書化されている | RFC 7591 §2 | `--id 7591-04` | 推奨 | 要確認: 既定値=none, client_secret発行=なし (判断事項: RFC既定に合わせるか逸脱を文書化するか) | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-05 | `response_types`を受理し`grant_types`との整合性を検証する | RFC 7591 §2.1 | `--id 7591-05`(`response_types: ["token"]`で400) | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-06 | `redirect_uris`を検証し、フラグメント付きURIを400で拒否する | RFC 7591 §2、RFC 6749 §3.1.2 | `--id 7591-06` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-07 | `client_secret_expires_at`はsecret発行時のみ返す | RFC 7591 §3.2.1 | `--id 7591-07` | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-09 | エラーは400と`error`/`error_description`のRFC形式で返し、Cognito起因の400相当を500にしない | RFC 7591 §3.2.2 | `--id 7591-09`(129文字name、101件URI) | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-10 | レスポンスに`Cache-Control: no-store`と`Pragma: no-cache`を付ける | RFC 7591 §3.2.1(規範か例示かは要確認) | `--id 7591-10` | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-11 | オープン登録に対するレート制限・登録数上限がある | RFC 7591 §5 | `--id 7591-11`(連続POSTで429)、`--flood` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7591-12 | メタデータを自己申告として扱い、`logo_uri`等の偽装対策方針が文書化されている | RFC 7591 §5 | コードレビュー | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
 
 ### 3.2 RFC 7592(クライアント構成管理)
 
 | ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
 |---|---|---|---|---|---|---|---|
-| 7592-01 | 登録レスポンスに`registration_access_token`と`registration_client_uri`を返す | RFC 7592 §2 | `--id 7592-01` | 推奨(翌週以降) | 不合格: registration_client_uri=None | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 7592-02 | `registration_client_uri`へのGET/PUT/DELETEをBearer照合で提供する | RFC 7592 §2.1〜2.3 | `--id 7592-02` | 推奨(翌週以降) | 未着手 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
+| 7592-01 | 登録レスポンスに`registration_access_token`と`registration_client_uri`を返す | RFC 7592 §2 | `--id 7592-01` | 推奨(翌週以降) | 不合格: registration_client_uri=None | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| 7592-02 | `registration_client_uri`へのGET/PUT/DELETEをBearer照合で提供する | RFC 7592 §2.1〜2.3 | `--id 7592-02` | 推奨(翌週以降) | 未着手 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
 
 ### 3.3 RFC 8414(認可サーバーメタデータ)
 
 | ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
 |---|---|---|---|---|---|---|---|
-| 8414-01 | `issuer`がwell-known URL構築元の識別子と一致する | RFC 8414 §3.3 | `--id 8414-01` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-02 | メタデータの`issuer`とトークンの`iss`の不一致が方針として文書化され、RFC 9207の`iss`パラメータ有無が監視されている | RFC 8414、RFC 9207 | `--id 8414-02`(認可レスポンスの`iss`有無を記録) | 必須 | 要確認: authorization_response_iss_parameter_supported=None; 実際のコールバ | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-03 | `jwks_uri`を公開する | RFC 8414 §2 | `--id 8414-03` | 推奨 | 不合格: jwks_uri=None | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-04 | `scopes_supported`にAuthorizerが要求する`invoke`スコープが含まれる | RFC 8414 §2、Anthropicコネクタ仕様 | `--id 8414-04` | 必須 | 不合格: scopes_supported=['openid', 'email', 'profile'] | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-05 | `code_challenge_methods_supported`に`S256`を含む | MCP Authorization | `--id 8414-05` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-06 | `registration_endpoint`を公開する | RFC 8414 §2 | `--id 8414-06` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-07 | `token_endpoint_auth_methods_supported`に`none`を含む | Anthropicコネクタ仕様 | `--id 8414-07` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-08 | `revocation_endpoint`を公開する | RFC 8414 §2 | `--id 8414-08` | 推奨 | 不合格: None | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-10 | `/.well-known/openid-configuration`ミラーを提供する | MCP Authorization(第2フォールバック) | `--id 8414-10` | 推奨 | 不合格: HTTP 403: {"message":"Missing Authentication Token"} | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 8414-11 | CIMD(`client_id_metadata_document_supported`)対応の要否が判断・文書化されている | MCP 2026-07-28 | 方針レビュー | 推奨 | 要確認: client_id_metadata_document_supported=None (方針判断: CL-07) | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
+| 8414-01 | `issuer`がwell-known URL構築元の識別子と一致する | RFC 8414 §3.3 | `--id 8414-01` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-02 | メタデータの`issuer`とトークンの`iss`の不一致が方針として文書化され、RFC 9207の`iss`パラメータ有無が監視されている | RFC 8414、RFC 9207 | `--id 8414-02`(認可レスポンスの`iss`有無を記録) | 必須 | 要確認: authorization_response_iss_parameter_supported=None; 実際のコールバ | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-03 | `jwks_uri`を公開する | RFC 8414 §2 | `--id 8414-03` | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-04 | `scopes_supported`にAuthorizerが要求する`invoke`スコープが含まれる | RFC 8414 §2、Anthropicコネクタ仕様 | `--id 8414-04` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-05 | `code_challenge_methods_supported`に`S256`を含む | MCP Authorization | `--id 8414-05` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-06 | `registration_endpoint`を公開する | RFC 8414 §2 | `--id 8414-06` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-07 | `token_endpoint_auth_methods_supported`に`none`を含む | Anthropicコネクタ仕様 | `--id 8414-07` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-08 | `revocation_endpoint`を公開する | RFC 8414 §2 | `--id 8414-08` | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-10 | `/.well-known/openid-configuration`ミラーを提供する | MCP Authorization(第2フォールバック) | `--id 8414-10` | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 8414-11 | CIMD(`client_id_metadata_document_supported`)対応の要否が判断・文書化されている | MCP 2026-07-28 | 方針レビュー | 推奨 | 要確認: client_id_metadata_document_supported=None (方針判断: CL-07) | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
 
 ### 3.4 RFC 9728(保護リソースメタデータ)と発見経路
 
 | ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
 |---|---|---|---|---|---|---|---|
-| 9728-01 | `resource`がwell-known構築元と一致し、`authorization_servers`を含む | RFC 9728 §3.3 | `--id 9728-01` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 9728-03 | `scopes_supported`に`invoke`スコープを含む(Claudeのスコープ選択根拠) | RFC 9728 §2、Anthropicコネクタ仕様 | `--id 9728-03` | 必須 | 不合格: scopes_supported=None (期待: https://2a5r57wfoa.execute-api.ap | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 9728-04 | `bearer_methods_supported`・`resource_name`を含む | RFC 9728 §2 | `--id 9728-04` | 推奨 | 不合格: bearer_methods_supported=None, resource_name=None | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 9728-05 | 401応答に`WWW-Authenticate: Bearer resource_metadata=...`を含む、またはwell-known経路で発見できる | MCP 2026-07-28(択一MUST) | `--id 9728-05` | 推奨 | 不合格: 401 だが WWW-Authenticate 無し(現行MCP仕様ではwell-known経路で代替可、scopeヒン | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
-| 9728-06 | パス無しの`/.well-known/oauth-protected-resource`も応答する | Anthropicコネクタ仕様(第2プローブ) | `--id 9728-06` | 推奨 | 不合格: HTTP 403: {"message":"Missing Authentication Token"} | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
+| 9728-01 | `resource`がwell-known構築元と一致し、`authorization_servers`を含む | RFC 9728 §3.3 | `--id 9728-01` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 9728-03 | `scopes_supported`に`invoke`スコープを含む(Claudeのスコープ選択根拠) | RFC 9728 §2、Anthropicコネクタ仕様 | `--id 9728-03` | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 9728-04 | `bearer_methods_supported`・`resource_name`を含む | RFC 9728 §2 | `--id 9728-04` | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 9728-05 | 401応答に`WWW-Authenticate: Bearer resource_metadata=...`を含む、またはwell-known経路で発見できる | MCP 2026-07-28(択一MUST) | `--id 9728-05` | 推奨 | 不合格: 401 だが WWW-Authenticate 無し(現行MCP仕様ではwell-known経路で代替可、scopeヒン | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
+| 9728-06 | パス無しの`/.well-known/oauth-protected-resource`も応答する | Anthropicコネクタ仕様(第2プローブ) | `--id 9728-06` | 推奨 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
 
 ### 3.5 MCP Authorization / OAuth 2.1 / RFC 9700
 
@@ -141,7 +141,7 @@
 | MCP-01 | PKCE S256を必須とし、メタデータで広告する | MCP Authorization | `--id MCP-01` | 必須 | 未着手(コード上は準拠) | - | - |
 | MCP-02 | 認可・トークン両エンドポイントで`resource`パラメータを受理する | RFC 8707、MCP Authorization | `--id MCP-02`(`/token`での受理は要確認) | 必須 | 要確認 | - | - |
 | MCP-03 | Authorizerがトークンの`aud`を検証する(`aud`が無いclient_credentialsトークンは`client_id`+`CLIENT#`で代替) | MCP Authorization(MUST)、RFC 9700 §2.3 | `--id MCP-03`(`--no-resource`で拒否) | 必須 | 未着手 | - | - |
-| MCP-04 | 無効・期限切れトークンには401を返す(403ではない) | MCP Authorization、Anthropicのリフレッシュ挙動 | `--id MCP-04`(期限切れトークン) | 必須 | 未着手 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
+| MCP-04 | 無効・期限切れトークンには401を返す(403ではない) | MCP Authorization、Anthropicのリフレッシュ挙動 | `--id MCP-04`(期限切れトークン) | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json) |
 | MCP-05 | 公開クライアントのリフレッシュトークンをローテーションする | MCP Authorization(MUST)、RFC 9700 §2.2.2 | `DescribeUserPoolClient`で`RefreshTokenRotation` | 必須 | 未着手 | - | - |
 | MCP-06 | アクセストークンの有効期間が短命(商用値を決定) | MCP Authorization(SHOULD) | `DescribeUserPoolClient` | 推奨 | 未着手 | - | - |
 | MCP-07 | redirect URIの完全一致(localhostのポートは除外可) | RFC 9700 §2.1、RFC 8252 | E2E(Claude Codeの動的ポート) | 必須 | 未着手(コード上は準拠) | - | - |
@@ -152,8 +152,8 @@
 
 | ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
 |---|---|---|---|---|---|---|---|
-| AUTHZ-01 | `CLIENT#`レコードが存在しないクライアントは拒否する(deny-on-missing) | 19番 §2.3 B1 | 未登録client_idのトークンで403(DS7) | 必須 | 未着手(現状は許可) | - | - |
-| AUTHZ-02 | クライアント削除・失効直後に既発行トークンが拒否される | 19番 §2.3 B4 | `cli delete-client`直後に403(DS7) | 必須 | 未着手 | - | - |
+| AUTHZ-01 | `CLIENT#`レコードが存在しないクライアントは拒否する(deny-on-missing) | 19番 §2.3 B1 | 未登録client_idのトークンで403(DS7) | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-authz.json](./evidence/2026-09-13-dcr-authz.json) |
+| AUTHZ-02 | クライアント削除・失効直後に既発行トークンが拒否される | 19番 §2.3 B4 | `cli delete-client`直後に403(DS7) | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-authz.json](./evidence/2026-09-13-dcr-authz.json) |
 | AUTHZ-03 | サーバー側の`extractSub()`がJWT未検証デコードのフォールバックに依存しない | 09番、19番 §1.1 D8 | コードレビュー | 必須 | 未着手 | - | - |
 | AUTHZ-04 | API Gatewayアクセスログに送信元IP・ルート・ステータス・Authorizerエラーが残る | 05番 §5、19番 §2.3 B6 | ステージ設定とログ確認(DS9) | 必須 | 未着手 | - | - |
 | AUTHZ-05 | DCRクライアント数の上限と未使用クライアントの掃除方針がある | Anthropicコネクタ仕様(接続ごとに登録)、Cognitoクォータ | `--flood`で429、方針レビュー | 必須 | 未着手 | - | - |
@@ -166,7 +166,7 @@
 | CL-01 | Claude Codeから人手のログイン以外の操作なしで自己登録・認可・`tools/list`が成立する | Anthropicコネクタ仕様 | E2E(DS1) | 必須 | 未着手 | - | - |
 | CL-02 | Claude.aiカスタムコネクタで同上 | 同上 | E2E(DS2) | 必須 | 未着手 | - | - |
 | CL-03 | DCRで作成したクライアントでCognito Managed Loginの画面が表示される(ブランディング適用) | Cognito `CreateUserPoolClient`仕様 | E2E(19番 §2.3 A1) | 必須 | 要確認 | - | - |
-| CL-04 | discovery・registration・tokenの各応答が10秒以内 | Anthropicコネクタ仕様 | CloudWatch Duration | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json) |
+| CL-04 | discovery・registration・tokenの各応答が10秒以内 | Anthropicコネクタ仕様 | CloudWatch Duration | 必須 | 合格 | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
 | CL-05 | 60分経過後もClaude Codeが再認可なしで継続利用できる(401によるリフレッシュ) | Anthropicコネクタ仕様 | E2E(DS5) | 必須 | 未着手 | - | - |
 | CL-06 | DCR(登録)とテナント認可(`USER#`による人手承認)が分離され、未承認ユーザーは403、承認後200 | 18番 §1.1 | E2E(DS3) | 必須 | 未着手 | - | - |
 | CL-07 | 商用ディレクトリ公開時の認証方式(DCR継続 / CIMD / `oauth_anthropic_creds`)の選択が判断・文書化されている | Anthropicコネクタ仕様、MCP 2026-07-28 | 方針レビュー | 推奨 | 未着手 | - | - |
@@ -200,4 +200,5 @@
 | 日付 | 変更 |
 |---|---|
 | 2026-09-10 | 初版作成。全行を未着手または要確認で登録。WAF-10・WAF-11のみ18番の実機結果(ALB一時アタッチ)を転記 |
+| 2026-09-13 | DCR最小スコープ修正後の再検証([2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json)、[2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json)、[2026-09-13-dcr-authz.json](./evidence/2026-09-13-dcr-authz.json))を反映。合格33・不合格2 |
 | 2026-09-13 | DCR基準線([2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json))とWAF基準線([2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json))を`scripts/update_checklist.py`で反映。新発見: フラグメント付きredirect_uri・101件redirect_uris・client_credentials+noneでCognitoの400が500化(7591-06、7591-09)、`response_types: [token]`受理(7591-05)、JSON-RPCバッチ50件を200で全処理(WAF-16、A15) |

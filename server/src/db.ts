@@ -17,7 +17,8 @@ function createClient(): DynamoDBDocumentClient {
 
 const docClient = createClient();
 
-const TABLE_NAME = "quick-mcp-poc-users";
+// テーブル名は環境変数で注入する(docs/19 §2.1 F12)。既定値は後方互換のため従来のハードコード値。
+const TABLE_NAME = process.env.TABLE_NAME ?? "quick-mcp-poc-users";
 
 export interface UserRecord {
   PK: string;
