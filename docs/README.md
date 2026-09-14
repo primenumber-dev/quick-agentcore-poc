@@ -41,6 +41,10 @@ flowchart LR
 | 12 | [12-mcp-protocol-v2-upgrade-impact.md](./12-mcp-protocol-v2-upgrade-impact.md) | MCPプロトコルv1(2025-11-25)→v2(2026-07-28)移行の影響調査。SDKのバージョンアップで旧バージョンのMCPクライアントとの互換性を保てるか、AgentCore Runtimeへの影響をまとめる | エンジニア、アーキテクト |
 | 13 | [13-weekly-verification-report.md](./13-weekly-verification-report.md) | 今週(2026-08-31〜09-02)の追加検証レポート。クロステナントなりすまし脆弱性の発見・修正、DCR実装・セキュリティレビュー、コストシミュレーター、Cognito→Auth0移行検討、MCPプロトコルv2影響調査を一本化してまとめる | 意思決定者、エンジニア |
 | 14 | [14-step1-spec-confirmation-answers.md](./14-step1-spec-confirmation-answers.md) | Step1仕様確認シートへの回答。AgentCore Runtime移行に関する7件の質問(OAuthエンドポイント・呼び出しプロトコル・Shim・リクエストヘッダー・セッション隔離・Inbound・想定MCPクライアント)に本プロジェクトの実機検証結果を根拠に回答 | 仕様確認シート提起者、アーキテクト |
+| 15 | [15-ecs-production-readiness-gaps.md](./15-ecs-production-readiness-gaps.md) | ECS(WAF・DCR)アーキテクチャの本番採用に向けた課題点整理。DCRの自己登録〜失効フローの実演、AgentCore Runtime側`allowedScopes`単独運用とECS側REST APIネイティブCOGNITO_USER_POOLSオーソライザーという2つの安価なDCR代替仮説の実機検証、WAFルールセットの不足(SQLi未対応)の新規発見をまとめる | エンジニア(再現・引き継ぎ用) |
+| 16 | [16-weekly-verification-report-week3.md](./16-weekly-verification-report-week3.md) | 今週(2026-09-03)の検証レポート。セッションID再利用による応答時間チューニング(実機で効果の持続時間の上限を特定)、ECS本番化課題整理、MCPプロトコルv2スパイクの結果を一本化してまとめる | 意思決定者、エンジニア |
+| 16c | [16-weekly-verification-report-week3-client.md](./16-weekly-verification-report-week3-client.md) | 16番のクライアント向け版(用語解説付き、対外報告用) | クライアント(QUICK様) |
+| 17 | [17-environment-resource-map.md](./17-environment-resource-map.md) | quick-mcp-poc検証で使っているAWSリソース・環境の整理。AgentCore Runtime(3つ)・ECS・Lambda(3つ)・Cognito・DynamoDBの棚卸しと、疎通検証Webアプリ(web-demo)の各デモセクションがどのリソースを呼んでいるかの対応表、構成図をまとめる | エンジニア(再開時の状況把握用) |
 | — | [agentcore-iam/](./agentcore-iam/) | AgentCore Runtime実行ロール用のIAMポリシー一式 | 本番アカウント適用時の管理者 |
 | — | [images/](./images/) | 構成図のPNGおよび生成元YAML([awsdac](https://github.com/awslabs/diagram-as-code)形式) | 図を再生成・改変したい人 |
 

@@ -1,0 +1,254 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - User
+        - AWSCloud
+
+    User:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "ブラウザ\n(疎通検証Webアプリの利用者)"
+
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: vertical
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - WebDemoLambda
+        - MainStack
+        - SharedStack
+
+    WebDemoLambda:
+      Type: AWS::Lambda::Function
+      Title: "quick-mcp-poc-web-demo\n(Function URL、デモの入口)"
+
+    MainStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - AgentCoreGroup
+        - ECSGroup
+
+    AgentCoreGroup:
+      Type: AWS::Diagram::Resource
+      Preset: "Generic group"
+      Title: "AgentCore Runtime基盤(パターン3)"
+      Direction: vertical
+      Children:
+        - CloudFrontWaf
+        - RuntimeStack
+
+    CloudFrontWaf:
+      Type: AWS::CloudFront::Distribution
+      Title: "CloudFront + WAFv2"
+
+    RuntimeStack:
+      Type: AWS::Diagram::VerticalStack
+      Children:
+        - RuntimeVerification
+        - RuntimeLatencyLab
+        - RuntimeV2SdkDemo
+
+    RuntimeVerification:
+      Type: AWS::Diagram::Resource
+      Preset: "Amazon Bedrock"
+      Title: "quickMcpPocVerification\n(OAuth疎通デモ用、v1 SDK)"
+
+    RuntimeLatencyLab:
+      Type: AWS::Diagram::Resource
+      Preset: "Amazon Bedrock"
+      Title: "quickMcpPocLatencyLab\n(応答時間デモ・v1側、LOG_TIMING)"
+
+    RuntimeV2SdkDemo:
+      Type: AWS::Diagram::Resource
+      Preset: "Amazon Bedrock"
+      Title: "quickMcpPocV2SdkDemo\n(SDKデモ・v2側)"
+
+    ECSGroup:
+      Type: AWS::Diagram::Resource
+      Preset: "Generic group"
+      Title: "ECS基盤(パターン4)"
+      Direction: vertical
+      Children:
+        - APIGateway
+        - DcrLambdaStack
+        - ALB
+        - ECSCluster
+
+    APIGateway:
+      Type: AWS::ApiGatewayV2::Api
+      Title: "API Gateway\n(Lambda Authorizer)"
+
+    DcrLambdaStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - DCRRegisterLambda
+        - DCRAuthorizerLambda
+
+    DCRRegisterLambda:
+      Type: AWS::Lambda::Function
+      Title: "dcr-register"
+
+    DCRAuthorizerLambda:
+      Type: AWS::Lambda::Function
+      Title: "dcr-authorizer"
+
+    ALB:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Preset: "Application Load Balancer"
+
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Title: "quick-mcp-poc-cluster"
+      Children:
+        - ECSService
+
+    ECSService:
+      Type: AWS::ECS::Service
+      Title: "app(Fargate)"
+
+    SharedStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - CognitoAgentCore
+        - CognitoPattern4
+        - DynamoDBTable
+
+    CognitoAgentCore:
+      Type: AWS::Cognito::UserPool
+      Title: "agentcore-mcp-pool\n(パターン3・OAuth/M2M用)"
+
+    CognitoPattern4:
+      Type: AWS::Cognito::UserPool
+      Title: "pattern4-verify-users\n(DCR用)"
+
+    DynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Title: "quick-mcp-poc-users\n(パターン3/4共有、認可レコード)"
+
+  Links:
+    - Source: User
+      SourcePosition: S
+      Target: WebDemoLambda
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: WebDemoLambda
+      SourcePosition: SW
+      Target: CloudFrontWaf
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetLeft:
+          Title: "OAuth/応答時間/WAF/SDKデモ"
+
+    - Source: CloudFrontWaf
+      SourcePosition: S
+      Target: RuntimeVerification
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: CloudFrontWaf
+      SourcePosition: S
+      Target: RuntimeLatencyLab
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: CloudFrontWaf
+      SourcePosition: S
+      Target: RuntimeV2SdkDemo
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: WebDemoLambda
+      SourcePosition: SE
+      Target: APIGateway
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetRight:
+          Title: "DCRデモ"
+
+    - Source: APIGateway
+      SourcePosition: S
+      Target: DCRRegisterLambda
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: APIGateway
+      SourcePosition: S
+      Target: DCRAuthorizerLambda
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: APIGateway
+      SourcePosition: S
+      Target: ALB
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: ALB
+      SourcePosition: S
+      Target: ECSService
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: WebDemoLambda
+      SourcePosition: S
+      Target: CognitoAgentCore
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      LineStyle: dashed
+      Labels:
+        TargetLeft:
+          Title: "トークン取得"
+
+    - Source: WebDemoLambda
+      SourcePosition: S
+      Target: CognitoPattern4
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      LineStyle: dashed
+
+    - Source: WebDemoLambda
+      SourcePosition: S
+      Target: DynamoDBTable
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      LineStyle: dashed
+      Labels:
+        TargetRight:
+          Title: "DCR承認/失効"
