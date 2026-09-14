@@ -664,9 +664,11 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 **詰まった点**: リフレッシュトークンローテーションを有効にすると、Cognitoが`ExplicitAuthFlows: ALLOW_REFRESH_TOKEN_AUTH`との併用を拒否する。認可コードフローのリフレッシュは`/oauth2/token`経由なので`ExplicitAuthFlows`を外して解消した。
 
-### 17.4 WAFの結果: 主案(CloudFront + WAF)をBlockモードで検証、35件遮断・誤検知ゼロ
+### 17.4 WAFの結果: 主案(CloudFront + WAF)をBlockモードで検証、攻撃16件遮断・誤検知ゼロ
 
-詳細は[19番 §1.9](./19-weekly-verification-plan-week5.md)。
+詳細は[19番 §1.9](./19-weekly-verification-plan-week5.md)。45パターンの内訳は、WAFが403で遮断した攻撃16件(うち14件はWAFログで`terminatingRuleId`まで確認)、CloudFrontまたはサーバーが400/405/415で拒否した攻撃5件、記録のみの攻撃11件、そして**全件200で通過した正常系コーパス13件**である。
+
+**数値の注意**: ハーネスの「合格35」は正常系13件の通過を含む合否判定の数であり、遮断件数ではない。レポート初稿でこれを「35件遮断」と誤記し、証跡JSONからの再計算で気づいて訂正した(§17.7)。
 
 **先週の結論を修正すべき発見(最重要)**: ALBにWAFをアタッチすると、**WAFが見る送信元IPはVPC Link ENIのプライベートIP(10.0.11.94)に集約される**。真のクライアントIPは`forwarded`ヘッダにしか無く、IPベースのレート制限・Geo・IPレピュテーションは全クライアントを同一IPとして扱うため機能しない。[18番 §2](./18-weekly-verification-report-week4.md)の「ALBにアタッチすれば対応可能」はボディ検査に限れば正しいが、恒久設計としては不十分。CloudFront構成では真のクライアントIPで評価でき、Geoラベルも正しく付与された。
 
@@ -686,7 +688,7 @@ REST移行の動機は4つあったが、
 
 その`WWW-Authenticate`について、CloudFront Functions(viewer-response)で代替できるかを実測した(S12)。**結果は不可**: オリジンが4xxを返した応答ではviewer-response関数がトリガされない(200では実行され検証用ヘッダが付くが、401では一切付かない。関数単体の`test-function`では401イベントに正しく付与するため、コードではなくCloudFront側の制約)。
 
-ただしMCP 2026-07-28では保護リソースメタデータの提供は「`WWW-Authenticate`**または**well-known」の択一MUSTであり、現状のwell-known提供(今週ルートPRMも追加)で**仕様違反ではない**。したがって`WWW-Authenticate`は「相互運用性の信頼度を上げる推奨項目」と位置づけ、必要になった場合は**Lambda@Edge origin-response(1〜2日、オリジンのエラー応答でも実行される)**を第一候補とする。REST API移行(5〜7日)は、閉域網(PRIVATEエンドポイント)やテナント別クォータが要件として確定した時点で再評価する。
+ただしMCP 2026-07-28では保護リソースメタデータの提供は「`WWW-Authenticate` **または** well-known」の択一MUSTであり、現状のwell-known提供(今週ルートPRMも追加)で**仕様違反ではない**。したがって`WWW-Authenticate`は「相互運用性の信頼度を上げる推奨項目」と位置づけ、必要になった場合は**Lambda@Edge origin-response**(1〜2日、オリジンのエラー応答でも実行される)を第一候補とする。REST API移行(5〜7日)は、閉域網(PRIVATEエンドポイント)やテナント別クォータが要件として確定した時点で再評価する。
 
 ### 17.6 playgroundに作成したAWSリソース(今回分)
 
@@ -715,10 +717,51 @@ REST移行の動機は4つあったが、
 - **Mermaidの`<br/>`はPDF描画で無視される**(`scripts/render-pdf.sh`経由)。ノードラベルは`<br/>`に頼らず、短いラベル + 点線でつないだ詳細ノードに分けると読みやすい。長いラベルを`<br/>`で改行した図は、PDFで文字が詰まって判読しにくくなる
 - **SSOトークンは作業中に失効する**。長時間のterraform applyやハーネス実行の前に`aws sts get-caller-identity`で確認すると、途中で失敗して中途半端な状態になるのを避けられる
 
-### 17.8 次回セッションの着手順
+### 17.8 ユーザー(人間)の確認・判断が必要な項目
 
-1. **Claude Code / Claude.aiからの自己登録E2E**(DS1 / DS2 / DS5)。ブラウザ操作が必要なためユーザーの実施が要る。Managed Loginブランディングの自動適用(CL-03)が効いているかもここで確認できる
-2. WAFのログ保全(Firehose → S3 Object Lock、S8)と監視(アラーム、S9)
-3. カスタムドメイン導入(OPS-08)と、それに伴う秘密ヘッダの強制(`ENFORCE_ORIGIN_VERIFY=true`、S10)
-4. 本番`terraform/`への移植コード準備(未適用、W6)
-5. `docs/README.md`の目次更新(15〜21番)は、未マージブランチのマージ順序を決めてからまとめて行う(§16.7の運用を踏襲)
+セッション終了時点で、私の側で完了できず**ユーザーの確認・判断を待っている**項目。次回セッションの冒頭でこの節の消化状況を確認すること。
+
+**A. ユーザーにしかできないこと**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| A1 | **本番の401バグの共有(最優先、数週間滞留中)** | `fix/production-audience-config-proposal`ブランチの1行修正案が未共有。本番のJWT Authorizerが、Cognitoが実際に発行するトークンと一致しない値を参照しているため**正当なトークンでも常に401**になる。playground複製で再現確認済み。本番アカウントは書き込み禁止のため共有はユーザーが行う必要がある。**今週の追加事実**: CognitoはRFC 8707の`resource`パラメータに対応しており(§17.3のF1相当)、`resource`を指定する前提なら現在の設定値のほうが正しくなる。共有時は「修正案」と「resource指定を前提にする案」の両方を提示すること |
+| A2 | **Claude Code / Claude.aiからの自己登録E2E** | ブラウザでのログイン操作が必要。確認すべきは3点。(1) DCRで作られたクライアントでログイン画面が表示されるか(今週修正したCL-03)、(2) `WWW-Authenticate`無しでwell-known経由だけで接続が成立するか、(3) 60分後もトークンが自動更新され接続が維持されるか(DS5)。**(3)が成立すればREST API移行を見送った判断(§17.5)が実地で裏付けられる** |
+
+**B. 判断が必要なもの**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| B1 | REST API移行を見送る判断の承認 | 私が結論を出したがアーキテクチャの意思決定。根拠は[19番 §1.10](./19-weekly-verification-plan-week5.md)と[22番 §3](./22-weekly-verification-report-week5.md) |
+| B2 | 例外台帳4件の承認 | 意図的にCountのまま運用するルール。すべて「未承認(検証段階の暫定)」で[20番 §4](./20-production-readiness-checklist.md)に登録済み。本番適用前に承認が要る |
+| B3 | `WAF-12`のリスク受容 | JSON内にBase64で埋めたJavaシリアライズ列が検知されない。カスタムルールを作るか、影響の小ささで許容するか |
+| B4 | playgroundリソースの残置可否 | CloudFrontとWeb ACLで月額$6〜10が追加発生(既存の複製一式 約$46への上乗せ)。削除手順は§17.6 |
+| B5 | 未マージ5ブランチの整理 | `docs/README.md`の目次更新(15〜22番)がこれ待ちで止まっている |
+
+**C. 私の作業でユーザーに確認してほしいもの**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| C1 | **先週のクライアント向け報告の訂正** | 先週「ALBにアタッチすれば対応可能」と報告した結論を今週のレポートで訂正している。[18番](./18-weekly-verification-report-week4.md)を既にクライアントへ共有済みであれば、訂正が届く形になる。送付前に確認が要る |
+| C2 | クライアント向けレポートの文面 | QUICK様宛の10ページ。技術用語を平易な言葉に置き換えているが、その置き換えが意図どおりかは要確認 |
+| C3 | terraformの既知のドリフト | playgroundで`terraform plan`するとNATインスタンス2台の置き換えが提案される(`data.aws_ami`が最新AMIを拾うためで今回の作業とは無関係)。今回はすべて`-target`で回避した。`lifecycle { ignore_changes = [ami] }`を入れるかの判断が残っている |
+
+### 17.9 次回セッションの着手順
+
+1. §17.8の消化状況を確認する(特にA1・A2)
+2. **Claude Code / Claude.aiからの自己登録E2E**(A2)。これが済むまでDCRの修正は実地で裏付けられていない
+3. WAFのログ保全(Firehose → S3 Object Lock、S8)と監視(アラーム、S9)
+4. カスタムドメイン導入(OPS-08)と、それに伴う秘密ヘッダの強制(`ENFORCE_ORIGIN_VERIFY=true`、S10)
+5. 本番`terraform/`への移植コード準備(未適用、W6)
+6. `docs/README.md`の目次更新(15〜22番)は、未マージブランチのマージ順序を決めてからまとめて行う(§16.7の運用を踏襲)
+
+### 17.10 セッション終了時点の状態(2026-09-14)
+
+| 項目 | 状態 |
+|---|---|
+| ブランチ | `feature/week5-waf-dcr-production-readiness`(`feature/mcp-protocol-v2-spike`から分岐)。7コミット、作業ツリーはクリーン。**リモートへのpushは未実施** |
+| 未マージブランチ | 5本(`fix/production-audience-config-proposal`、`latency-tuning/session-id-reuse`、`feature/web-demo-verification-panels`、`feature/mcp-protocol-v2-spike`、本ブランチ) |
+| 疎通 | CloudFront経由・API Gateway直の両方で`tools/list`が200。XSSはCloudFront経由で403 |
+| テストクライアント | 全削除済み。Cognitoに残るのは`quick-mcp-poc-mcp-client`(静的)、`dcr-sanity-check-*`(§16以前)、`dcr-pattern4-token-helper-*`(ハーネス用、継続利用するなら残置)の3つ。`COUNTER#dcr`は0 |
+| 一時リソース | ALBプローブ用Web ACLは削除済み(terraformファイルも削除)。CloudFront検証用のCloudFront Functionも削除済み |
+| ハーネスの使い方 | `eval "$(python3 scripts/pattern4_token.py token)"`でトークン取得 → `scripts/waf_attack_tests.py` / `scripts/dcr_conformance_tests.py`を実行 → `scripts/update_checklist.py`で[20番](./20-production-readiness-checklist.md)へ転記。DCRテストは実行後に必ず`--cleanup`すること |
