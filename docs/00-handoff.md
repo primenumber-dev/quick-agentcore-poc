@@ -637,6 +637,7 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 | [19-weekly-verification-plan-week5.md](./19-weekly-verification-plan-week5.md) | 今週の検証プラン(WAF・DCR・チェックリスト・商用調査)。§1.9にWAFの実施結果、§2.10にDCRの実施結果を追記済み |
 | [20-production-readiness-checklist.md](./20-production-readiness-checklist.md) | 本番運用チェックリスト。WAF(`WAF-NN`)・DCR(仕様番号)・Authorizer(`AUTHZ-NN`)を固定IDで管理し、自動テストの結果IDと1対1で対応させる |
 | [21-commercial-remote-mcp-operations-research.md](./21-commercial-remote-mcp-operations-research.md) | AgentCore Gateway・AWS参照アーキテクチャ・MCP仕様・Anthropicコネクタ仕様の机上調査。`OPS-01`〜`OPS-10`の追加行を提案 |
+| [22-weekly-verification-report-week5.md](./22-weekly-verification-report-week5.md) / [同クライアント向け](./22-weekly-verification-report-week5-client.md) | 今週の検証レポート。社内向け11ページ・クライアント向け10ページ、PDF化済み(全ページ目視確認済み) |
 | `scripts/waf_attack_tests.py` | 攻撃パターン45件(A01〜A25)のハーネス。`X-Waf-Test-Id`でWAFログと突合できる |
 | `scripts/waf_log_correlate.py` | WAFログとハーネス結果の突合。どのルールが遮断したか、WAFが見た送信元IPは何かを判定する |
 | `scripts/dcr_conformance_tests.py` | RFC 7591 / 7592 / 8414 / 9728 / MCP認可の準拠性テスト。`--cleanup`でテストクライアントを削除 |
@@ -709,6 +710,8 @@ REST移行の動機は4つあったが、
 - **WAFログの`clientIp`は配置場所で意味が変わる**。ALB配下では前段のENIのIPになる。IP系ルールを設計する前に、必ず実機でログの`clientIp`を確認すること
 - **マルチバイト文字はボディ検査上限を3倍速く消費する**。日本語主体のサービスでは既定16KBは実質5,000文字程度で、`oversize_handling = MATCH`のルールが誤検知する
 - **AWS CLIの引数は`$P`のような変数展開でまとめて渡せない**(1つの引数として解釈される)。プロファイルとリージョンは毎回明示するか、環境変数を使う
+- **レポートの数値は必ず証跡JSONから再計算して検証すること**。今回、Blockモードの結果を「45パターン中35件を遮断」と書いたが、35は正常系13件の通過を含む合格数であり、実際にWAFが遮断したのは16件だった。ハーネスの合格数をそのまま成果として書くと、正常系の通過を遮断件数として報告してしまう
+- **Mermaidの`<br/>`はPDF描画で無視される**(`scripts/render-pdf.sh`経由)。ノードラベルは`<br/>`に頼らず、短いラベル + 点線でつないだ詳細ノードに分けると読みやすい。長いラベルを`<br/>`で改行した図は、PDFで文字が詰まって判読しにくくなる
 - **SSOトークンは作業中に失効する**。長時間のterraform applyやハーネス実行の前に`aws sts get-caller-identity`で確認すると、途中で失敗して中途半端な状態になるのを避けられる
 
 ### 17.8 次回セッションの着手順
@@ -717,5 +720,4 @@ REST移行の動機は4つあったが、
 2. WAFのログ保全(Firehose → S3 Object Lock、S8)と監視(アラーム、S9)
 3. カスタムドメイン導入(OPS-08)と、それに伴う秘密ヘッダの強制(`ENFORCE_ORIGIN_VERIFY=true`、S10)
 4. 本番`terraform/`への移植コード準備(未適用、W6)
-5. 週次レポート(`docs/22`)の作成。社内向け・クライアント向けの2種類、PDF化、査読/修正エージェントの2段階レビュー
-6. `docs/README.md`の目次更新(15〜21番)は、未マージブランチのマージ順序を決めてからまとめて行う(§16.7の運用を踏襲)
+5. `docs/README.md`の目次更新(15〜21番)は、未マージブランチのマージ順序を決めてからまとめて行う(§16.7の運用を踏襲)
