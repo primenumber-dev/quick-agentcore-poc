@@ -471,6 +471,8 @@ resource "aws_cloudfront_distribution" "edge" {
     cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
     # AllViewerExceptHostHeader(マネージド): Authorization・クエリ・ボディ関連ヘッダを転送し、Host は API GW のものを使う
     origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+
+    # S12 の検証結果により function_association は外した(下の CloudFront Functions のコメント参照)。
   }
 
   restrictions {
@@ -488,3 +490,23 @@ resource "aws_cloudfront_distribution" "edge" {
 output "cloudfront_domain" {
   value = "https://${aws_cloudfront_distribution.edge.domain_name}"
 }
+
+# --- S12(検証結果: 不可): 401 への WWW-Authenticate 付与は CloudFront Functions では実現できない ---
+#
+# HTTP API の Lambda Authorizer は拒否時にレスポンスヘッダを制御できないため、RFC 9728 の discovery 導線
+# (Claude が最も確実に使う経路)を出せない。その対案として CloudFront Functions の viewer-response で
+# ヘッダを付与できるかを検証した(docs/19 §1.3 S12)。
+#
+# 2026-09-14 実測の結論: **viewer-response 関数はオリジンがエラー(4xx)を返した応答では実行されない**。
+#   - 200 応答: 関数が実行され、検証用ヘッダ x-cf-fn-probe が付与された
+#   - 401 応答: 関数が実行されず、ヘッダは一切付与されない(x-cache: Error from cloudfront)
+#   - 関数単体の test-function では 401 のイベントに対して正しくヘッダを付与するため、コードではなく
+#     CloudFront 側のトリガ条件による制約である
+#
+# したがって WWW-Authenticate を出す経路は次の3つに絞られる(docs/19 §1.10 で比較):
+#   (a) REST API へ移行し Gateway Responses(UNAUTHORIZED / ACCESS_DENIED)でヘッダをマッピングする
+#   (b) Lambda@Edge の origin-response(オリジンのエラー応答でも実行される)でヘッダを付与する
+#   (c) JWT 検証をオリジン(ECS アプリ)側へ移し、オリジン自身が 401 + ヘッダを返す
+#
+# 検証に使った CloudFront Function(quick-mcp-poc-auth-challenge)は削除済み。再現したい場合は
+# git log で本ファイルの 2026-09-14 の変更を参照すること。

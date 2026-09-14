@@ -14,7 +14,7 @@
 | # | 論点 | 結論 |
 |---|---|---|
 | 1 | WAFの恒久的な配置 | 先週のALBアタッチ方式は`/register`・`/token`・`/authorize`・`/.well-known`を守れず、さらにWAFが見る送信元IPがVPC Link ENIに集約されIP系ルールが機能しない疑いがある(要実機確認)。**主案はCloudFront + WAF(CLOUDFRONTスコープ)を現行HTTP APIの前段に置く構成**とし、execute-api直アクセスは秘密ヘッダ検証で閉じる。ALBを使わない変形(Cloud Map直結 / NLB)を同じスパイクで比較する(§1) |
-| 2 | API GatewayへのWAF直接アタッチ | HTTP API(v2)には不可、REST API(v1)なら可能。ただしREST APIのプライベート統合はNLBのみ対応のため**REST移行はALB撤去を必然的に伴う**。REST移行は全ルート保護・テナント別スロットリング(Usage Plan)・`WWW-Authenticate`付与(Gateway Responses)を同時に解くが工数5〜7日。今週は時間制限1.5日のスパイクで採否を判断する(§1.3) |
+| 2 | API GatewayへのWAF直接アタッチ / REST API移行の採否 | **判断完了: 移行しない**。REST移行の動機4つのうち「全ルート保護」「真のクライアントIP」はCloudFront + WAFで達成済み、「テナント別制限」はWAFレートベースで代替。残る`WWW-Authenticate`付与はCloudFront Functionsでは実現できないことが確定したが(401ではviewer-response関数が起動しない)、MCP 2026-07-28ではwell-known提供との択一MUSTのため仕様違反ではない。必要ならLambda@Edge origin-response(1〜2日)で追加する(§1.10) |
 | 3 | DCRのRFC 7591準拠性 | 現状は「RFC 7591の形をしたLambda簡易実装」。RFC 7592未実装、`scopes_supported`に必須の`invoke`スコープが無い、RTローテーション未設定、audience未検証、`CLIENT#`欠落時に許可するAuthorizer、期限切れトークンが403(Claudeは401でしかリフレッシュしない)、DCRクライアントにManaged Loginブランディングが適用されない疑い、など相互運用性・セキュリティ双方に修正が必要。**Claude Code / Claude.aiからの自己登録E2Eは一度も検証されていない**(§2) |
 | 4 | 前提を覆す事実 | CognitoはRFC 8707(`resource`パラメータ)に対応済みで、認可コードフローのアクセストークンに`aud`が付く。「Cognitoトークンに`aud`が無いのでaudience検証不可」というdocs/10以来の前提は崩れ、MCP仕様MUSTのaudience検証が実装可能。本番のJWT Authorizer `audience`設定の扱いも再考が必要(§2.1 F1、§2.5) |
 | 5 | チェックリスト化 | WAF・DCR・運用を同一スキーマ(要件 / 根拠 / 検証方法 / 状態 / 証跡)で[20-production-readiness-checklist.md](./20-production-readiness-checklist.md)に固定IDで登録し、自動テストの結果IDと1対1で対応させる。terraform変更時・月次・MCP新版時に再評価する(§3) |
@@ -171,6 +171,52 @@ W1〜W3・W5前半を実施した。証跡は[2026-09-13-waf-alb-count.json](./e
 **未実施(翌週)**: 秘密ヘッダの強制(`ENFORCE_ORIGIN_VERIFY=true`、S10)はカスタムドメイン移行(D5)と同時に行う必要があるため観測モードのまま。CloudFront Functionsによる`WWW-Authenticate`付与(S12)、ログ保全(Firehose → S3 Object Lock、S8)、アラーム(S9)、REST APIスパイク(W4)、本番`terraform/`への移植(W6)。
 
 **注意(既知のドリフト)**: playgroundの`terraform plan`はNATインスタンス2台の置き換えを提案する(`data.aws_ami`が最新AMIを拾うためで、DCR・WAFとは無関係)。今回はすべて`-target`で該当リソースのみ適用した。`vpc.tf`に`lifecycle { ignore_changes = [ami] }`を追加するか、本番同様にAMIを固定することを推奨する。
+
+### 1.10 REST API移行の採否(2026-09-14、判断完了)
+
+今週の最重点として「REST API v1へ移行する価値があるか」を判断した。**結論: 現時点では移行しない。CloudFront + WAF + HTTP API(主案d)を継続する。**
+
+#### 判断の根拠
+
+REST API移行の動機は4つあった。それぞれの状況は次の通り。
+
+| # | 移行の動機 | 状況 | 判定 |
+|---|---|---|---|
+| 1 | WAFを全ルートに効かせる | CloudFront + WAFで**達成済み**。`/register`のSQLiも`/token`のXSSも遮断した(§1.9) | 移行不要 |
+| 2 | 真のクライアントIPでIP系ルールを効かせる | CloudFront + WAFで**達成済み**。ALBアタッチでは不可だった(§1.9 D2確定) | 移行不要 |
+| 3 | Gateway Responsesで401に`WWW-Authenticate`を付与する | **CloudFrontでは代替できないことが確定**(下記S12)。ただし後述のとおり移行以外の選択肢がある | 要検討(移行の唯一の実質的な理由) |
+| 4 | Usage Planでテナント別スロットリング、リソースポリシー・PRIVATEエンドポイント | WAFのレートベースルール(`Authorization`集約キー)で(部分的に)代替する設計。閉域網は将来課題 | 移行不要(当面) |
+
+#### S12の検証結果: CloudFront Functionsでは`WWW-Authenticate`を付与できない
+
+viewer-responseのCloudFront Functionを作成し、401応答にヘッダを付与できるかを実測した。
+
+| 対象 | 関数の実行 | 備考 |
+|---|---|---|
+| 200応答(`tools/list`、`/.well-known/*`) | **実行される**(検証用ヘッダ`x-cf-fn-probe: status-200`が付与) | `x-cache: Miss from cloudfront` |
+| 401応答(未認証・無効トークン) | **実行されない**(ヘッダが一切付与されない) | `x-cache: Error from cloudfront` |
+
+関数単体の`aws cloudfront test-function`では、401のイベントに対して正しく`www-authenticate`を付与する。したがってコードの問題ではなく、**オリジンがエラー(4xx)を返した応答ではviewer-response関数がトリガされない**というCloudFront側の制約である。
+
+#### `WWW-Authenticate`を出す残りの選択肢
+
+| 案 | 内容 | 工数 | 評価 |
+|---|---|---|---|
+| (a) REST API v1 + Gateway Responses | `UNAUTHORIZED` / `ACCESS_DENIED`に`gatewayresponse.header.WWW-Authenticate`をマッピング。401 / 403の使い分けも可能 | 5〜7日 | 確実だが、他の3つの動機が消えた今は過大 |
+| (b) Lambda@Edge origin-response | オリジンのエラー応答でも実行される。us-east-1に配置、キャッシュ無効のため全リクエストで起動 | 1〜2日 | **最小コストの追加経路。次回の第一候補** |
+| (c) JWT検証をオリジン(ECSアプリ)へ移す | `/mcp`を`authorization_type = NONE`にし、アプリが401 + ヘッダを返す。CloudFrontはオリジンのヘッダを透過する | 2〜3日 | API Gateway層での拒否を失う(WAFは残る)。アプリ改修が必要 |
+
+#### `WWW-Authenticate`欠落の実害の程度
+
+MCP 2026-07-28では、保護リソースメタデータの提供は「`WWW-Authenticate` **または** well-known URI」の択一MUSTであり、現状のwell-known提供で**仕様違反ではない**([21-commercial-remote-mcp-operations-research.md §4.2](./21-commercial-remote-mcp-operations-research.md))。Anthropicもwell-knownプローブ(`/.well-known/oauth-protected-resource/<path>` → ルート)をフォールバックとして文書化しており、今週ルートPRMを追加済みなので両方のプローブに応答できる。
+
+一方で、Anthropicは`WWW-Authenticate`を「最も確実な経路」とし、`scope`パラメータでクライアントが要求するスコープを制御できる唯一の手段でもある。AgentCore Gatewayもこれを標準装備している(§2.2)。したがって**「仕様違反ではないが、相互運用性の信頼度を上げるために実装すべき推奨項目」**と位置づけ、チェックリストの`OPS-01`として残す。
+
+#### 次回の進め方
+
+1. Claude Code / Claude.aiからのE2E(DS1 / DS2)を実施し、**well-knownプローブだけで実際に接続が成立するか**を確認する。成立すれば(b)の優先度はさらに下がる
+2. 成立しない、または`scope`制御が必要と判明した場合は(b) Lambda@Edge origin-responseを実装する
+3. REST API移行は、閉域網(PRIVATEエンドポイント)やテナント別クォータが要件として確定した時点で再評価する
 
 ### 1.7 成功判定基準(事前登録)
 

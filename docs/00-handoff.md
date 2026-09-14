@@ -655,6 +655,8 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 **適用した修正**: メタデータ(`scopes_supported`に`invoke`、`jwks_uri`、`revocation_endpoint`、ルートPRM、`openid-configuration`ミラー)、登録の検証とエラー翻訳、`Cache-Control: no-store`、リフレッシュトークンローテーション、Managed Loginブランディングの自動適用、登録数上限とIP別レート制限、Authorizerのdeny-on-missingとaud検証、API Gatewayアクセスログ、テーブル名の環境変数化。
 
+**E2Eで確認すべきこと**: well-knownプローブだけで実際にClaudeが接続できるか。成立すれば`WWW-Authenticate`(OPS-01)の優先度はさらに下がる。
+
 **特筆すべき成果**: HTTP APIのLambda Authorizerは拒否時に403を返すためClaudeがトークンをリフレッシュしない問題(A2)があったが、**Authorizerで例外を投げる方式(`DENY_MODE=throw`)にすると API Gatewayが401を返す**ことを実機で確認し、HTTP APIのまま解消した。
 
 **残る不合格2件**: `WWW-Authenticate`ヘッダ(HTTP APIでは付与不可)、RFC 7592(翌週以降)。
@@ -671,14 +673,19 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 **その他の新規発見**: (1) JSON文字列値に埋めたBase64のJavaシリアライズ列は`KnownBadInputsRuleSet`で検知されない、(2) ボディ検査上限の既定(CloudFront 16KB、ALB 8KB固定)では日本語の長文引数が誤検知するため64KBへ引き上げが必要、(3) CloudFrontはURIトラバーサルとTRACEをWAF評価前に自身で拒否する、(4) レートベースルールは反映遅延があり短時間バーストでは発火しない(閾値を一時的に下げて機構を確認済み)、(5) `/register`の連打はLambda内IP別カウンタとAPI GWスロットルで既に多層に止まっている。
 
-### 17.5 REST API移行の採否(今週の最重点、**未判断**)
+### 17.5 REST API移行の採否(今週の最重点): **移行しないと判断**
 
-ユーザーが「今週中に判断」と指示した項目だが、**REST APIスパイク(W4)は未実施**。判断材料は揃いつつある:
+ユーザーが「今週中に判断」と指示した項目。**結論: REST API v1へは移行せず、CloudFront + WAF + HTTP API(主案d)を継続する。** 詳細と根拠は[19番 §1.10](./19-weekly-verification-plan-week5.md)。
 
-- CloudFront + WAF(主案d)で、REST API移行の主目的だった「全ルート保護」「真のクライアントIP」は**達成済み**
-- REST APIでしか得られないものとして残るのは、(a) Gateway Responsesによる`WWW-Authenticate`付与、(b) Usage Planによるテナント別スロットリング、(c) リソースポリシー・PRIVATEエンドポイント(閉域網)
-- (a)はCloudFront Functions(viewer response)で代替できる可能性があり未検証(S12)。(b)はWAFのレートベースルール(`Authorization`集約キー)で代替する設計にしてある
-- したがって**REST移行の必要性は当初想定より下がっている**。翌週にS12を確認した上で結論を出すのが妥当
+REST移行の動機は4つあったが、
+
+- 「全ルート保護」「真のクライアントIP」はCloudFront + WAFで**達成済み**(§17.4)
+- 「テナント別スロットリング」はWAFのレートベースルール(`Authorization`集約キー)で代替する設計にした
+- 残るのは「Gateway Responsesによる`WWW-Authenticate`付与」のみ
+
+その`WWW-Authenticate`について、CloudFront Functions(viewer-response)で代替できるかを実測した(S12)。**結果は不可**: オリジンが4xxを返した応答ではviewer-response関数がトリガされない(200では実行され検証用ヘッダが付くが、401では一切付かない。関数単体の`test-function`では401イベントに正しく付与するため、コードではなくCloudFront側の制約)。
+
+ただしMCP 2026-07-28では保護リソースメタデータの提供は「`WWW-Authenticate`**または**well-known」の択一MUSTであり、現状のwell-known提供(今週ルートPRMも追加)で**仕様違反ではない**。したがって`WWW-Authenticate`は「相互運用性の信頼度を上げる推奨項目」と位置づけ、必要になった場合は**Lambda@Edge origin-response(1〜2日、オリジンのエラー応答でも実行される)**を第一候補とする。REST API移行(5〜7日)は、閉域網(PRIVATEエンドポイント)やテナント別クォータが要件として確定した時点で再評価する。
 
 ### 17.6 playgroundに作成したAWSリソース(今回分)
 
@@ -706,9 +713,9 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 ### 17.8 次回セッションの着手順
 
-1. **REST API採否の判断を完了する**(§17.5)。まずCloudFront Functionsで401に`WWW-Authenticate`を付与できるか(S12)を検証し、できれば主案(d)で確定、できなければREST移行の採用理由に加える
-2. **Claude Code / Claude.aiからの自己登録E2E**(DS1 / DS2 / DS5)。ブラウザ操作が必要なためユーザーの実施が要る。Managed Loginブランディングの自動適用(CL-03)が効いているかもここで確認できる
-3. WAFのログ保全(Firehose → S3 Object Lock、S8)と監視(アラーム、S9)
+1. **Claude Code / Claude.aiからの自己登録E2E**(DS1 / DS2 / DS5)。ブラウザ操作が必要なためユーザーの実施が要る。Managed Loginブランディングの自動適用(CL-03)が効いているかもここで確認できる
+2. WAFのログ保全(Firehose → S3 Object Lock、S8)と監視(アラーム、S9)
+3. カスタムドメイン導入(OPS-08)と、それに伴う秘密ヘッダの強制(`ENFORCE_ORIGIN_VERIFY=true`、S10)
 4. 本番`terraform/`への移植コード準備(未適用、W6)
 5. 週次レポート(`docs/22`)の作成。社内向け・クライアント向けの2種類、PDF化、査読/修正エージェントの2段階レビュー
 6. `docs/README.md`の目次更新(15〜21番)は、未マージブランチのマージ順序を決めてからまとめて行う(§16.7の運用を踏襲)

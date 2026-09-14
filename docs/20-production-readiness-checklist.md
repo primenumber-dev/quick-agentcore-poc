@@ -173,11 +173,33 @@
 
 ---
 
+## 3.8 運用(`OPS-NN`)
+
+[21-commercial-remote-mcp-operations-research.md §6](./21-commercial-remote-mcp-operations-research.md)で提案した行。根拠はAgentCore Gatewayの標準挙動、AWS参照アーキテクチャ、MCP仕様、Anthropicコネクタ仕様。
+
+| ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
+|---|---|---|---|---|---|---|---|
+| OPS-01 | 401応答に`WWW-Authenticate: Bearer resource_metadata="...", scope="..."`を付与する | 21番 §2.2、§4.3 | `dcr_conformance_tests.py --id 9728-05` | 推奨 | 不合格: CloudFront Functionsでは401に付与できない(viewer-response関数が起動しない)。Lambda@Edge origin-responseまたはREST API移行が必要(19番 §1.10) | 2026-09-14 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| OPS-02 | トークン無効(401)とスコープ不足(403 + `error="insufficient_scope"`)を区別する | 21番 §2.2 | 不足スコープのトークンで`curl -i` | 推奨 | 未着手 | - | - |
+| OPS-03 | 認可イベント(拒否理由、`sub`、`client_id`)をログに残し、`sub`をPII相当として保持・アクセス制御を定める | 21番 §2.4 | ログ設定レビュー | 必須 | 検証中: API Gatewayアクセスログに`authorizerSub`・`authorizerClient`・拒否理由を出力するよう設定済み。保持ポリシーの定義は未着手 | 2026-09-13 playground | - |
+| OPS-04 | オリジン保護の秘密ヘッダ(`X-Origin-Verify`)をSecrets Managerで管理しローテーションする | 21番 §3.2 | terraformレビュー、ローテーション手順の実施 | 必須 | 未着手: 現在は`random_password`でterraform stateに保持し、Authorizerは観測モード | 2026-09-14 playground | - |
+| OPS-05 | Anthropic egress `160.79.104.0/21`をMCPサーバーおよびIdP前段のWAF許可リストに含める | 21番 §4.3 | Countモードのラベル観測、許可リストのterraform | 必須 | 未着手 | - | - |
+| OPS-06 | DCRで増える登録クライアント数を監視し、上限・掃除・方式選択の判断基準を持つ | 21番 §4.3 | `COUNTER#dcr`のアラーム、月次レビュー | 必須 | 検証中: 上限(`MAX_DCR_CLIENTS`=200)とIP別レート制限(5/分)を実装し、登録・削除でカウンタが増減することを確認。アラームは未設定 | 2026-09-14 playground | [2026-09-14-waf-ratelimit.json](./evidence/2026-09-14-waf-ratelimit.json) |
+| OPS-07 | discovery / registration / tokenの応答を10秒以内(目標3秒以内)に保つ | 21番 §4.3 | CloudWatch Duration、`--id CL-04` | 必須 | 合格: 登録応答2.17秒(コールドスタート込み) | 2026-09-13 playground | [2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json) |
+| OPS-08 | 公開URL(issuer、`resource`、redirect登録先)をカスタムドメインで固定する | 21番 §3.2、19番 D5 | カスタムドメイン経由のE2E(S7) | 必須 | 未着手: 現在はCloudFront既定ドメインで検証しており、PRMの`resource`はAPI Gateway URLのまま不一致 | - | - |
+| OPS-09 | WAFは全ルールCountで観測し、誤検知ゼロを確認したルールから段階的にBlockへ切り替える | 21番 §3.2 | terraform `locals.waf_mode`と例外台帳 | 必須 | 合格: Countで観測 → 誤検知2件(`SizeRestrictions_BODY`、`GenericRFI_BODY`)をcount上書きし例外台帳に登録 → Blockへ切替 | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| OPS-10 | MCPプロトコル新版リリース時にWAFの版数許可リストとサーバー側の対応版を同時に更新する手順を持つ | 21番 §2.3 | 手順書レビュー | 推奨 | 未着手 | - | - |
+
+---
+
 ## 4. 例外台帳
 
 | 対象ID | 例外内容 | 理由 | 承認者 | 期限 | 記録日 |
 |---|---|---|---|---|---|
-| (なし) | | | | | |
+| WAF-14 | `AWSManagedRulesCommonRuleSet`の`GenericRFI_BODY`をBlockではなくCountで運用する | ニュース検索・銘柄検索の引数に正当なURLが含まれうるため。Blockにすると正常系コーパス(A25-04)が遮断される | 未承認(検証段階の暫定) | 本番適用前に再判断 | 2026-09-14 |
+| WAF-15 | `AWSManagedRulesCommonRuleSet`の`SizeRestrictions_BODY`(8KB超)をCountで運用し、遮断はカスタムルール`body-over-64kb`が担う | 日本語の長文引数(UTF-8で3バイト/文字)が8KBを容易に超えるため。正常系コーパス(A25-07、12KB相当)が遮断される | 未承認(検証段階の暫定) | 本番適用前に再判断 | 2026-09-14 |
+| WAF-19 | `AWSManagedRulesAnonymousIpList`の`HostingProviderIPList`を恒久的にCountで運用する | Claude.ai等の正規MCPクライアントはクラウド(Anthropic egress `160.79.104.0/21`)から発信するため、Blockにすると正規利用を遮断する | 未承認(検証段階の暫定) | 恒久(方針として維持) | 2026-09-14 |
+| WAF-12 | JSON文字列値内のBase64 Javaシリアライズ列を遮断しない | `AWSManagedRulesKnownBadInputsRuleSet`が検知しないことを実測。カスタムルールの費用対効果を未評価 | 未承認(リスク受容の可否は要判断) | 本番適用前に判断 | 2026-09-14 |
 
 ---
 
