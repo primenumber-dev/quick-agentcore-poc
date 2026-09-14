@@ -612,3 +612,156 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 4. **商用リモートMCPサーバーの本番運用に向けた調査に着手**
    - AgentCore GatewayなどAWSのAIサービスのベストプラクティスを参考に、DCR・WAFを中心とした商用MCPサーバー運用のための調査を開始する
    - Runtime自体は不採用だが、AgentCore Gateway等の周辺サービスがDCR/WAF文脈での参考事例(ベストプラクティス)として調査対象になりうる点に注意(ホスティング方式としてのRuntime再検討ではないことを明確に区別すること)
+
+---
+
+## 17. Week5セッション完了サマリー(2026-09-13〜14実施)
+
+> このセクションが本ファイルの最新状態。§16までの記述と矛盾する場合はこちらを優先すること。
+
+### 17.1 このセッションでやったこと
+
+§16.10でユーザーから指示された今週の方針(WAF深掘り、DCR準拠性検証、チェックリスト化、商用MCP運用調査)に沿って、プランニングから実機検証・修正・再検証まで実施した。作業ブランチは`feature/week5-waf-dcr-production-readiness`(`feature/mcp-protocol-v2-spike`から分岐)。
+
+セッション冒頭にユーザーが決めた方針:
+
+- 今週の重点は**REST API移行の採否を今週中に判断**すること
+- WAFの主案は**CloudFront + WAF**(REST API v1 + NLBではない)。ALBを使わない変形(Cloud Map / NLB)は同じスパイクで比較する
+- DCRの修正スコープは**最小(真のRFC準拠 + E2E成立)**。RFC 7592は翌週以降
+- 新ブランチを切って随時コミットする
+
+### 17.2 成果物
+
+| 成果物 | 内容 |
+|---|---|
+| [19-weekly-verification-plan-week5.md](./19-weekly-verification-plan-week5.md) | 今週の検証プラン(WAF・DCR・チェックリスト・商用調査)。§1.9にWAFの実施結果、§2.10にDCRの実施結果を追記済み |
+| [20-production-readiness-checklist.md](./20-production-readiness-checklist.md) | 本番運用チェックリスト。WAF(`WAF-NN`)・DCR(仕様番号)・Authorizer(`AUTHZ-NN`)を固定IDで管理し、自動テストの結果IDと1対1で対応させる |
+| [21-commercial-remote-mcp-operations-research.md](./21-commercial-remote-mcp-operations-research.md) | AgentCore Gateway・AWS参照アーキテクチャ・MCP仕様・Anthropicコネクタ仕様の机上調査。`OPS-01`〜`OPS-10`の追加行を提案 |
+| [22-weekly-verification-report-week5.md](./22-weekly-verification-report-week5.md) / [同クライアント向け](./22-weekly-verification-report-week5-client.md) | 今週の検証レポート。社内向け11ページ・クライアント向け10ページ、PDF化済み(全ページ目視確認済み) |
+| `scripts/waf_attack_tests.py` | 攻撃パターン45件(A01〜A25)のハーネス。`X-Waf-Test-Id`でWAFログと突合できる |
+| `scripts/waf_log_correlate.py` | WAFログとハーネス結果の突合。どのルールが遮断したか、WAFが見た送信元IPは何かを判定する |
+| `scripts/dcr_conformance_tests.py` | RFC 7591 / 7592 / 8414 / 9728 / MCP認可の準拠性テスト。`--cleanup`でテストクライアントを削除 |
+| `scripts/pattern4_token.py` | DCRで検証用client_credentialsクライアントを作りトークンを取得するヘルパー |
+| `scripts/update_checklist.py` | ハーネスの結果JSONをチェックリストの状態列へ転記する |
+| `docs/evidence/` | 実行結果のJSON(DCR基準線・修正後、WAF ALB Count・CloudFront Count・Block・レート制限) |
+
+### 17.3 DCRの結果: 合格19→33、不合格16→2
+
+修正前の基準線を取ってから最小スコープの修正を適用し、再検証した。詳細は[19番 §2.10](./19-weekly-verification-plan-week5.md)。
+
+**基準線で判明した、プランに無かった欠陥**:
+
+- フラグメント付き`redirect_uri`、101件の`redirect_uris`、`client_credentials` + `none`の3ケースで、Cognitoの400が`server_error`の**500に化けていた**
+- `response_types: ["token"]`がそのまま受理されていた
+
+**適用した修正**: メタデータ(`scopes_supported`に`invoke`、`jwks_uri`、`revocation_endpoint`、ルートPRM、`openid-configuration`ミラー)、登録の検証とエラー翻訳、`Cache-Control: no-store`、リフレッシュトークンローテーション、Managed Loginブランディングの自動適用、登録数上限とIP別レート制限、Authorizerのdeny-on-missingとaud検証、API Gatewayアクセスログ、テーブル名の環境変数化。
+
+**E2Eで確認すべきこと**: well-knownプローブだけで実際にClaudeが接続できるか。成立すれば`WWW-Authenticate`(OPS-01)の優先度はさらに下がる。
+
+**特筆すべき成果**: HTTP APIのLambda Authorizerは拒否時に403を返すためClaudeがトークンをリフレッシュしない問題(A2)があったが、**Authorizerで例外を投げる方式(`DENY_MODE=throw`)にすると API Gatewayが401を返す**ことを実機で確認し、HTTP APIのまま解消した。
+
+**残る不合格2件**: `WWW-Authenticate`ヘッダ(HTTP APIでは付与不可)、RFC 7592(翌週以降)。
+
+**詰まった点**: リフレッシュトークンローテーションを有効にすると、Cognitoが`ExplicitAuthFlows: ALLOW_REFRESH_TOKEN_AUTH`との併用を拒否する。認可コードフローのリフレッシュは`/oauth2/token`経由なので`ExplicitAuthFlows`を外して解消した。
+
+### 17.4 WAFの結果: 主案(CloudFront + WAF)をBlockモードで検証、攻撃16件遮断・誤検知ゼロ
+
+詳細は[19番 §1.9](./19-weekly-verification-plan-week5.md)。45パターンの内訳は、WAFが403で遮断した攻撃16件(うち14件はWAFログで`terminatingRuleId`まで確認)、CloudFrontまたはサーバーが400/405/415で拒否した攻撃5件、記録のみの攻撃11件、そして**全件200で通過した正常系コーパス13件**である。
+
+**数値の注意**: ハーネスの「合格35」は正常系13件の通過を含む合否判定の数であり、遮断件数ではない。レポート初稿でこれを「35件遮断」と誤記し、証跡JSONからの再計算で気づいて訂正した(§17.7)。
+
+**先週の結論を修正すべき発見(最重要)**: ALBにWAFをアタッチすると、**WAFが見る送信元IPはVPC Link ENIのプライベートIP(10.0.11.94)に集約される**。真のクライアントIPは`forwarded`ヘッダにしか無く、IPベースのレート制限・Geo・IPレピュテーションは全クライアントを同一IPとして扱うため機能しない。[18番 §2](./18-weekly-verification-report-week4.md)の「ALBにアタッチすれば対応可能」はボディ検査に限れば正しいが、恒久設計としては不十分。CloudFront構成では真のクライアントIPで評価でき、Geoラベルも正しく付与された。
+
+**全ルート保護**: `/register`のSQLiと`/token`のXSSもBLOCKされた。ALBアタッチではこれらの経路は保護できない。
+
+**その他の新規発見**: (1) JSON文字列値に埋めたBase64のJavaシリアライズ列は`KnownBadInputsRuleSet`で検知されない、(2) ボディ検査上限の既定(CloudFront 16KB、ALB 8KB固定)では日本語の長文引数が誤検知するため64KBへ引き上げが必要、(3) CloudFrontはURIトラバーサルとTRACEをWAF評価前に自身で拒否する、(4) レートベースルールは反映遅延があり短時間バーストでは発火しない(閾値を一時的に下げて機構を確認済み)、(5) `/register`の連打はLambda内IP別カウンタとAPI GWスロットルで既に多層に止まっている。
+
+### 17.5 REST API移行の採否(今週の最重点): **移行しないと判断**
+
+ユーザーが「今週中に判断」と指示した項目。**結論: REST API v1へは移行せず、CloudFront + WAF + HTTP API(主案d)を継続する。** 詳細と根拠は[19番 §1.10](./19-weekly-verification-plan-week5.md)。
+
+REST移行の動機は4つあったが、
+
+- 「全ルート保護」「真のクライアントIP」はCloudFront + WAFで**達成済み**(§17.4)
+- 「テナント別スロットリング」はWAFのレートベースルール(`Authorization`集約キー)で代替する設計にした
+- 残るのは「Gateway Responsesによる`WWW-Authenticate`付与」のみ
+
+その`WWW-Authenticate`について、CloudFront Functions(viewer-response)で代替できるかを実測した(S12)。**結果は不可**: オリジンが4xxを返した応答ではviewer-response関数がトリガされない(200では実行され検証用ヘッダが付くが、401では一切付かない。関数単体の`test-function`では401イベントに正しく付与するため、コードではなくCloudFront側の制約)。
+
+ただしMCP 2026-07-28では保護リソースメタデータの提供は「`WWW-Authenticate` **または** well-known」の択一MUSTであり、現状のwell-known提供(今週ルートPRMも追加)で**仕様違反ではない**。したがって`WWW-Authenticate`は「相互運用性の信頼度を上げる推奨項目」と位置づけ、必要になった場合は**Lambda@Edge origin-response**(1〜2日、オリジンのエラー応答でも実行される)を第一候補とする。REST API移行(5〜7日)は、閉域網(PRIVATEエンドポイント)やテナント別クォータが要件として確定した時点で再評価する。
+
+### 17.6 playgroundに作成したAWSリソース(今回分)
+
+| リソース | 識別子 | 状態 |
+|---|---|---|
+| CloudFrontディストリビューション | `E1T56DLS986BE4` / `djwyl11zhnd52.cloudfront.net` | 稼働中。オリジンは現行HTTP API |
+| Web ACL(CLOUDFRONT、us-east-1) | `quick-mcp-poc-edge` | 稼働中、Blockモード。ボディ検査上限64KB |
+| WAFログ用ロググループ(us-east-1) | `aws-waf-logs-quick-mcp-poc-edge` | 90日保持 |
+| API Gatewayアクセスログ | `/quick-mcp-poc/apigw-access` | 90日保持 |
+| (削除済み)ALBプローブ用Web ACL | `quick-mcp-poc-alb-probe` | 検証後にデタッチ・削除。terraformファイルも削除済み |
+| DynamoDB TTL | `quick-mcp-poc-users`の`expiresAt`属性 | 有効化(IP別レート制限カウンタの自動削除用) |
+| 静的クライアントの`CLIENT#`レコード | `CLIENT#69eu35v522jnt0blnb26lij1ei`(`source: static`) | deny-on-missing対応のため投入 |
+
+**コスト注意**: CloudFront + Web ACL(us-east-1)で月額$6〜10程度が追加で発生する。§16.8までのplayground複製一式(月額約$46相当)に上乗せされる。不要になったら`terraform destroy -target=aws_cloudfront_distribution.edge -target=aws_wafv2_web_acl.edge`等で削除する。
+
+**テストクライアントの後片付け**: 検証で作成したDCRクライアントはすべて削除済み(`scripts/dcr_conformance_tests.py --cleanup`)。Cognitoに残っているのは`quick-mcp-poc-mcp-client`(静的)、`dcr-sanity-check-*`(§16以前から存在)、`dcr-pattern4-token-helper-*`(ハーネス用、継続利用するなら残置)の3つ。`COUNTER#dcr`は0に戻っている。
+
+### 17.7 学び
+
+- **「ハーネスの期待値」と「設計上の意図」を混同しないこと**。Blockモードの初回実行で8件がFAILになったが、実際には4件がCloudFrontのWAF評価前の拒否、2件が意図的なcount上書き、1件が未実装のカスタムルールで、真の欠陥は1件(Javaシリアライズ)だけだった。テストの期待値には「なぜその結果が正しいのか」をコメントで残すと、次回の実行者が誤った修正をしない
+- **WAFログの`clientIp`は配置場所で意味が変わる**。ALB配下では前段のENIのIPになる。IP系ルールを設計する前に、必ず実機でログの`clientIp`を確認すること
+- **マルチバイト文字はボディ検査上限を3倍速く消費する**。日本語主体のサービスでは既定16KBは実質5,000文字程度で、`oversize_handling = MATCH`のルールが誤検知する
+- **AWS CLIの引数は`$P`のような変数展開でまとめて渡せない**(1つの引数として解釈される)。プロファイルとリージョンは毎回明示するか、環境変数を使う
+- **レポートの数値は必ず証跡JSONから再計算して検証すること**。今回、Blockモードの結果を「45パターン中35件を遮断」と書いたが、35は正常系13件の通過を含む合格数であり、実際にWAFが遮断したのは16件だった。ハーネスの合格数をそのまま成果として書くと、正常系の通過を遮断件数として報告してしまう
+- **太字はCommonMarkのflanking ruleでPDFに`**`が生のまま残ることがある**。閉じの`**`が全角の閉じカッコ(`」`など)の直後で、かつ直後が日本語の文字だと強調として閉じられない。`pandoc -f gfm -t html5 <file> | grep -c '\*\*'`が0であることを機械チェックすること
+- **Mermaidの`<br/>`はPDF描画で無視される**(`scripts/render-pdf.sh`経由)。ノードラベルは`<br/>`に頼らず、短いラベル + 点線でつないだ詳細ノードに分けると読みやすい。長いラベルを`<br/>`で改行した図は、PDFで文字が詰まって判読しにくくなる
+- **SSOトークンは作業中に失効する**。長時間のterraform applyやハーネス実行の前に`aws sts get-caller-identity`で確認すると、途中で失敗して中途半端な状態になるのを避けられる
+
+### 17.8 ユーザー(人間)の確認・判断が必要な項目
+
+セッション終了時点で、私の側で完了できず**ユーザーの確認・判断を待っている**項目。次回セッションの冒頭でこの節の消化状況を確認すること。
+
+**A. ユーザーにしかできないこと**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| A1 | **本番の401バグの共有(最優先、数週間滞留中)** | `fix/production-audience-config-proposal`ブランチの1行修正案が未共有。本番のJWT Authorizerが、Cognitoが実際に発行するトークンと一致しない値を参照しているため**正当なトークンでも常に401**になる。playground複製で再現確認済み。本番アカウントは書き込み禁止のため共有はユーザーが行う必要がある。**今週の追加事実**: CognitoはRFC 8707の`resource`パラメータに対応しており(§17.3のF1相当)、`resource`を指定する前提なら現在の設定値のほうが正しくなる。共有時は「修正案」と「resource指定を前提にする案」の両方を提示すること |
+| A2 | **Claude Code / Claude.aiからの自己登録E2E** | ブラウザでのログイン操作が必要。確認すべきは3点。(1) DCRで作られたクライアントでログイン画面が表示されるか(今週修正したCL-03)、(2) `WWW-Authenticate`無しでwell-known経由だけで接続が成立するか、(3) 60分後もトークンが自動更新され接続が維持されるか(DS5)。**(3)が成立すればREST API移行を見送った判断(§17.5)が実地で裏付けられる** |
+
+**B. 判断が必要なもの**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| B1 | REST API移行を見送る判断の承認 | 私が結論を出したがアーキテクチャの意思決定。根拠は[19番 §1.10](./19-weekly-verification-plan-week5.md)と[22番 §3](./22-weekly-verification-report-week5.md) |
+| B2 | 例外台帳4件の承認 | 意図的にCountのまま運用するルール。すべて「未承認(検証段階の暫定)」で[20番 §4](./20-production-readiness-checklist.md)に登録済み。本番適用前に承認が要る |
+| B3 | `WAF-12`のリスク受容 | JSON内にBase64で埋めたJavaシリアライズ列が検知されない。カスタムルールを作るか、影響の小ささで許容するか |
+| B4 | playgroundリソースの残置可否 | CloudFrontとWeb ACLで月額$6〜10が追加発生(既存の複製一式 約$46への上乗せ)。削除手順は§17.6 |
+| B5 | 未マージ5ブランチの整理 | `docs/README.md`の目次更新(15〜22番)がこれ待ちで止まっている |
+
+**C. 私の作業でユーザーに確認してほしいもの**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| C1 | **先週のクライアント向け報告の訂正** | 先週「ALBにアタッチすれば対応可能」と報告した結論を今週のレポートで訂正している。[18番](./18-weekly-verification-report-week4.md)を既にクライアントへ共有済みであれば、訂正が届く形になる。送付前に確認が要る |
+| C2 | クライアント向けレポートの文面 | QUICK様宛の10ページ。技術用語を平易な言葉に置き換えているが、その置き換えが意図どおりかは要確認 |
+| C3 | terraformの既知のドリフト | playgroundで`terraform plan`するとNATインスタンス2台の置き換えが提案される(`data.aws_ami`が最新AMIを拾うためで今回の作業とは無関係)。今回はすべて`-target`で回避した。`lifecycle { ignore_changes = [ami] }`を入れるかの判断が残っている |
+
+### 17.9 次回セッションの着手順
+
+1. §17.8の消化状況を確認する(特にA1・A2)
+2. **Claude Code / Claude.aiからの自己登録E2E**(A2)。これが済むまでDCRの修正は実地で裏付けられていない
+3. WAFのログ保全(Firehose → S3 Object Lock、S8)と監視(アラーム、S9)
+4. カスタムドメイン導入(OPS-08)と、それに伴う秘密ヘッダの強制(`ENFORCE_ORIGIN_VERIFY=true`、S10)
+5. 本番`terraform/`への移植コード準備(未適用、W6)
+6. `docs/README.md`の目次更新(15〜22番)は、未マージブランチのマージ順序を決めてからまとめて行う(§16.7の運用を踏襲)
+
+### 17.10 セッション終了時点の状態(2026-09-14)
+
+| 項目 | 状態 |
+|---|---|
+| ブランチ | `feature/week5-waf-dcr-production-readiness`(`feature/mcp-protocol-v2-spike`から分岐)。7コミット、作業ツリーはクリーン。**リモートへのpushは未実施** |
+| 未マージブランチ | 5本(`fix/production-audience-config-proposal`、`latency-tuning/session-id-reuse`、`feature/web-demo-verification-panels`、`feature/mcp-protocol-v2-spike`、本ブランチ) |
+| 疎通 | CloudFront経由・API Gateway直の両方で`tools/list`が200。XSSはCloudFront経由で403 |
+| テストクライアント | 全削除済み。Cognitoに残るのは`quick-mcp-poc-mcp-client`(静的)、`dcr-sanity-check-*`(§16以前)、`dcr-pattern4-token-helper-*`(ハーネス用、継続利用するなら残置)の3つ。`COUNTER#dcr`は0 |
+| 一時リソース | ALBプローブ用Web ACLは削除済み(terraformファイルも削除)。CloudFront検証用のCloudFront Functionも削除済み |
+| ハーネスの使い方 | `eval "$(python3 scripts/pattern4_token.py token)"`でトークン取得 → `scripts/waf_attack_tests.py` / `scripts/dcr_conformance_tests.py`を実行 → `scripts/update_checklist.py`で[20番](./20-production-readiness-checklist.md)へ転記。DCRテストは実行後に必ず`--cleanup`すること |

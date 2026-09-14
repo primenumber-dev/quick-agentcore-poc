@@ -1,0 +1,1178 @@
+{
+  "target": "https://djwyl11zhnd52.cloudfront.net",
+  "expect": "waf",
+  "run_id": "cfblock-125901",
+  "run_at": "2026-09-14T12:59:15+0900",
+  "summary": {
+    "PASS": 35,
+    "INFO": 10
+  },
+  "results": [
+    {
+      "id": "A01",
+      "category": "XSS (body)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.32,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "CommonRuleSet CrossSiteScripting_BODY",
+      "test_header": "cfblock-125901-A01",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 51d782ed1d2046af9191375b187cd160.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "FPTufgkqkI61FHdqMme94I9PSLp3wXdUJrw9aeGud1f8SVwbxfW_OQ=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesCommonRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:CrossSiteScripting_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:CrossSiteScripting_BODY(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A02",
+      "category": "SQLi (body)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "SQLiRuleSet SQLi_BODY",
+      "test_header": "cfblock-125901-A02",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 10edcbd08737ab9d85ea6d338ce3146c.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "eg0NW8mlnTIMWfmwgWC6r-JZVdWIp7A0OZuhIkw-LOAQhBFqeXma9Q=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesSQLiRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:sql-database:SQLi_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesSQLiRuleSet:SQLi_BODY(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A03a",
+      "category": "Log4j/JNDI (body)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.27,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "KnownBadInputs Log4JRCE_BODY",
+      "test_header": "cfblock-125901-A03a",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 ba3d29af6d2b2631990a13b7bf2977ee.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "o0bNfYxTCOliRywWbD5bTPHvK39-65Xz-B1-xuTr97CVBvtxVGi2Fg=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesKnownBadInputsRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:known-bad-inputs:Log4JRCE_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesKnownBadInputsRuleSet:Log4JRCE_BODY(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A03b",
+      "category": "Log4j/JNDI (header)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.76,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "KnownBadInputs Log4JRCE_HEADER",
+      "test_header": "cfblock-125901-A03b",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 67b68604cb3ab08ecf76f962806aae88.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "3UYkDSkc8mRi50JcCG66WQEPyHW6Tt-gZSOS9fOxwvQQrEigGfwaYw=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesKnownBadInputsRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:known-bad-inputs:Log4JRCE_Header"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesKnownBadInputsRuleSet:Log4JRCE_HEADER(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A03c",
+      "category": "Log4j/JNDI (query)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.28,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "KnownBadInputs Log4JRCE_QUERYSTRING",
+      "test_header": "cfblock-125901-A03c",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 584e8f7be55c53ae3c6ed99969159652.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "LNldC-Pa0XiQscl-mmlaQeVNO82XhovHG687UahWs5QcMZbATegSAQ=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesKnownBadInputsRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:known-bad-inputs:Log4JRCE_QueryString"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesKnownBadInputsRuleSet:Log4JRCE_QUERYSTRING(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A04",
+      "category": "Java deserialization (body)",
+      "status": "INFO",
+      "http": 200,
+      "elapsed_s": 0.39,
+      "detail": "HTTP 200 (expected record only) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "KnownBadInputs JavaDeserializationRCE_BODY。**2026-09-14 実測: JSON 文字列値に埋めた Base64 の Java シリアライズ列は Block されない**(Count もされない)。JSON ボディ内の Base64 ペイロードは検知対象外とみなし、必要ならカスタムルールを検討する",
+      "test_header": "cfblock-125901-A04",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 0960f8cb3feaf44b509547087ded384e.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "8JSEL5BlFDR6FR57R3QCkcK35Ti8HBpBm6kg68SWMEJnkEihjjXDKg=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A05a",
+      "category": "Path traversal (URI)",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.2,
+      "detail": "HTTP 400 (expected [400, 403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "CommonRuleSet GenericLFI_URIPATH。CloudFront経由では WAF 評価前に CloudFront 自身が 400 で拒否する(2026-09-14 実測)",
+      "test_header": "cfblock-125901-A05a",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 ba3d29af6d2b2631990a13b7bf2977ee.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "OepRgZzjSoXVFDZrBnc_2SEgT48j5WvLWKANQ51W0zib9CppN8OEPA=="
+      }
+    },
+    {
+      "id": "A05b",
+      "category": "Path traversal encoded (URI)",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.25,
+      "detail": "HTTP 400 (expected [400, 403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "CommonRuleSet GenericLFI_URIPATH。同上",
+      "test_header": "cfblock-125901-A05b",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 2e26d87845b3faf7db1f2a631e831e9e.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "F2n5tYdtHXuYba5mUS2YfVZU1T3ZnqX724JJQJjzw_sD2zwTF7qa8A=="
+      }
+    },
+    {
+      "id": "A06",
+      "category": "LFI (body)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.21,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "CommonRuleSet GenericLFI_BODY",
+      "test_header": "cfblock-125901-A06",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 5c0326121d284420c37cfb20da5a9f96.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "e2BVkcXj6QHseY3CY9sshOyUR8ZtHuwjlh9_SRLat1mpRoXP4KA0Jg=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesCommonRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:GenericLFI_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:GenericLFI_BODY(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A07",
+      "category": "SSRF EC2 metadata (body)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.25,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "CommonRuleSet EC2MetaDataSSRF_BODY",
+      "test_header": "cfblock-125901-A07",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 5c0326121d284420c37cfb20da5a9f96.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "ygDBZrNRgffGLQPSKrPuIZjuF0e2jr1f60e3yrAy7xg6-3mbWyz6Sg=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesCommonRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:EC2MetaDataSSRF_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:EC2MetaDataSSRF_BODY(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A08",
+      "category": "RFI external URL (body)",
+      "status": "INFO",
+      "http": 200,
+      "elapsed_s": 0.3,
+      "detail": "HTTP 200 (expected record only) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet GenericRFI_BODY。正当な引数にURLが入りうるため意図的に count 上書き(cloudfront_waf.tf の common_rule_set_count_overrides)。ラベル付与のみを WAF ログで確認する",
+      "test_header": "cfblock-125901-A08",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 53cd19b921dde901ff2cda604b707ccc.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "hPX2qygyALrKLsZdO1FL8TPoQ1N_HDKHpIq8tg2ryHuB0sT3zrKi6Q=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A09",
+      "category": "Host: localhost",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.27,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "KnownBadInputs Host_localhost_HEADER",
+      "test_header": "cfblock-125901-A09",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 584e8f7be55c53ae3c6ed99969159652.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "SuKPy2fQ9HaQ_AgkfjY9CaJHhrDcx-UKFH3yaYws7i011RxMsOkAeQ=="
+      }
+    },
+    {
+      "id": "A10a",
+      "category": "PROPFIND method",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.3,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "KnownBadInputs PROPFIND_METHOD",
+      "test_header": "cfblock-125901-A10a",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 b798b7abb2a07b26a7bd29d7d315f522.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "F81V40SYFMcrCBBu90bN0xMlBpP90fwtNfbqPPYBv7w3lq-4HQgf2A=="
+      }
+    },
+    {
+      "id": "A10b",
+      "category": "TRACE method",
+      "status": "PASS",
+      "http": 405,
+      "elapsed_s": 0.23,
+      "detail": "HTTP 405 (expected [403, 405]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "カスタム許可メソッド外Block。CloudFront は TRACE を自身で 405 拒否する(2026-09-14 実測)",
+      "test_header": "cfblock-125901-A10b",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 1ad587d5c6df10748fe99709f6a85cc6.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "CvY_X8r7ekXh8im3drs-aWw2j4KX3Su6pDK3spnR-7HOOTDcLbXj3A=="
+      }
+    },
+    {
+      "id": "A11a",
+      "category": "No User-Agent",
+      "status": "INFO",
+      "http": 200,
+      "elapsed_s": 0.33,
+      "detail": "HTTP 200 (expected record only) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet NoUserAgent_HEADER(Count運用、MCPクライアントの実UAを要確認)",
+      "test_header": "cfblock-125901-A11a",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 207c1ba54068fc9d6085bbd976990546.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "T5vicEqV0XgA_sstYgUkAGzx3XITn2Yu0Y_fNHvMy6DIjrMqoLyN4Q=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A11b",
+      "category": "Bad bot UA",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.23,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "CommonRuleSet UserAgent_BadBots_HEADER",
+      "test_header": "cfblock-125901-A11b",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 a0cfe7c4c60aa936f53c056eb6d933d2.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "8srdajXfVR1-w-FcvC4KA6FIrAKkVb6J6itdvwsvgQOvVQ7OWfoYrw=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesCommonRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:BadBots_Header"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:UserAgent_BadBots_HEADER(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A12",
+      "category": "Oversized body 12KB",
+      "status": "INFO",
+      "http": 200,
+      "elapsed_s": 0.38,
+      "detail": "HTTP 200 (expected record only) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet SizeRestrictions_BODY(8KB超)は長文引数で誤検知するため意図的に count 上書き。遮断はカスタム 64KB 超ルールが担う(A13)",
+      "test_header": "cfblock-125901-A12",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 a39d5d4a1edc1e30c801db5c0fe292f8.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "V2L1yLy7FUZoytx5ZH7WF7gwydXmuImC9khEiIX0XqzTkHWDrTknfg=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13",
+          "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:SizeRestrictions_BODY(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A13a",
+      "category": "Oversized body 70KB",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.43,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "カスタム size_constraint 64KB超 / oversize_handling",
+      "test_header": "cfblock-125901-A13a",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 fed297ea8cbe64e89b00f04c335ba570.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "FTH4037VyqwuPcJcaYVIvx07wthiRsbrS_cbjUSaNSie3ACkPtviVw=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "body-over-64kb",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A13b",
+      "category": "Oversized body 200KB",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.55,
+      "detail": "HTTP 403 (expected [403, 413]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "サーバー express.json 100KB上限 → 413。WAF側は oversize_handling の設定次第",
+      "test_header": "cfblock-125901-A13b",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 ccec8f7c8547a994f6578dd30ad7acce.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "h9XrTkDUqqY0Pe7Lcro5ecZCf2UiyvVW_4MOqe8_XnbOWTkLwdZaxw=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "body-over-64kb",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A14",
+      "category": "Malformed JSON",
+      "status": "INFO",
+      "http": 400,
+      "elapsed_s": 0.31,
+      "detail": "HTTP 400 (expected record only) <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\"> <title>Error</title> </head> <body> <pre>Bad Request</pre> </body> </html> ",
+      "note": "WAF json_body invalid_fallback_behavior が MATCH にならないこと",
+      "test_header": "cfblock-125901-A14",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 53cd19b921dde901ff2cda604b707ccc.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "By2JtGRTi-agAsgJOA2h0pKqZtoRMxn8U8JZRmYkipX830iCEeDdng=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A15",
+      "category": "JSON-RPC batch x50",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.3,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "基準線(2026-09-13)で v1 SDK サーバーは50件を200で全処理した(増幅攻撃の入口)。WAFカスタムルール(ボディ先頭 '[' をBlock)候補",
+      "test_header": "cfblock-125901-A15",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 67b68604cb3ab08ecf76f962806aae88.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "ghV3cMKRrCoc9gxZ4KG1zypGDz4aPrac8A5WujPBHPfWZtZjJutggQ=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "jsonrpc-batch",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A19",
+      "category": "Geo (self IP)",
+      "status": "INFO",
+      "http": 200,
+      "elapsed_s": 0.38,
+      "detail": "HTTP 200 (expected record only) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "geo_match は Count 運用。自IPの国コードをWAFログで確認",
+      "test_header": "cfblock-125901-A19",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 7597a0a078cdd0bc0e9771892de74d14.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "3yhHYI6wwqiu9nZbz5T0Ws_Apxihneyn788LnZ0ExTihbxnKwLAMGw=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A22a",
+      "category": "Content-Type text/plain",
+      "status": "PASS",
+      "http": 415,
+      "elapsed_s": 0.3,
+      "detail": "HTTP 415 (expected [403, 415]) {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Unsupported Media Type: Content-Type must be application/json\"},\"id\":null}",
+      "note": "WAF のカスタムルールは未実装。MCP サーバー(v1 SDK)が 415 を返すことで防御されている。WAF 層で弾くかは運用判断",
+      "test_header": "cfblock-125901-A22a",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 fd0969c72f8d03dda52933d886e6e22e.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "5H67zPEcIj4owyeeHjNrRXis-tN-PgxxuBfoAcAUh9tZQeyzv1jRmA=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A22b",
+      "category": "Missing Accept",
+      "status": "INFO",
+      "http": 406,
+      "elapsed_s": 0.36,
+      "detail": "HTTP 406 (expected record only) {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Not Acceptable: Client must accept both application/json and text/event-stream\"},\"id\":nul",
+      "note": "MCPクライアントの実送信値を要確認",
+      "test_header": "cfblock-125901-A22b",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 e58893966921e745711b9c36c6aae9d4.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "8NiWBZMqadekfj3U8DG_jYchpJzksJQri8YaYIWSVl4tOSbP7IBPtw=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A22c",
+      "category": "Oversized header 9KB",
+      "status": "INFO",
+      "http": 431,
+      "elapsed_s": 0.25,
+      "detail": "HTTP 431 (expected record only) {\"message\":\"Request Header Fields Too Large\"}",
+      "note": "ヘッダサイズ上限の挙動",
+      "test_header": "cfblock-125901-A22c",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 2e26d87845b3faf7db1f2a631e831e9e.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "6AplN-cgZLU9F6xhxWOqg0fAP9pS82mvwv2GevKZwbnAbXMI5m3-rg=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A23a",
+      "category": "Unknown MCP-Protocol-Version",
+      "status": "INFO",
+      "http": 400,
+      "elapsed_s": 0.39,
+      "detail": "HTTP 400 (expected record only) {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Bad Request: Unsupported protocol version: 9999-99-99 (supported versions: 2025-11-25, 20",
+      "note": "サーバー側の版数検証を記録",
+      "test_header": "cfblock-125901-A23a",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 53cd19b921dde901ff2cda604b707ccc.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "LRWS9lA9nHJDpV-nZHOA3voc9zhduJc3n_gREZz0T0x79eYqItACcA=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A23b",
+      "category": "Forged Mcp-Session-Id",
+      "status": "INFO",
+      "http": 200,
+      "elapsed_s": 0.32,
+      "detail": "HTTP 200 (expected record only) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "ステートレスサーバーでの扱いを記録",
+      "test_header": "cfblock-125901-A23b",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 51d782ed1d2046af9191375b187cd160.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "hgXw0edfGCu5P11eKRJKPHXXmqKUuY5UFlsFHkstH6NgGOJzQeKiMg=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A24",
+      "category": "x-cognito-sub spoof",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.31,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"tools\":[{\"name\":\"get_quote\",\"title\":\"銘柄スナップショット取得\",\"description\":\"QUICK quoteElement.do APIを叩き、指定された銘柄群について指定された項目の現在値スナップショットを取",
+      "note": "200 でもサーバーが見る sub は Authorizer 由来であること(ECSログで確認、S4)",
+      "test_header": "cfblock-125901-A24",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 a39d5d4a1edc1e30c801db5c0fe292f8.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "ZNPkv4CgQ2HxDPoofgZ0SSXHTq5GaXkRlVmH0uWM-SWp4bbGw84DVw=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A02r",
+      "category": "SQLi to /register (unauth route)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.26,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "ALBアタッチでは守れない経路。201 の場合は --cleanup 対象",
+      "test_header": "cfblock-125901-A02r",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 e292c224849a607e978cd5583ec40350.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "nqyrqTTK8z9oh5XmxC5e1lNr-mhW9jPtVqwUEyiiBi7fca409_vRGw=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesSQLiRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:sql-database:SQLi_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesSQLiRuleSet:SQLi_BODY(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A01t",
+      "category": "XSS to /token (unauth route)",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "ALBアタッチでは守れない経路",
+      "test_header": "cfblock-125901-A01t",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 8baf82cfda6c3412cd330674b90480d6.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "02DRVGdj9eMu7a1VuuARFThH9JoEjp7Y7ScdXZBBWQFZtqsx0jpSGg=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesCommonRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:CrossSiteScripting_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:CrossSiteScripting_BODY(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A05w",
+      "category": "Traversal to /.well-known",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.3,
+      "detail": "HTTP 400 (expected [400, 403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "ALBアタッチでは守れない経路。CloudFront 経由では CloudFront 自身が 400 で拒否",
+      "test_header": "cfblock-125901-A05w",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 0c25175bb084138cf55027d376d5b038.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "dEqXluhxAc2Z7CgSeqMmQHSSmcxz9yBQsRy_qep-IJbbQ05afh91uw=="
+      }
+    },
+    {
+      "id": "A01a",
+      "category": "XSS to /authorize query",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.28,
+      "detail": "HTTP 403 (expected [403]) <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\"> <HTML><HEAD><META HTTP-EQUIV=\"Content",
+      "note": "ALBアタッチでは守れない経路",
+      "test_header": "cfblock-125901-A01a",
+      "waf_headers": {
+        "x-cache": "Error from cloudfront",
+        "via": "1.1 7597a0a078cdd0bc0e9771892de74d14.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "6eXjWBuIg4LmNtbwBg1x21GyO5iFqEy0Et33HKHfmYuazl8JjlBqyA=="
+      },
+      "waf_log": {
+        "action": "BLOCK",
+        "terminatingRuleId": "AWSManagedRulesCommonRuleSet",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:CrossSiteScripting_QueryArguments"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:CrossSiteScripting_QUERYARGUMENTS(TERMINATING)"
+        ]
+      }
+    },
+    {
+      "id": "A25-01",
+      "category": "benign: get_quote 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.28,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool get_quote: [\\n  {\\n    \\\"c",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-01",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 5c0326121d284420c37cfb20da5a9f96.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "rsYem9vqlxGkAZMSvUSI8SWGa1m4vxHQ4Tk9eDQ6QlbV1yyR_TwSWQ=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-02",
+      "category": "benign: search_stocks 日本語",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-02",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 7f7459c105b363c4521133044bce479c.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "k1_NPE7MAubwSdlkaX1vc4hYP67vWaVtZWDHaWJZakRdGy53_utOTA=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-03",
+      "category": "benign: search_stocks SQL風語句",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.3,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-03",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 10edcbd08737ab9d85ea6d338ce3146c.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "w5ajoNF5wLf4ihp7Fk7U0gQ-sxeS3xltVOWWSRZp9Sz9ZJDDtZk46Q=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-04",
+      "category": "benign: search_stocks URL含む",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.24,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-04",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 ba3d29af6d2b2631990a13b7bf2977ee.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "8CIMTH_X8vbr7v-dQm8iPb_OHAryJpnQOCHvtyyTGV2d5c4rdUi4lg=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-05",
+      "category": "benign: search_stocks 記号多用",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.3,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-05",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 4fd04861f340431c4c752882593032f0.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "jWLBgXxgbsf1F_kvo5zqvH3L42BuanYkwwVtOb0N1fIjnA2BsQ9ZlA=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-06",
+      "category": "benign: search_stocks 長文4KB",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.27,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-06",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 8baf82cfda6c3412cd330674b90480d6.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "pYn3fFtmeu2yLkiQ45g1dOYkIf4XfyYazkq64VNb30T9wQQ87lUidA=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-07",
+      "category": "benign: search_stocks 長文12KB",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.34,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-07",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 10edcbd08737ab9d85ea6d338ce3146c.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "s26podhihewQQS8DIvQgXAkyMFrW9wgOlakTo_gn0DTRD0epofsDnw=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13",
+          "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:SizeRestrictions_BODY(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A25-08",
+      "category": "benign: search_news 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.25,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool search_news: [\\n  {\\n    \\",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-08",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 3ddb4dce2b89d7a72c4f50520b1e211a.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "VJYgpEDOvT9mobnQgqAeQGzm9drH5GNikmtwXhx5xOA4mKyvNjwZcQ=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-09",
+      "category": "benign: get_ranking 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.19,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool get_ranking: [\\n  {\\n    \\",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-09",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 5bd7d521087288534585f5697e2dc6d2.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "79o9qWb_DeFeNpPIBNzdPEiiHCsBK6vy--_8MAXUd527pTRceee4ZQ=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-10",
+      "category": "benign: get_price_history 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool get_price_history: [\\n  {\\",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-10",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 b798b7abb2a07b26a7bd29d7d315f522.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "848ZNGHfXONS72TCZKBbbKIp3Q_BTLfrdZLaMUKki0mVcsQO6ec8NA=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-11",
+      "category": "benign: get_intraday_history 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.26,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool get_intraday_history: [\\n ",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-11",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 0960f8cb3feaf44b509547087ded384e.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "kGqxixzX-8833mGEXonWGlaORoL_N2xAMTt7fg9h4-6HB5MHMzrozw=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-12",
+      "category": "benign: tools/list",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.28,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"tools\":[{\"name\":\"get_quote\",\"title\":\"銘柄スナップショット取得\",\"description\":\"QUICK quoteElement.do APIを叩き、指定された銘柄群について指定された項目の現在値スナップショットを取",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-12",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 ba3d29af6d2b2631990a13b7bf2977ee.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "UlHPTwwvjk0dqxmHFrN39cMYE0Cu5HrPvoiFgqCjiCyimV1sWfZiWA=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-13",
+      "category": "benign: initialize",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.25,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{\"listChanged\":true}},\"serverInfo\":{\"name\":\"quick-mcp-poc\",\"version\":\"1.0.",
+      "note": "誤検知判定(FP)",
+      "test_header": "cfblock-125901-A25-13",
+      "waf_headers": {
+        "x-cache": "Miss from cloudfront",
+        "via": "1.1 0d3f57e6ba69d6dd9b6fa0186088b98c.cloudfront.net (CloudFront)",
+        "x-amz-cf-pop": "NRT57-P6",
+        "x-amz-cf-id": "_av_8Ikt_kY0MELe-d7tMOGuicqO82bDnAjH80i4CpFEBPQq-Y3OJA=="
+      },
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+        "country": "JP",
+        "labels": [
+          "awswaf:clientip:geo:country:JP",
+          "awswaf:clientip:geo:region:JP-13"
+        ],
+        "counted": []
+      }
+    }
+  ],
+  "waf_log_summary": {
+    "log_group": "aws-waf-logs-quick-mcp-poc-edge",
+    "client_ips_seen": [
+      "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0"
+    ],
+    "my_ip": "206.83.106.9",
+    "waf02_verdict": "真のクライアントIP(['2406:2d40:5a83:7010:dcd7:9579:cc42:85c0'])",
+    "matched_rows": 39
+  }
+}

@@ -1,0 +1,190 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - Client
+        - AWSCloud
+
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "MCPクライアント\n(Claude.ai / Claude Code)"
+
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: vertical
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - EdgeStack
+        - APIGateway
+        - BackendStack
+
+    EdgeStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - WAF
+        - CloudFront
+        - CognitoStack
+
+    WAF:
+      Type: AWS::WAF
+      Title: "WAFv2 (CLOUDFRONTスコープ)\n全ルートを検査\n真のクライアントIPで評価"
+
+    CloudFront:
+      Type: AWS::CloudFront::Distribution
+      Title: "CloudFront\n(カスタムドメイン、秘密ヘッダ付与)"
+
+    CognitoStack:
+      Type: AWS::Diagram::VerticalStack
+      Children:
+        - CognitoWAF
+        - Cognito
+
+    CognitoWAF:
+      Type: AWS::WAF
+      Title: "WAFv2 (補完)\nHosted UI / token"
+
+    Cognito:
+      Type: AWS::Cognito::UserPool
+      Title: "Cognito User Pool\n(認可コード + PKCE、DCRクライアント)"
+
+    APIGateway:
+      Type: AWS::ApiGatewayV2::Api
+      Title: "API Gateway HTTP API (現行維持)\nLambda Authorizerが秘密ヘッダを検証\n直アクセスは401/403"
+
+    BackendStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - LambdaStack
+        - VPC
+
+    LambdaStack:
+      Type: AWS::Diagram::VerticalStack
+      Children:
+        - RegisterLambda
+        - DynamoDB
+
+    RegisterLambda:
+      Type: AWS::Lambda::Function
+      Title: "DCR Lambda\n(/register, Authorizer)"
+
+    DynamoDB:
+      Type: AWS::DynamoDB::Table
+      Title: "DynamoDB\n(CLIENT# / USER#)"
+
+    VPC:
+      Type: AWS::EC2::VPC
+      Direction: horizontal
+      Title: "VPC"
+      Children:
+        - ALB
+        - ECS
+
+    ALB:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Preset: "Application Load Balancer"
+      Title: "internal ALB (既定)\n変形案: Cloud Map / NLB"
+
+    ECS:
+      Type: AWS::ECS::Service
+      Title: "ECS Fargate\nMCPサーバー"
+
+  Links:
+    - Source: Client
+      SourcePosition: S
+      Target: CloudFront
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        SourceRight:
+          Title: "HTTPS (全ルート)"
+
+    - Source: WAF
+      SourcePosition: E
+      Target: CloudFront
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      LineStyle: dashed
+      Labels:
+        TargetLeft:
+          Title: "アタッチ"
+
+    - Source: CloudFront
+      SourcePosition: S
+      Target: APIGateway
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetLeft:
+          Title: "X-Origin-Verify付与"
+
+    - Source: CognitoWAF
+      SourcePosition: S
+      Target: Cognito
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      LineStyle: dashed
+
+    - Source: APIGateway
+      SourcePosition: E
+      Target: Cognito
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetRight:
+          Title: "/authorize /token"
+
+    - Source: APIGateway
+      SourcePosition: S
+      Target: RegisterLambda
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetLeft:
+          Title: "/register"
+
+    - Source: APIGateway
+      SourcePosition: S
+      Target: ALB
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetRight:
+          Title: "/mcp (VPC Link)"
+
+    - Source: RegisterLambda
+      SourcePosition: S
+      Target: DynamoDB
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: ALB
+      SourcePosition: E
+      Target: ECS
+      TargetPosition: W
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal

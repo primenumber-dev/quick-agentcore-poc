@@ -1,0 +1,39 @@
+{
+  "target": "https://djwyl11zhnd52.cloudfront.net",
+  "expect": "waf",
+  "run_id": "cfrate-130520",
+  "run_at": "2026-09-14T13:06:03+0900",
+  "summary": {
+    "FAIL": 2,
+    "PASS": 1
+  },
+  "results": [
+    {
+      "id": "A16",
+      "category": "Flood /mcp same token",
+      "status": "FAIL",
+      "http": 200,
+      "detail": "60 req in 17.1s: blocked(403/429)=0, statuses=[200]",
+      "note": "レートベース(IP / Authorization キー)。専用低閾値ルールで実施",
+      "test_header": "cfrate-130520-A16"
+    },
+    {
+      "id": "A17",
+      "category": "Flood /register",
+      "status": "PASS",
+      "http": 429,
+      "detail": "60 req in 14.7s: blocked(403/429)=55, statuses=[201, 429]",
+      "note": "route throttling(burst5/rate2) + レートベース。201 の分は --cleanup 対象",
+      "test_header": "cfrate-130520-A17"
+    },
+    {
+      "id": "A18",
+      "category": "Brute force /token",
+      "status": "FAIL",
+      "http": 400,
+      "detail": "60 req in 11.4s: blocked(403/429)=0, statuses=[400]",
+      "note": "レートベース(scope-down /token) + Cognito WAF",
+      "test_header": "cfrate-130520-A18"
+    }
+  ]
+}

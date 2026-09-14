@@ -1,0 +1,207 @@
+{
+  "target": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com",
+  "run_at": "2026-09-13T11:47:41+0900",
+  "summary": {
+    "PASS": 14,
+    "FAIL": 1,
+    "INFO": 2
+  },
+  "results": [
+    {
+      "id": "9728-01",
+      "title": "PRM(パス付き)が200で resource / authorization_servers を持つ",
+      "status": "PASS",
+      "detail": "resource=https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp, elapsed=0.13s",
+      "evidence": {
+        "body": {
+          "resource": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp",
+          "resource_name": "quick-mcp-poc MCP server",
+          "authorization_servers": [
+            "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com"
+          ],
+          "scopes_supported": [
+            "openid",
+            "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke"
+          ],
+          "bearer_methods_supported": [
+            "header"
+          ]
+        }
+      }
+    },
+    {
+      "id": "9728-03",
+      "title": "PRM scopes_supported に invoke スコープを含む",
+      "status": "PASS",
+      "detail": "scopes_supported=['openid', 'https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke']",
+      "evidence": {}
+    },
+    {
+      "id": "9728-04",
+      "title": "PRM bearer_methods_supported / resource_name",
+      "status": "PASS",
+      "detail": "bearer_methods_supported=['header'], resource_name=quick-mcp-poc MCP server",
+      "evidence": {}
+    },
+    {
+      "id": "9728-06",
+      "title": "PRM(パス無しルート)も応答する(Claudeの第2プローブ)",
+      "status": "PASS",
+      "detail": "HTTP 200: {\n  \"resource\": \"https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp\",\n  \"resource_name\": \"quick-mcp-poc MCP",
+      "evidence": {}
+    },
+    {
+      "id": "9728-05",
+      "title": "未認証POST /mcp が401かつ WWW-Authenticate に resource_metadata を含む",
+      "status": "FAIL",
+      "detail": "401 だが WWW-Authenticate 無し(現行MCP仕様ではwell-known経路で代替可、scopeヒント不可)",
+      "evidence": {
+        "headers": {
+          "date": "Sun, 13 Sep 2026 02:47:40 GMT",
+          "content-type": "application/json",
+          "content-length": "26",
+          "connection": "close",
+          "apigw-requestid": "DndAAglPNjMEP-A="
+        }
+      }
+    },
+    {
+      "id": "8414-01",
+      "title": "issuer が well-known 構築元(API GW URL)と一致",
+      "status": "PASS",
+      "detail": "issuer=https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com",
+      "evidence": {
+        "body": {
+          "authorization_endpoint": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/authorize",
+          "code_challenge_methods_supported": [
+            "S256"
+          ],
+          "grant_types_supported": [
+            "authorization_code",
+            "refresh_token",
+            "client_credentials"
+          ],
+          "id_token_signing_alg_values_supported": [
+            "RS256"
+          ],
+          "issuer": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com",
+          "jwks_uri": "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_XrU8FcC1w/.well-known/jwks.json",
+          "registration_endpoint": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/register",
+          "response_modes_supported": [
+            "query"
+          ],
+          "response_types_supported": [
+            "code"
+          ],
+          "revocation_endpoint": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/revoke",
+          "scopes_supported": [
+            "openid",
+            "email",
+            "profile",
+            "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke"
+          ],
+          "service_documentation": "https://github.com/primenumber-dev/quick-agentcore-poc",
+          "subject_types_supported": [
+            "public"
+          ],
+          "token_endpoint": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/token",
+          "token_endpoint_auth_methods_supported": [
+            "none",
+            "client_secret_basic",
+            "client_secret_post"
+          ]
+        }
+      }
+    },
+    {
+      "id": "8414-03",
+      "title": "jwks_uri を公開",
+      "status": "PASS",
+      "detail": "jwks_uri=https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_XrU8FcC1w/.well-known/jwks.json",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-04",
+      "title": "AS scopes_supported に invoke スコープを含む",
+      "status": "PASS",
+      "detail": "scopes_supported=['openid', 'email', 'profile', 'https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke']",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-05",
+      "title": "code_challenge_methods_supported に S256",
+      "status": "PASS",
+      "detail": "['S256']",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-06",
+      "title": "registration_endpoint を公開",
+      "status": "PASS",
+      "detail": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/register",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-07",
+      "title": "token_endpoint_auth_methods_supported に none",
+      "status": "PASS",
+      "detail": "['none', 'client_secret_basic', 'client_secret_post']",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-08",
+      "title": "revocation_endpoint を公開",
+      "status": "PASS",
+      "detail": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/revoke",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-11",
+      "title": "CIMD(client_id_metadata_document_supported)の広告状況",
+      "status": "INFO",
+      "detail": "client_id_metadata_document_supported=None (方針判断: CL-07)",
+      "evidence": {}
+    },
+    {
+      "id": "8414-02",
+      "title": "authorization_response_iss_parameter_supported の広告(RFC 9207、issuer不一致の時限リスク)",
+      "status": "INFO",
+      "detail": "authorization_response_iss_parameter_supported=None; 実際のコールバックの iss 有無は --auth-code で確認",
+      "evidence": {}
+    },
+    {
+      "id": "8414-10",
+      "title": "/.well-known/openid-configuration ミラー",
+      "status": "PASS",
+      "detail": "HTTP 200: {\"authorization_endpoint\":\"https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/authorize\",\"code_challenge_method",
+      "evidence": {}
+    },
+    {
+      "id": "MCP-04",
+      "title": "期限切れ/無効トークンには 401 を返す(403ではない。Claudeは401でのみリフレッシュ)",
+      "status": "PASS",
+      "detail": "HTTP 401: {\"message\":\"Unauthorized\"} www-authenticate=None",
+      "evidence": {}
+    },
+    {
+      "id": "MCP-04b",
+      "title": "不正な形式のトークンにも 401",
+      "status": "PASS",
+      "detail": "HTTP 401",
+      "evidence": {}
+    }
+  ],
+  "created_client_ids": []
+}
