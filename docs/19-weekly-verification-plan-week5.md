@@ -210,7 +210,7 @@ viewer-responseのCloudFront Functionを作成し、401応答にヘッダを付�
 
 MCP 2026-07-28では、保護リソースメタデータの提供は「`WWW-Authenticate` **または** well-known URI」の択一MUSTであり、現状のwell-known提供で**仕様違反ではない**([21-commercial-remote-mcp-operations-research.md §4.2](./21-commercial-remote-mcp-operations-research.md))。Anthropicもwell-knownプローブ(`/.well-known/oauth-protected-resource/<path>` → ルート)をフォールバックとして文書化しており、今週ルートPRMを追加済みなので両方のプローブに応答できる。
 
-一方で、Anthropicは`WWW-Authenticate`を「最も確実な経路」とし、`scope`パラメータでクライアントが要求するスコープを制御できる唯一の手段でもある。AgentCore Gatewayもこれを標準装備している(§2.2)。したがって**「仕様違反ではないが、相互運用性の信頼度を上げるために実装すべき推奨項目」**と位置づけ、チェックリストの`OPS-01`として残す。
+一方で、Anthropicは`WWW-Authenticate`を「最も確実な経路」とし、`scope`パラメータでクライアントが要求するスコープを制御できる唯一の手段でもある。AgentCore Gatewayもこれを標準装備している(§2.2)。したがって**仕様違反ではないが、相互運用性の信頼度を上げるために実装すべき推奨項目**と位置づけ、チェックリストの`OPS-01`として残す。
 
 #### 次回の進め方
 

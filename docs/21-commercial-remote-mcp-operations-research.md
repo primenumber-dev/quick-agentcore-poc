@@ -41,7 +41,7 @@
 
 ### 2.1 認可方式と設定項目
 
-[AgentCore Gateway: Set up inbound authorization](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-inbound-auth.html)では、入口の認可を**JWT**、**IAM(SigV4)**、**オフロード(`AUTHENTICATE_ONLY` / `NONE`)**の3系統に分け、JWT方式は`CustomJWTAuthorizerConfiguration`で次を設定する。
+[AgentCore Gateway: Set up inbound authorization](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-inbound-auth.html)では、入口の認可を**JWT**、**IAM(SigV4)**、そして **オフロード(`AUTHENTICATE_ONLY` / `NONE`)** の3系統に分け、JWT方式は`CustomJWTAuthorizerConfiguration`で次を設定する。
 
 | 設定項目 | 検証対象 | 本プロジェクトの対応物 |
 |---|---|---|
@@ -81,7 +81,7 @@ JWT認可を使うとJWTの一部クレーム(Subject)がCloudTrailに記録さ�
 
 1. MCPクライアントの要求は**CloudFront(AWS WAFで保護)→ ALB → ECS Fargate**へ流れる。
 2. MCPサーバーはプライベートサブネットに置き、セキュリティグループで経路を制限する。
-3. 認証はCognitoの認可コードグラント。参照実装では**MCP Auth Service(MAS)**という独自の認可サーバーがCognitoへリダイレクトし、Cognitoトークンを自前のアクセストークンに交換してクライアントへ返す(セッション・コード・リフレッシュトークンはDynamoDBにTTL付きで保存: セッション24時間、コード10分、リフレッシュ30日)。
+3. 認証はCognitoの認可コードグラント。参照実装では **MCP Auth Service(MAS)** という独自の認可サーバーがCognitoへリダイレクトし、Cognitoトークンを自前のアクセストークンに交換してクライアントへ返す(セッション・コード・リフレッシュトークンはDynamoDBにTTL付きで保存: セッション24時間、コード10分、リフレッシュ30日)。
 4. WAFは「一般的なWeb攻撃の防御と、DDoS対策としての**レート制限**」を含むと明記。
 5. ログはCloudWatch Logsに集約し保持期間を設定。設定はParameter Store、秘密情報はSecrets Manager。
 
