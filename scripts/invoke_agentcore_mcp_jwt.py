@@ -11,6 +11,14 @@ Runtime version 6以降(IAM認証は排他のため invoke_agentcore_mcp.py は�
 
 トークンをキャッシュして再利用したい場合(コールドスタート計測など)は --reuse-token を指定する
 (初回はログインし、以降は $TMPDIR/agentcore_mcp_jwt_tokens.json のアクセストークンを使い回す)。
+
+応答時間チューニング検証(docs/08 §3)向けの追加オプション:
+  --runtime-arn <ARN>   デフォルトのquickMcpPocVerificationではなく別Runtime(quickMcpPocLatencyLab等)を叩く
+  --session-id <ID>     Mcp-Session-Idリクエストヘッダーを付与して送る(セッション再利用/treatment群)
+                         省略時はヘッダーなし(毎回新規セッション相当/control群)
+  --initialize          本呼び出しの前にinitializeハンドシェイクを送る(往復レイテンシは計測結果に含まれない、
+                         Mcp-Session-Id取得だけが目的)
+出力にはレスポンスヘッダー(mcp-session-id/x-amzn-bedrock-agentcore-runtime-session-id)も含まれる。
 """
 import argparse
 import base64
@@ -132,13 +140,13 @@ def login_and_get_tokens(username, password):
     return tokens
 
 
-def call_mcp(access_token, method, params, spoof_sub=None):
+def call_mcp(access_token, method, params, spoof_sub=None, runtime_arn=None, session_id=None, req_id=1):
     endpoint = (
         "https://bedrock-agentcore.ap-northeast-1.amazonaws.com/runtimes/"
-        + urllib.parse.quote(AGENT_RUNTIME_ARN, safe="")
+        + urllib.parse.quote(runtime_arn or AGENT_RUNTIME_ARN, safe="")
         + "/invocations?qualifier=DEFAULT"
     )
-    payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
+    payload = json.dumps({"jsonrpc": "2.0", "id": req_id, "method": method, "params": params}).encode()
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
@@ -149,6 +157,11 @@ def call_mcp(access_token, method, params, spoof_sub=None):
         # AgentCore Runtime passes this header through uninspected, the way ECS's
         # API Gateway does *not* (it overwrites it with the JWT-verified sub).
         headers["x-cognito-sub"] = spoof_sub
+    if session_id:
+        # session-id-reuse hypothesis (docs/08-weekly-verification-plan.md §3):
+        # AgentCore Runtime may route requests carrying the same Mcp-Session-Id
+        # to the same warm microVM, skipping the ~3.9s container boot cost.
+        headers["Mcp-Session-Id"] = session_id
     req = urllib.request.Request(
         endpoint,
         data=payload,
@@ -160,10 +173,22 @@ def call_mcp(access_token, method, params, spoof_sub=None):
         with urllib.request.urlopen(req) as resp:
             body = resp.read()
             elapsed = time.monotonic() - start
-            return json.loads(body), elapsed
+            resp_headers = {
+                "mcp-session-id": resp.headers.get("mcp-session-id"),
+                "x-amzn-bedrock-agentcore-runtime-session-id": resp.headers.get(
+                    "x-amzn-bedrock-agentcore-runtime-session-id"
+                ),
+            }
+            return json.loads(body), elapsed, resp_headers
     except urllib.error.HTTPError as e:
         elapsed = time.monotonic() - start
-        return {"http_error": e.code, "body": e.read().decode()}, elapsed
+        resp_headers = {
+            "mcp-session-id": e.headers.get("mcp-session-id"),
+            "x-amzn-bedrock-agentcore-runtime-session-id": e.headers.get(
+                "x-amzn-bedrock-agentcore-runtime-session-id"
+            ),
+        }
+        return {"http_error": e.code, "body": e.read().decode()}, elapsed, resp_headers
 
 
 def main():
@@ -173,6 +198,9 @@ def main():
     parser.add_argument("--username", default=os.environ.get("MCP_TEST_USERNAME", "quick-mcp-poc-verify"))
     parser.add_argument("--reuse-token", action="store_true", help="既存のトークンキャッシュを再利用する(再ログインしない)")
     parser.add_argument("--spoof-sub", default=None, help="セキュリティ検証用: x-cognito-subヘッダーを指定値で付与する(docs/08 §1)")
+    parser.add_argument("--runtime-arn", default=None, help="デフォルトのquickMcpPocVerification以外のRuntime ARNを指定")
+    parser.add_argument("--session-id", default=None, help="Mcp-Session-Idリクエストヘッダーを付与する(セッション再利用検証)")
+    parser.add_argument("--initialize", action="store_true", help="本呼び出しの前にinitializeハンドシェイクを送りMcp-Session-Idを取得する")
     args = parser.parse_args()
 
     tokens = None
@@ -184,8 +212,22 @@ def main():
             sys.exit("環境変数 MCP_TEST_PASSWORD にテストユーザーのパスワードを設定してください")
         tokens = login_and_get_tokens(args.username, password)
 
-    result, elapsed = call_mcp(tokens["access_token"], args.method, json.loads(args.params), spoof_sub=args.spoof_sub)
+    session_id = args.session_id
+    if args.initialize:
+        init_result, init_elapsed, init_headers = call_mcp(
+            tokens["access_token"], "initialize",
+            {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "latency-lab-client", "version": "1.0.0"}},
+            runtime_arn=args.runtime_arn, session_id=session_id, req_id=0,
+        )
+        session_id = init_headers.get("mcp-session-id") or session_id
+        print(f"initialize elapsed_seconds={init_elapsed:.3f} session_id={session_id}", file=sys.stderr)
+
+    result, elapsed, resp_headers = call_mcp(
+        tokens["access_token"], args.method, json.loads(args.params),
+        spoof_sub=args.spoof_sub, runtime_arn=args.runtime_arn, session_id=session_id,
+    )
     print(f"elapsed_seconds={elapsed:.3f}")
+    print(f"response_headers={json.dumps(resp_headers)}")
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
