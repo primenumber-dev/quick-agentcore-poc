@@ -1,0 +1,29 @@
+{
+  "target": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com",
+  "run_at": "2026-09-13T11:48:39+0900",
+  "summary": {
+    "PASS": 2
+  },
+  "results": [
+    {
+      "id": "AUTHZ-02",
+      "title": "CLIENT# 削除直後に同一アクセストークンが拒否される(deny-on-missing)",
+      "status": "PASS",
+      "detail": "CLIENT#あり: HTTP 403 ('{\"error\":\"User not found\"}') → CLIENT#削除後: HTTP 401 ('{\"message\":\"Unauthorized\"}')",
+      "evidence": {
+        "before": 403,
+        "after": 401
+      }
+    },
+    {
+      "id": "AUTHZ-01",
+      "title": "CLIENT# レコードが存在しないクライアントは拒否される",
+      "status": "PASS",
+      "detail": "HTTP 401",
+      "evidence": {}
+    }
+  ],
+  "created_client_ids": [
+    "3gptb5v63ro2533ueh0of8v40k"
+  ]
+}

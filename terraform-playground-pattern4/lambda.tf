@@ -2,6 +2,13 @@
 # JWT型Authorizerは動的に増えるclient_idに対応できないため、Lambda(REQUEST型)Authorizerに置き換え、
 # 併せてRFC 7591準拠のPOST /registerエンドポイントを追加する。
 
+# DCR 台帳・テナント台帳のテーブル。terraform 管理外の既存テーブル(docs/19 §2.1 F12)。
+# Lambda / server / cli の3コンポーネントと IAM で同じ名前を参照する。
+locals {
+  dcr_table_name = "quick-mcp-poc-users"
+  dcr_table_arn  = "arn:aws:dynamodb:ap-northeast-1:883660531246:table/${local.dcr_table_name}"
+}
+
 data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -39,7 +46,7 @@ resource "aws_iam_role_policy_attachment" "dcr_authorizer_basic" {
 data "aws_iam_policy_document" "dcr_authorizer_dynamodb" {
   statement {
     actions   = ["dynamodb:GetItem"]
-    resources = ["arn:aws:dynamodb:ap-northeast-1:883660531246:table/quick-mcp-poc-users"]
+    resources = [local.dcr_table_arn]
   }
 }
 
@@ -60,8 +67,16 @@ resource "aws_lambda_function" "dcr_authorizer" {
 
   environment {
     variables = {
-      USER_POOL_ID   = aws_cognito_user_pool.main.id
-      REQUIRED_SCOPE = "${aws_cognito_resource_server.mcp.identifier}/invoke"
+      USER_POOL_ID               = aws_cognito_user_pool.main.id
+      REQUIRED_SCOPE             = "${aws_cognito_resource_server.mcp.identifier}/invoke"
+      RESOURCE_SERVER_IDENTIFIER = aws_cognito_resource_server.mcp.identifier
+      TABLE_NAME                 = local.dcr_table_name
+      # docs/19 §2.4-a: 401化の試行。"throw" で例外を投げたときの API Gateway の応答コードを観測する。
+      DENY_MODE                        = "throw"
+      REQUIRE_AUDIENCE_FOR_USER_TOKENS = "false"
+      # WAF-03: CloudFront の秘密ヘッダ(cloudfront_waf.tf)。観測モード(false)から開始
+      ORIGIN_VERIFY_SECRET  = random_password.origin_verify.result
+      ENFORCE_ORIGIN_VERIFY = "false"
     }
   }
 }
@@ -98,6 +113,10 @@ data "aws_iam_policy_document" "dcr_register_cognito" {
       "cognito-idp:DeleteUserPoolClient",
       "cognito-idp:DescribeUserPoolClient",
       "cognito-idp:UpdateUserPoolClient",
+      # CL-03: DCR クライアントに Managed Login ブランディングを割り当てる(無いとログイン画面が出ない)
+      "cognito-idp:CreateManagedLoginBranding",
+      "cognito-idp:DeleteManagedLoginBranding",
+      "cognito-idp:DescribeManagedLoginBrandingByClient",
     ]
     resources = [aws_cognito_user_pool.main.arn]
   }
@@ -111,8 +130,9 @@ resource "aws_iam_role_policy" "dcr_register_cognito" {
 
 data "aws_iam_policy_document" "dcr_register_dynamodb" {
   statement {
-    actions   = ["dynamodb:PutItem", "dynamodb:DeleteItem"]
-    resources = ["arn:aws:dynamodb:ap-northeast-1:883660531246:table/quick-mcp-poc-users"]
+    # UpdateItem: 登録数上限(COUNTER#dcr)と IP 単位レート制限(RATE#)のカウンタ
+    actions   = ["dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:UpdateItem"]
+    resources = [local.dcr_table_arn]
   }
 }
 
@@ -133,10 +153,17 @@ resource "aws_lambda_function" "dcr_register" {
 
   environment {
     variables = {
-      USER_POOL_ID              = aws_cognito_user_pool.main.id
+      USER_POOL_ID               = aws_cognito_user_pool.main.id
       RESOURCE_SERVER_IDENTIFIER = aws_cognito_resource_server.mcp.identifier
+      TABLE_NAME                 = local.dcr_table_name
       # MVPのアローリスト(docs/08 §2.4)。運用中に広げられるよう環境変数化。
       ALLOWED_REDIRECT_HOSTS = "claude.ai,claude.com"
+      # docs/19 §2.4-c/d: 既定値・上限は環境変数で運用調整できるようにする
+      DEFAULT_TOKEN_ENDPOINT_AUTH_METHOD  = "none"
+      MAX_DCR_CLIENTS                     = "200"
+      MAX_REGISTRATIONS_PER_IP_PER_MINUTE = "5"
+      ACCESS_TOKEN_VALIDITY_MINUTES       = "60"
+      APPLY_MANAGED_LOGIN_BRANDING        = "true"
     }
   }
 }

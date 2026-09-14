@@ -1,0 +1,465 @@
+{
+  "target": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com",
+  "run_at": "2026-09-13T11:47:11+0900",
+  "summary": {
+    "PASS": 33,
+    "FAIL": 2,
+    "INFO": 5,
+    "SKIP": 2
+  },
+  "results": [
+    {
+      "id": "9728-01",
+      "title": "PRM(パス付き)が200で resource / authorization_servers を持つ",
+      "status": "PASS",
+      "detail": "resource=https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp, elapsed=0.17s",
+      "evidence": {
+        "body": {
+          "resource": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp",
+          "resource_name": "quick-mcp-poc MCP server",
+          "authorization_servers": [
+            "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com"
+          ],
+          "scopes_supported": [
+            "openid",
+            "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke"
+          ],
+          "bearer_methods_supported": [
+            "header"
+          ]
+        }
+      }
+    },
+    {
+      "id": "9728-03",
+      "title": "PRM scopes_supported に invoke スコープを含む",
+      "status": "PASS",
+      "detail": "scopes_supported=['openid', 'https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke']",
+      "evidence": {}
+    },
+    {
+      "id": "9728-04",
+      "title": "PRM bearer_methods_supported / resource_name",
+      "status": "PASS",
+      "detail": "bearer_methods_supported=['header'], resource_name=quick-mcp-poc MCP server",
+      "evidence": {}
+    },
+    {
+      "id": "9728-06",
+      "title": "PRM(パス無しルート)も応答する(Claudeの第2プローブ)",
+      "status": "PASS",
+      "detail": "HTTP 200: {\n  \"resource\": \"https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp\",\n  \"resource_name\": \"quick-mcp-poc MCP",
+      "evidence": {}
+    },
+    {
+      "id": "9728-05",
+      "title": "未認証POST /mcp が401かつ WWW-Authenticate に resource_metadata を含む",
+      "status": "FAIL",
+      "detail": "401 だが WWW-Authenticate 無し(現行MCP仕様ではwell-known経路で代替可、scopeヒント不可)",
+      "evidence": {
+        "headers": {
+          "date": "Sun, 13 Sep 2026 02:47:02 GMT",
+          "content-type": "application/json",
+          "content-length": "26",
+          "connection": "close",
+          "apigw-requestid": "Dnc6Jgz6tjMEPVQ="
+        }
+      }
+    },
+    {
+      "id": "8414-01",
+      "title": "issuer が well-known 構築元(API GW URL)と一致",
+      "status": "PASS",
+      "detail": "issuer=https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com",
+      "evidence": {
+        "body": {
+          "authorization_endpoint": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/authorize",
+          "code_challenge_methods_supported": [
+            "S256"
+          ],
+          "grant_types_supported": [
+            "authorization_code",
+            "refresh_token",
+            "client_credentials"
+          ],
+          "id_token_signing_alg_values_supported": [
+            "RS256"
+          ],
+          "issuer": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com",
+          "jwks_uri": "https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_XrU8FcC1w/.well-known/jwks.json",
+          "registration_endpoint": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/register",
+          "response_modes_supported": [
+            "query"
+          ],
+          "response_types_supported": [
+            "code"
+          ],
+          "revocation_endpoint": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/revoke",
+          "scopes_supported": [
+            "openid",
+            "email",
+            "profile",
+            "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke"
+          ],
+          "service_documentation": "https://github.com/primenumber-dev/quick-agentcore-poc",
+          "subject_types_supported": [
+            "public"
+          ],
+          "token_endpoint": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/token",
+          "token_endpoint_auth_methods_supported": [
+            "none",
+            "client_secret_basic",
+            "client_secret_post"
+          ]
+        }
+      }
+    },
+    {
+      "id": "8414-03",
+      "title": "jwks_uri を公開",
+      "status": "PASS",
+      "detail": "jwks_uri=https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_XrU8FcC1w/.well-known/jwks.json",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-04",
+      "title": "AS scopes_supported に invoke スコープを含む",
+      "status": "PASS",
+      "detail": "scopes_supported=['openid', 'email', 'profile', 'https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke']",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-05",
+      "title": "code_challenge_methods_supported に S256",
+      "status": "PASS",
+      "detail": "['S256']",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-06",
+      "title": "registration_endpoint を公開",
+      "status": "PASS",
+      "detail": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/register",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-07",
+      "title": "token_endpoint_auth_methods_supported に none",
+      "status": "PASS",
+      "detail": "['none', 'client_secret_basic', 'client_secret_post']",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-08",
+      "title": "revocation_endpoint を公開",
+      "status": "PASS",
+      "detail": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/revoke",
+      "evidence": {
+        "body": null
+      }
+    },
+    {
+      "id": "8414-11",
+      "title": "CIMD(client_id_metadata_document_supported)の広告状況",
+      "status": "INFO",
+      "detail": "client_id_metadata_document_supported=None (方針判断: CL-07)",
+      "evidence": {}
+    },
+    {
+      "id": "8414-02",
+      "title": "authorization_response_iss_parameter_supported の広告(RFC 9207、issuer不一致の時限リスク)",
+      "status": "INFO",
+      "detail": "authorization_response_iss_parameter_supported=None; 実際のコールバックの iss 有無は --auth-code で確認",
+      "evidence": {}
+    },
+    {
+      "id": "8414-10",
+      "title": "/.well-known/openid-configuration ミラー",
+      "status": "PASS",
+      "detail": "HTTP 200: {\"authorization_endpoint\":\"https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/authorize\",\"code_challenge_method",
+      "evidence": {}
+    },
+    {
+      "id": "7591-01",
+      "title": "最小リクエスト(redirect_urisのみ)で201と client_id",
+      "status": "PASS",
+      "detail": "client_id=jiismneej3m91f2pjjnemmeov, elapsed=2.17s",
+      "evidence": {
+        "response": {
+          "client_id": "jiismneej3m91f2pjjnemmeov",
+          "client_id_issued_at": 1789267625,
+          "client_name": "dcr-client",
+          "redirect_uris": [
+            "https://claude.ai/api/mcp/auth_callback"
+          ],
+          "token_endpoint_auth_method": "none",
+          "grant_types": [
+            "authorization_code"
+          ],
+          "response_types": [
+            "code"
+          ],
+          "scope": "openid email profile https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke"
+        },
+        "headers": {
+          "date": "Sun, 13 Sep 2026 02:47:05 GMT",
+          "content-type": "application/json",
+          "content-length": "362",
+          "connection": "close",
+          "cache-control": "no-store",
+          "pragma": "no-cache",
+          "apigw-requestid": "Dnc6Oit3NjMEPYA="
+        }
+      }
+    },
+    {
+      "id": "CL-04",
+      "title": "登録応答が10秒以内(Anthropicのタイムアウト)",
+      "status": "PASS",
+      "detail": "elapsed=2.17s (コールドスタート込みの初回)",
+      "evidence": {}
+    },
+    {
+      "id": "7591-04",
+      "title": "token_endpoint_auth_method 省略時の既定値(RFC既定は client_secret_basic)",
+      "status": "INFO",
+      "detail": "既定値=none, client_secret発行=なし (判断事項: RFC既定に合わせるか逸脱を文書化するか)",
+      "evidence": {}
+    },
+    {
+      "id": "7591-07",
+      "title": "client_secret_expires_at は secret 発行時のみ返す",
+      "status": "PASS",
+      "detail": "client_secret=なし, client_secret_expires_at=なし",
+      "evidence": {}
+    },
+    {
+      "id": "7591-10",
+      "title": "登録応答に Cache-Control: no-store / Pragma: no-cache",
+      "status": "PASS",
+      "detail": "cache-control='no-store', pragma='no-cache'",
+      "evidence": {}
+    },
+    {
+      "id": "7592-01",
+      "title": "registration_access_token と registration_client_uri を返す",
+      "status": "FAIL",
+      "detail": "registration_client_uri=None",
+      "evidence": {}
+    },
+    {
+      "id": "7592-02",
+      "title": "registration_client_uri への GET が有効(Bearer=registration_access_token)",
+      "status": "SKIP",
+      "detail": "registration_client_uri 未提供(7592-01 FAIL)",
+      "evidence": {}
+    },
+    {
+      "id": "7591-02",
+      "title": "未知メタデータ(software_id, client_uri, contacts 等)を無視して201",
+      "status": "PASS",
+      "detail": "HTTP 201: {\"client_id\":\"51jjo0o87j3dc8196usgkqjt74\",\"client_id_issued_at\":1789267626,\"client_name\":\"Claude Code (conformance)\",\"redirect_uris\":[\"http://localhost:53195/ca",
+      "evidence": {
+        "response": {
+          "client_id": "51jjo0o87j3dc8196usgkqjt74",
+          "client_id_issued_at": 1789267626,
+          "client_name": "Claude Code (conformance)",
+          "redirect_uris": [
+            "http://localhost:53195/callback",
+            "http://127.0.0.1:53195/callback"
+          ],
+          "token_endpoint_auth_method": "none",
+          "grant_types": [
+            "authorization_code",
+            "refresh_token"
+          ],
+          "response_types": [
+            "code"
+          ],
+          "scope": "openid email profile https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke",
+          "client_uri": "https://example.invalid/client",
+          "contacts": [
+            "ops@example.invalid"
+          ],
+          "software_id": "conformance-suite",
+          "software_version": "1.0"
+        }
+      }
+    },
+    {
+      "id": "7591-14",
+      "title": "application_type(MCP 2026-07-28でクライアントMUST送信)を受理",
+      "status": "PASS",
+      "detail": "HTTP 201",
+      "evidence": {}
+    },
+    {
+      "id": "7591-03",
+      "title": "登録済みメタデータをレスポンスで返す(client_name, redirect_uris, grant_types, response_types, scope)",
+      "status": "PASS",
+      "detail": "missing=[], client_name一致=True, 追加メタデータの返却=['client_uri', 'contacts', 'software_id']",
+      "evidence": {}
+    },
+    {
+      "id": "CL-09",
+      "title": "client_credentials(M2M)登録の扱い(Claude非対応。非Claude顧客向けに残すかは方針判断)",
+      "status": "INFO",
+      "detail": "201, scope=https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke, client_secret=あり",
+      "evidence": {
+        "response": {
+          "client_id": "62u6ggbh3g80o00obck0bpejjp",
+          "client_secret_expires_at": 0,
+          "client_id_issued_at": 1789267626,
+          "client_name": "confidential-conformance",
+          "redirect_uris": [],
+          "token_endpoint_auth_method": "client_secret_basic",
+          "grant_types": [
+            "client_credentials"
+          ],
+          "response_types": [],
+          "scope": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp/invoke"
+        }
+      }
+    },
+    {
+      "id": "7591-05",
+      "title": "response_types: [token] は invalid_client_metadata",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_client_metadata: response_types must be [\"code\"] for authorization_code",
+      "evidence": {}
+    },
+    {
+      "id": "7591-06",
+      "title": "フラグメント付き redirect_uri は invalid_redirect_uri(500にしない)",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_redirect_uri: redirect_uri host not allowed, or fragment present",
+      "evidence": {}
+    },
+    {
+      "id": "7591-09a",
+      "title": "129文字の client_name は400のRFC形式または受理(500にしない。RFC 7591に長さ上限はない)",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_client_metadata: client_name must be at most 128 characters",
+      "evidence": {}
+    },
+    {
+      "id": "7591-09b",
+      "title": "101件の redirect_uris は400のRFC形式",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_redirect_uri: at most 100 redirect_uris are supported",
+      "evidence": {}
+    },
+    {
+      "id": "7591-09c",
+      "title": "非JSONボディは400 invalid_client_metadata",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_client_metadata: body must be a JSON object",
+      "evidence": {}
+    },
+    {
+      "id": "7591-09d",
+      "title": "client_credentials + none は400(Cognitoの400を500にしない)",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_client_metadata: client_credentials requires client_secret_basic or client_secret_post",
+      "evidence": {}
+    },
+    {
+      "id": "7591-12a",
+      "title": "許可外ホストの redirect_uri は invalid_redirect_uri",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_redirect_uri: redirect_uri host not allowed, or fragment present",
+      "evidence": {}
+    },
+    {
+      "id": "7591-12b",
+      "title": "claude.ai のサブドメイン偽装(claude.ai.evil.example)は拒否",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_redirect_uri: redirect_uri host not allowed, or fragment present",
+      "evidence": {}
+    },
+    {
+      "id": "7591-12c",
+      "title": "http の非localhost redirect は拒否",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_redirect_uri: redirect_uri host not allowed, or fragment present",
+      "evidence": {}
+    },
+    {
+      "id": "7591-12d",
+      "title": "未対応 grant_types(implicit)は invalid_client_metadata",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_client_metadata: unsupported grant_types",
+      "evidence": {}
+    },
+    {
+      "id": "7591-12e",
+      "title": "refresh_token のみの grant_types は拒否",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_client_metadata: grant_types must include authorization_code or client_credentials",
+      "evidence": {}
+    },
+    {
+      "id": "7591-12f",
+      "title": "private_key_jwt は unsupported として400",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_client_metadata: unsupported token_endpoint_auth_method",
+      "evidence": {}
+    },
+    {
+      "id": "7591-12g",
+      "title": "authorization_code で redirect_uris 無しは invalid_redirect_uri",
+      "status": "PASS",
+      "detail": "HTTP 400 error=invalid_redirect_uri: redirect_uris required for authorization_code",
+      "evidence": {}
+    },
+    {
+      "id": "7591-01b",
+      "title": "GET /register は 405 または 404(認証要求の401にはしない)",
+      "status": "INFO",
+      "detail": "HTTP 401: {\"message\":\"Unauthorized\"} (現状は ANY /{proxy+} に落ちて Authorizer が処理)",
+      "evidence": {}
+    },
+    {
+      "id": "7591-11",
+      "title": "連続登録で429(スロットル)が返り、無制限に登録できない",
+      "status": "PASS",
+      "detail": "8回 in 2.3s: 201=2, 429=6, other=[]",
+      "evidence": {
+        "statuses": [
+          201,
+          429,
+          429,
+          429,
+          201,
+          429,
+          429,
+          429
+        ]
+      }
+    },
+    {
+      "id": "MCP-04",
+      "title": "期限切れ/無効トークンには 401 を返す(403ではない。Claudeは401でのみリフレッシュ)",
+      "status": "SKIP",
+      "detail": "MCP_EXPIRED_TOKEN 未設定(--auth-code 実行から60分後に再実行)",
+      "evidence": {}
+    }
+  ],
+  "created_client_ids": [
+    "jiismneej3m91f2pjjnemmeov",
+    "51jjo0o87j3dc8196usgkqjt74",
+    "62u6ggbh3g80o00obck0bpejjp",
+    "37qt7ampctdroemcufcjb0a8k7",
+    "4p2hsn3khvm2prla0vcn2v6h9t"
+  ]
+}

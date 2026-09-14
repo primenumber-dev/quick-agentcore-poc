@@ -111,3 +111,59 @@ Sources:
 - [Google Cloud: Scaling AI agent infrastructure with the MCP stateless updates](https://developers.googleblog.com/scaling-ai-agent-infrastructure-with-the-mcp-stateless-updates/)
 - [AgentCore Runtime MCP protocol contract](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp-protocol-contract.html)
 - [AWS公式ブログ: AgentCore Gateway supports MCP 2026-07-28](https://aws.amazon.com/blogs/machine-learning/how-agentcore-gateway-supports-the-mcp-2026-07-28-spec/)
+
+---
+
+## 7. 実機検証結果(2026-09-03、`feature/mcp-protocol-v2-spike`ブランチ)
+
+机上調査(§1〜6)を受け、実際にv2 SDKへの載せ替えをローカル環境(LocalStackのDynamoDBスタブ)で実施し、動作確認まで行った。**本番`main`ブランチへの反映は行っていない**(スパイク止まりの方針、ユーザー確認済み)。
+
+### 7.1 パッケージの実在確認
+
+npmレジストリで実際に存在するか確認したところ、`@modelcontextprotocol/server@2.0.0`・`@modelcontextprotocol/client@2.0.0`・`@modelcontextprotocol/node@2.0.0`がいずれも`latest`タグでGA済みであることを確認した(§6の訂正内容と整合)。想定外だったのは**Express用の専用importパスが無い**点で、`package.json`の`exports`は`.`(コア)・`./stdio`・`./validators/*`のみ。型定義に埋め込まれたコメントによれば、Node系フレームワーク(Express/Fastify/plain `node:http`)は別パッケージ`@modelcontextprotocol/node`が提供する`toNodeHandler(handler)`でラップする設計になっている。
+
+### 7.2 実際に必要だった変更
+
+想定(§3)通り、変更は主に`server/src/index.ts`に集中した。
+
+- `server/package.json`: `@modelcontextprotocol/sdk`を`@modelcontextprotocol/server`+`@modelcontextprotocol/node`に置換
+- `server/src/index.ts`: `McpServer`インスタンス生成を`createMcpHandler(factory)`に、`StreamableHTTPServerTransport`の手組み(`server.connect`・`transport.handleRequest`)を`toNodeHandler(mcpHandler)`が返すNode用ハンドラの呼び出しに置き換え。GET/DELETE `/mcp`の固定応答スタブは**削除可能だった**——`createMcpHandler`のデフォルト(`legacy: "stateless"`)が同じ405応答を自動的に返すため
+- **認可ゲート(`extractSub`+`resolveAuthorization`)はそのまま流用できた**。`McpServerFactory`が受け取る`authInfo`はOAuth標準の`AuthInfo`型(token/clientId/scopes必須)で本プロジェクトのCognito sub方式とは形が合わないため、無理に`authInfo`に載せず、Express側で`POST`メソッドのときだけ認可チェック→失敗時は`nodeHandler`を呼ばずに401/403を返す、という素通し構成にした。v1時代の「`resolveAuthorization`はゲートとして使うだけでツール登録には反映しない」という既存の設計をそのまま維持できている
+- **ツール定義ファイル(6ツール)は無変更で動いた**。`server.registerTool(name, {...}, cb)`のプレーンオブジェクト(`ZodRawShape`)形式は、v2のAPI定義上`@deprecated`マーク付きだが、後方互換オーバーロードとして正式に残されている(`/** @deprecated Wrap with z.object({...}) instead. */`)。importパスの変更(`@modelcontextprotocol/sdk/server/mcp.js`→`@modelcontextprotocol/server`)のみで9ファイル(ツール6つ+コメントアウト中の2つ+index.ts)が無修正でコンパイル・実行できた
+
+### 7.3 動作確認結果(ローカル、LocalStack DynamoDBスタブ)
+
+`npm run dev`起動後、新規作成した`scripts/smoke_test_mcp_v2.sh`で以下をすべて確認(全項目PASS):
+
+| # | 検証内容 | 結果 |
+|---|---|---|
+| 1 | `GET /health` | 200 |
+| 2 | `POST /mcp`(認可ヘッダーなし) | 401(既存ゲートが機能) |
+| 3 | `GET /mcp` | 405(v2ハンドラの自動応答、スタブ削除後も同じ挙動) |
+| 4 | `DELETE /mcp` | 405(同上) |
+| 5 | 旧世代クライアント相当の`initialize`ハンドシェイク(`protocolVersion: "2025-11-25"`) | 200、`legacyStatelessFallback`経由で正常応答 |
+| 6 | 旧世代クライアント相当の`tools/list` | 200、6ツール全件を返却 |
+| 7 | 新世代(v2)`_meta`エンベロープ形式の`tools/list`(`initialize`ハンドシェイクなし) | 200、6ツール全件を返却 |
+| 8(スモークテスト外、手動確認) | `tools/call get_quote`に不正な引数(空配列・不正enum値)を渡す | `ZodRawShape`の入力バリデーションが実行時に正しく機能し、JSON-RPC結果内`isError: true`で人間可読なエラーメッセージを返却 |
+
+**新世代クライアントの実際のリクエスト形**(机上調査時点では未確認だった具体的な必須ヘッダー・フィールドが判明):
+
+- HTTPヘッダー`Mcp-Method`にJSON-RPCの`method`と同じ値を明示する必要がある(無いと`-32020`エラー: "the request headers and body disagree")
+- リクエストボディの`params._meta`に`io.modelcontextprotocol/protocolVersion`と`io.modelcontextprotocol/clientCapabilities`の2キーが必須(無いと`-32602`エラーで不足キー名を列挙してくれる、エラーメッセージが親切)
+
+### 7.4 結論・Step1着手判断への示唆
+
+- **技術的には低リスクで移行可能**という§5〜6の見立ては実機でも裏付けられた。`createMcpHandler`への置き換えは局所的(`index.ts`とimport文のみ)で、ツール実装本体・Zodスキーマ・DynamoDB認可ロジックは無改修で動く
+- **テストコードが皆無だった問題を副次的に解消できた**。今回作成した`scripts/smoke_test_mcp_v2.sh`は、legacy/modern両方のクライアント形・認可ゲート・GET/DELETE 405応答をカバーする回帰確認スクリプトとして今後も再利用できる(LocalStack起動が前提)
+- **未検証で残る事項**: (a) AgentCore Runtime実機(playground)へのデプロイ・疎通確認(今回はローカルのみ)、(b) `initialize`を送らない新世代クライアントとClaude Code/Claude.aiのような実際のMCPクライアント実装が同じ`_meta`エンベロープ形を送ってくるかの確認(今回は仕様書の記述から手組みしたリクエストで代用)、(c) `enableJsonResponse: true`相当の設定(v1で明示していたJSON直接応答)がv2のデフォルト`responseMode: "auto"`でどう挙動するか(今回のテストはいずれも通常のJSON応答が返り、SSEへの昇格は発生しなかったが、意図的な差の確認はできていない)
+- **本番`main`への反映判断**: 変更量が小さく後方互換オーバーロードで既存ツールが無改修で動く実績が取れたため、Step1の技術選定において「v2移行はハイリスクな書き換え」という当初の懸念は後退した。ただし(a)(b)の実機確認と、v1系SDKのセキュリティサポート期限(2027年1月頃)までの猶予を踏まえ、本番反映は独立したタスクとして計画してから着手することを推奨する
+
+### 7.5 実機デプロイ・ECS側検証・機能テストスイート拡充(2026-09-08追記)
+
+§7.4で「未検証」としていた(a)AgentCore Runtime実機デプロイと、当初スコープ外だったECS(パターン4)側の検証を実施した。あわせて、単発の`curl`確認に頼っていたこれまでの検証を、再現可能な自動テストスイート(`scripts/mcp_functional_tests.py`)として固定化した。
+
+- **AgentCore Runtime実機デプロイ**: 検証専用Runtime`quickMcpPocV2SdkDemo`を新規作成し、v2スパイクイメージ(`v2-sdk-demo-1`タグ)をデプロイ。既存デモ用Runtime(v1 SDK)には一切触れていない
+- **ECS実機デプロイ(新規)**: パターン4環境に検証専用サービス`quick-mcp-poc-v2-sdk-demo`(Fargate、amd64イメージ)を新規作成。既存のDCRデモ用サービス(`app`、v1 SDK)には一切触れず、独立したタスク定義・セキュリティグループ(自分のIPのみに制限した直接アクセス用)で稼働させている
+- **機能テストスイート**: `initialize`ハンドシェイク・`tools/list`のスキーマ完全性・不正引数/未知ツール名/未知メソッドへのエラーハンドリング・`ping`・v1/v2プロトコルエンベロープの受理可否、の8項目を、v1-ECS/v2-ECS/v1-AgentCore/v2-AgentCoreの4環境すべてに対して自動実行。**32/32件合格**
+- **新規発見(SDKの挙動差)**: 未知のツール名を`tools/call`した際、v1 SDKは`result.isError: true`(ツール実行結果としてのエラー)で返すのに対し、v2 SDKはトップレベルのJSON-RPCエラー(`code: -32602`、リクエスト自体の不正としてのエラー)で返す。クライアント側のエラーハンドリング実装によっては、この違いを吸収する対応が必要になる可能性がある
+- これにより§7.4の「未検証で残る事項」(a)は解消。(b)(実際のMCPクライアント実装による新世代リクエストの検証)は今回も仕様書ベースの手組みリクエストによる代用のままで、引き続き未検証

@@ -1,0 +1,151 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        - Client
+        - AWSCloud
+
+    Client:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: "新規MCPクライアント\n(Claude等、事前登録なし)"
+
+    AWSCloud:
+      Type: AWS::Diagram::Cloud
+      Direction: vertical
+      Preset: AWSCloudNoLogo
+      Align: center
+      Children:
+        - APIGateway
+        - LambdaStack
+        - MidStack
+        - BottomStack
+
+    APIGateway:
+      Type: AWS::ApiGatewayV2::Api
+      Title: "API Gateway\nPOST /register(DCR) ・ POST /mcp"
+
+    LambdaStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - DCRRegisterLambda
+        - DCRAuthorizerLambda
+
+    DCRRegisterLambda:
+      Type: AWS::Lambda::Function
+      Title: "DCR登録用Lambda\n(RFC 7591準拠)"
+
+    DCRAuthorizerLambda:
+      Type: AWS::Lambda::Function
+      Title: "認可用Lambda\n(JWT検証+失効チェック)"
+
+    MidStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - Cognito
+        - DynamoDB
+
+    Cognito:
+      Type: AWS::Cognito::UserPool
+      Title: "Cognito\n(クライアントを動的に作成)"
+
+    DynamoDB:
+      Type: AWS::DynamoDB::Table
+      Title: "DynamoDB\n(登録・承認・失効の記録)"
+
+    BottomStack:
+      Type: AWS::Diagram::HorizontalStack
+      Children:
+        - ALB
+        - ECSCluster
+
+    ALB:
+      Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+      Preset: "Application Load Balancer"
+
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Title: "ECS"
+      Children:
+        - ECSService
+
+    ECSService:
+      Type: AWS::ECS::Service
+      Title: "MCPサーバー"
+
+  Links:
+    - Source: Client
+      SourcePosition: S
+      Target: APIGateway
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetLeft:
+          Title: "1. 自己登録 / 2. MCP呼び出し"
+
+    - Source: APIGateway
+      SourcePosition: S
+      Target: DCRRegisterLambda
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: APIGateway
+      SourcePosition: S
+      Target: DCRAuthorizerLambda
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: DCRRegisterLambda
+      SourcePosition: S
+      Target: Cognito
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: DCRRegisterLambda
+      SourcePosition: SE
+      Target: DynamoDB
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: DCRAuthorizerLambda
+      SourcePosition: S
+      Target: DynamoDB
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+      Labels:
+        TargetRight:
+          Title: "承認/失効確認"
+
+    - Source: APIGateway
+      SourcePosition: SW
+      Target: ALB
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal
+
+    - Source: ALB
+      SourcePosition: S
+      Target: ECSService
+      TargetPosition: N
+      TargetArrowHead:
+        Type: Open
+      Type: orthogonal

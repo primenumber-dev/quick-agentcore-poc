@@ -1,9 +1,9 @@
-# セッション引き継ぎメモ(2026-09-02時点)
+# セッション引き継ぎメモ(2026-09-10時点)
 
 > **この章で分かること**
 > 前回セッションで何をどこまでやったか、次に何をすべきか、そして再開する上で最初につまずきそうな点(PATH、SSOトークン、サンドボックス制限)を先回りしてまとめる。次回セッションはまずこのファイルを読んでから作業を再開すること。
 >
-> **最新の状況(2026-09-02時点)は末尾の「13. セッション完了サマリー(2026-09-02)」を先に読むこと。** それより前の記述は2026-08-20〜31時点の古い状態を含む(誤りではないが、一部は§13で更新・訂正されている)。
+> **最新の状況(2026-09-10時点)は末尾の「16. 今週の検証の総括とセッション完了サマリー」を先に読むこと。** それより前の記述は2026-08-20〜09-08時点の古い状態を含む(誤りではないが、一部は§13・§14・§15・§16で更新・訂正されている)。
 
 ## 1. 状況サマリー
 
@@ -423,3 +423,345 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 - **PDF化で複数のMermaid図を扱う場合、`mermaid.run()`の一括処理に頼らず、図ごとに明示的なIDで`mermaid.render()`すること**(§13.4参照)
 - **AWS公式ドキュメントの「ベータ版」情報は鵜呑みにせず、日付が新しい一次情報(仕様サイト・GitHubリリースページ)で裏を取ること**。MCPプロトコルv2のGA時期を一度誤って報告した(§13.3参照)
 - **セキュリティレビューやコストの数字は、ユーザーの要望に応じて「言い回し」を調整してよいが、事実(何を発見し、何を直したか)は変えないこと**。今回「クロステナントなりすまし」という表現を「x-cognito-subヘッダー処理の修正」に和らげたが、技術的内容自体は変更していない
+
+## 14. セッション完了サマリー(2026-09-03実施)
+
+> このセクションが本ファイルの最新状態。§13までの記述と矛盾する場合はこちらを優先すること。
+
+### 14.1 今週の検証4項目の実施結果
+
+ユーザーから提示された4項目すべてに着手し、完了した。
+
+| 項目 | 状態 |
+|---|---|
+| MCPプロトコルv2への載せ替え検証 | **完了(スパイクとして)**。`feature/mcp-protocol-v2-spike`ブランチで実装、LocalStackで動作確認済み。**mainには未マージ**(意図的にスパイク止まりの方針)。詳細は[12-mcp-protocol-v2-upgrade-impact.md §7](./12-mcp-protocol-v2-upgrade-impact.md) |
+| ECS(WAF・DCR)本番化検証・課題整理 | **完了**。既存`terraform-playground-pattern4`でのDCRデモ実演に加え、[10-dcr-implementation.md §0.5](./10-dcr-implementation.md)で未検証だった2つの仮説(AgentCore Runtime`allowedScopes`単独運用、ECS側REST APIネイティブ`COGNITO_USER_POOLS`オーソライザー)を実機で初検証し、いずれも成立を確認。WAFのSQLi未対応も新規発見。詳細は[15-ecs-production-readiness-gaps.md](./15-ecs-production-readiness-gaps.md) |
+| 応答時間チューニング(6秒問題) | **完了(Phase 0)**。セッションID再利用で約10倍高速化(6秒→0.5〜0.6秒)することを実機確認したが、効果の持続時間は30秒〜5分の間で失われることも判明(設定上の`idleRuntimeSessionTimeout`15分より短い) |
+| 今週の検証レポート作成 | **完了**。社内向け[16-weekly-verification-report-week3.md](./16-weekly-verification-report-week3.md)・クライアント向け[16-weekly-verification-report-week3-client.md](./16-weekly-verification-report-week3-client.md)(PDF化済み)を作成 |
+
+### 14.2 本番相当terraformのaudienceバグ修正パッチ
+
+[07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)で発見済みだった本番`terraform/apigateway.tf`の`audience`バグ(正当なトークンでも401になる)について、`fix/production-audience-config-proposal`ブランチとして修正パッチを用意した(`terraform validate`まで確認、本番へは未適用)。**次回セッション最優先で本番担当者への共有を推奨**。
+
+### 14.3 Gitブランチの状態(重要、mainには何もマージされていない)
+
+今回のセッションで作成した3つのブランチは、いずれも**mainにマージ・GitHubへのpushはしていない**(ユーザーへの確認なしに実施することを避けた)。次回セッション、またはユーザー自身の判断でマージ/push/PRを検討すること。
+
+| ブランチ | 内容 | 状態 |
+|---|---|---|
+| `feature/mcp-protocol-v2-spike` | MCPプロトコルv2への書き換え一式(`server/`)、`docs/12`§7への実機検証結果追記 | スパイクとして完結。mainへの反映は要判断 |
+| `fix/production-audience-config-proposal` | `terraform/apigateway.tf`の`audience`バグ修正(1行) | レビュー待ちの提案。本番担当者の確認後、mainへのマージ・本番適用を検討 |
+| `latency-tuning/session-id-reuse` | `LOG_TIMING`計装(`server/src/index.ts`, `db.ts`)、`scripts/invoke_agentcore_mcp_jwt.py`拡張、`docs/12`§7の復元(cherry-pick)、`docs/15`・`docs/16`(+client版・PDF) | 現在のHEAD。LOG_TIMING計装は既存挙動に影響しない(環境変数ガード付き)ため、mainへのマージは比較的低リスク |
+
+### 14.4 今回新規作成したAWSリソース(playgroundアカウント、883660531246)
+
+| リソース | 識別子 | 状態 |
+|---|---|---|
+| CloudWatch Logs VPCエンドポイント | `vpce-046556344264018d0`(`com.amazonaws.ap-northeast-1.logs`、検証用VPC`vpc-0df861e536fad4aab`に追加) | 稼働中、継続課金(月額約$20)。VPCモード切替後にログ配信が止まっていた問題への対処 |
+| 応答時間検証専用Runtime | `quickMcpPocLatencyLab-uC4Wd7EOWj`(`LOG_TIMING=1`、既存デモ用Runtimeとは完全に分離) | 稼働中(READY)。次回のコンテナ保持時間の境界特定(30秒〜5分の間)等の追加検証にそのまま再利用可能 |
+
+検証専用に一時作成したリソース(`quickMcpPocDcrScopeTest` Runtime、DCR仮説検証用Cognitoクライアント複数、スタンドアロンREST API、DCRデモ用クライアント)はすべて検証後に削除済み。playgroundアカウントを汚していない。
+
+### 14.5 学び(次回以降に活かすべき点)
+
+- **`git checkout <branch>`でブランチを切り替えると、Dockerイメージのビルドに使う`node_modules`(pnpm install済みの依存関係)は自動的に追従しない**。v1系SDKブランチとv2系SDKブランチを行き来する際、`pnpm install`をブランチ切り替えのたびに実行し直す必要があった(型チェックエラーの原因を数分探ってようやく気づいた)
+- **1つのAWSアカウントを複数の検証で共有する場合、`list-agent-runtimes`等で既存リソースを確認し、自分のプロジェクトと無関係なリソース(今回は`trocco`・`mcplatency_latencymcp`等、他プロジェクトのものと判明)に触れないよう名前でスコープを判別すること**。特に紛らわしい名前(`mcplatency_latencymcp`)のリソースは、作成日時やECRリポジトリ名・IAMロール名を確認して他人のものと判断した
+- **AWS SSOトークンの失効は、ユーザーに別ターミナルでの`aws sso login`実行を依頼する以外に解決策が無い**(ブラウザ認証が必要なため)。ログイン待ちの間もAWS非依存の作業(コードのスパイク実装、ローカル検証、terraformの`validate`)を並行して進めることで手待ちを減らせた
+- **`dangerouslyDisableSandbox`を使う際は`$TMPDIR`の値がサンドボックス有無で変わる**ことに注意。サンドボックス無効化コマンドで書いたファイルを、サンドボックス有効なコマンドの`$TMPDIR`から参照しようとすると`No such file or directory`になる(このセッションで複数回踏んだ)。同一コマンドブロック内で完結させるか、常に同じサンドボックス設定を使うことで回避できる
+- **AWS CLIの複数行出力を`read A B C`で複数変数に読み込む際、値が複数行にまたがっているとうまく読み込めない**(3個の値を1行目、1個を2行目に書いたファイルを`read A B C D`で読もうとして4個目が空になった)。ファイルに書き出す場合は1行1値、またはJSON/を使い`python3 -c`で確実にパースする方が安全
+- **AgentCore Runtimeは、クライアントのセッションID再利用が効いていても、設定上の`idleRuntimeSessionTimeout`(15分)よりずっと短い時間(30秒〜5分の間)でコンテナを破棄している**。公開されているタイムアウト設定値を鵜呑みにせず、実機の`bootId`計装ログで裏取りすることの重要性を再確認した
+- **査読専用サブエージェントは、ドキュメント間の相互参照(他ファイルの特定セクション番号)が実在するかまで機械的にチェックしてくれる**。今回、複数のfeature branchにまたがって作業したため、あるドキュメントが別ブランチにしか存在しないセクションを参照してしまうという見落としを査読エージェントが発見した。ブランチをまたいだドキュメント作業をする際は、参照先が「今、自分がいるブランチに実在するか」を意識する必要がある
+
+## 15. クライアント向けデモ画面の拡張(2026-09-06〜09-08実施)
+
+> このセクションが本ファイルの最新状態。§14までの記述と矛盾する場合はこちらを優先すること。
+
+### 15.1 実施内容
+
+ユーザーから「今回検証した内容を実機で確認できるデモ画面がほしい」との依頼を受け、既存の疎通検証Webアプリ(`quick-mcp-poc-web-demo`、Lambda Function URL)に4つの新規デモセクションを追加した。いずれもログイン不要、ボタン1つで実際にplaygroundのAWSへライブでリクエストを送る方式。
+
+1. **応答時間デモ**: セッションID再利用の効果を「先週までの挙動」(赤カード)と「今回できるようになったこと」(緑カード)の左右比較で実測表示
+2. **DCRデモ**: 静的な左右比較(先週までの認識 vs 今回判明したこと)+ pattern4環境での自己登録→承認→失効の実演(自動クリーンアップ付き)
+3. **WAFデモ**: 正常/XSS/SQLiパターンをCloudFront+WAFv2経由で送り通過/遮断を実測
+4. **MCPプロトコルv2 SDKデモ**: 現行サーバー(v1 SDK)とv2 SDKスパイクサーバーの両方に、従来形式・新形式(v2の`_meta`エンベロープ)のリクエストを送り、v1は新形式を拒否・v2は両方成功することを実測比較
+
+**このLambdaのソースコードはこれまでリポジトリに一切コミットされていなかった**(2026-09-06に`aws lambda get-function`でzipを取得して復元し、`web-demo/index.mjs`として初めてコミット)。以後はここが正。
+
+### 15.2 新規作成したAWSリソース(playgroundアカウント、883660531246)
+
+| リソース | 識別子 | 用途 |
+|---|---|---|
+| SDKデモ専用Runtime | `quickMcpPocV2SdkDemo-lxkNuS7moU`(PUBLIC network) | `feature/mcp-protocol-v2-spike`ブランチのイメージ(`quick-mcp-poc-agentcore-verification:v2-sdk-demo-1`)を動かす、v2 SDKデモの「今回」側 |
+| Lambda実行ロールへのインラインポリシー | `dcr-demo-permissions`(`quick-mcp-poc-web-demo-lambda-role`に付与) | DCRデモの承認・失効・クリーンアップに必要な`dynamodb:PutItem/UpdateItem/DeleteItem/GetItem`(`quick-mcp-poc-users`テーブル限定)、`cognito-idp:DeleteUserPoolClient`(pattern4プール限定) |
+| Lambda環境変数追加 | `M2M_CLIENT_ID`・`M2M_CLIENT_SECRET`(既存の`quick-mcp-poc-m2m-test`クライアントの認証情報) | 応答時間デモ・SDKデモがログイン不要でAgentCore Runtimeを呼べるようにするため |
+| Cognitoユーザーのパスワード再発行 | `quick-mcp-poc-verify`(既存ユーザー) | クライアント向けにOAuthログインデモを試してもらうための認証情報発行(新規ユーザーは作らず既存を再利用) |
+
+応答時間デモは既存の`quickMcpPocLatencyLab-uC4Wd7EOWj`(前回セッションで作成済み)を「v1 SDK・現行サーバー」側として流用している。
+
+### 15.3 ブランチ状態
+
+`feature/web-demo-verification-panels`ブランチ(main未マージ)に、`web-demo/index.mjs`・`web-demo/README.md`としてコミット済み。デプロイは既に本番Lambda(playground内)に反映済みで、実機で全機能(4デモ+既存OAuth疎通確認)を確認済み。
+
+### 15.4 学び
+
+- **SSE形式("event: message\ndata: {...}")のレスポンスは、そのまま`JSON.parse`できない**。AgentCore Runtimeの`legacy: "stateless"`フォールバックは`Accept: application/json, text/event-stream`を送ると単発イベントのSSE形式で返すことがあり、`data: `行を抽出してからパースする必要がある。この見落としでSDKデモの初回実装が「v2サーバーは従来形式に失敗する」という誤った結果を出し、実際に動かして初めて発覚した
+- **「見える化」を求められたら、まず実機で正確な挙動差を確認してから設計する**。当初は机上の想定(v1は新形式を理解できないはず)で実装を始めそうになったが、先に実際にcurlで4通り(2サーバー×2リクエスト形式)を試したことで、正確な結果行列を把握してから実装でき、手戻りを避けられた
+- **`docs/00-handoff.md`のような各ブランチに存在するファイルは、ブランチを切り替えると内容が古い版に戻ることがある**。新しいブランチをmainから切ると、そのブランチ発行時点のmainの内容になるため、他ブランチで追記したセクション(今回は§14)が消えて見える。`git checkout <他ブランチ> -- <ファイル>`で最新版を持ってきてから追記するのが確実
+
+## 16. 今週の検証の総括とセッション完了サマリー(2026-09-08〜09-10実施)
+
+> このセクションが本ファイルの最新状態。§15までの記述と矛盾する場合はこちらを優先すること。
+
+### 16.1 方向性の修正(重要、今後の作業に影響)
+
+このセッションの途中で、ユーザーから本番採用の方向性について重要な確認があった。**本番は現行のECS(API Gateway)アーキテクチャを採用し、そこにDCR・WAF対応を追加する方針で決定済み**。AgentCore Runtimeは今回の技術選定における比較検証にとどまり、ホスティング方式としては不採用となった。
+
+この方針を受けて、§15で作成した週次レポート・デモ画面の力点を修正した。**AgentCore Runtime固有の検証(応答時間チューニングのセッションID再利用、SDK v2のRuntime側検証)はすべて「参考情報」に格下げし、ECS(API Gateway)アーキテクチャでのDCR・WAF対応を主眼に据え直した。** 次回以降のレポート作成・追加検証でも、この優先順位(ECS本位、Runtimeは参考)を踏襲すること。
+
+### 16.2 MCPプロトコルv2 SDKのECS側検証とテストスイート新規作成
+
+§15時点ではAgentCore Runtime側でしかv2 SDKを検証していなかった。今回この抜けを埋めた。
+
+- パターン4環境(playground)に検証専用ECSサービス`quick-mcp-poc-v2-sdk-demo`を新規作成(`feature/mcp-protocol-v2-spike`ブランチの`server/`をamd64向けにビルド)。既存のDCRデモ用サービス(`app`)には一切触れていない
+- MCP基本機能を体系的に確認する自動テストスイート(`scripts/mcp_functional_tests.py`、8項目)を新規作成し、v1-ECS/v2-ECS/v1-AgentCore/v2-AgentCoreの4環境すべてに対して実行、**32/32件合格**
+- **新規発見**: 未知のツール名を`tools/call`した際、v1 SDKは`result.isError: true`(ツール実行結果としてのエラー)、v2 SDKはトップレベルのJSON-RPCエラー(`code: -32602`、リクエスト自体の不正)という異なる形でエラーを返す。ホスティング方式に関わらず共通する挙動で、Step1でv2採用時にクライアント側のエラーハンドリング実装を両対応させる必要がある
+- テスト項目#1〜7はすべて**v1形式(classic、`_meta`エンベロープなし)のリクエスト**で実行しており、v2実装がv1形式のリクエストも問題なく処理できることを確認している。#8のみがv2形式(`_meta`エンベロープ)のリクエストで、v1実装は拒否・v2実装は受理という非対称な期待値で合否判定している(ユーザーからの質問に回答済み、詳細は`scripts/mcp_functional_tests.py`の`Target.call()`・`run_all()`を参照)
+
+### 16.3 MCP用WAF対応の新規検証(ECS+API Gatewayアーキテクチャに対して初めて実施)
+
+これまでのWAF検証はAgentCore Runtime向けの代替構成(CloudFront+WAFv2)でしか実施しておらず、**本番採用方針であるECS(API Gateway)アーキテクチャに対しては一度も検証していなかった**。今回この抜けを埋めた。
+
+- **発見**: API Gateway HTTP API(v2、パターン4が使用中)にはWAFv2 Web ACLを直接アタッチできない(WAFv2がネイティブ対応するAPI GatewayのリソースタイプはREST API v1のみ)。一方、後段のALB(`quick-mcp-poc-alb`)には直接アタッチできることを確認した
+- 検証用に一時的なWeb ACL(`AWSManagedRulesCommonRuleSet`+`AWSManagedRulesSQLiRuleSet`)をALBにアタッチし、実際に認可済みのMCPクライアントから`tools/call`のJSON-RPCリクエストボディ(ツール引数)にXSS・SQLインジェクション攻撃パターンを埋め込んで送信したところ、**両方とも403でブロック**されることを確認(CloudWatchメトリクスでも2件のブロックを確認)。先週Runtime向け構成で発見していたSQLi特化ルールの不足も、`AWSManagedRulesSQLiRuleSet`追加で解消することを確認した
+- 検証後、Web ACLはALBから解除・削除済み、テスト用DCRクライアントも削除済み。既存の稼働環境への恒久的な変更は残していない
+
+### 16.4 DCRの説明の修正
+
+週次レポートのDCR説明が、登録→承認→失効という「手順」の説明に終始しており、DCR(RFC 7591)自体が何か・なぜ必要かを説明できていないとユーザーから指摘があった。修正内容:
+
+- DCRは、MCPクライアント(Claude等)が**人手を介さず自動的に**OAuthクライアントとして自己登録し、その場で接続情報を受け取れる仕組み(RFC 7591)であることを明記
+- なぜ必要か(不特定多数のクライアントが接続する外販サービスでは、事前の手動登録運用が現実的でない)を説明
+- **admin承認ステップはDCRの標準仕様ではなく、本サービス独自に追加した業務要件(テナント審査)であり、DCR(登録)とテナント認可(利用許可)は別レイヤーである**ことを明確に区別した
+
+この「DCR本体」と「業務要件として追加した認可レイヤー」の区別は、今後DCR関連の説明をする際に踏襲すること。
+
+### 16.5 インフラ構成図の追加(awsdac)
+
+ユーザーから「各検証で使っている環境・インフラ構成図・前提を追加して視覚的に分かるようにしてほしい」との依頼を受け、DCR・WAF・SDK v2それぞれの検証で実際に使ったインフラ構成をawsdacで作図した。
+
+- `docs/images/dcr-verification-architecture.png`: API Gateway→DCR登録/認可Lambda→Cognito/DynamoDB→ALB→ECS
+- `docs/images/waf-verification-architecture.png`: API Gateway(WAF直接アタッチ不可)→ALB(WAF直接アタッチ可能)
+- `docs/images/sdk-v2-verification-architecture.png`: 同一ECSクラスター内でv1/v2サービスを並行稼働
+
+**awsdacのTitleフィールドは`<br/>`ではなく実際の改行文字(`\n`)で改行する**(Mermaidとの違い、今回つまずいた)。クライアント向けレポートでは、これらのAWSアイコン入り図の代わりに、同じ構成を汎用的な言葉(受付窓口・認証基盤・データベース等)に置き換えたMermaid図を使い、内部用語の露出を避けている。
+
+### 16.6 今週のレポート(docs/18)の最終構成
+
+`feature/mcp-protocol-v2-spike`ブランチに、社内向け・クライアント向けの2種類を作成しPDF化済み(全ページ目視確認済み)。
+
+- 社内向け: `docs/18-weekly-verification-report-week4.md`(13ページ)。§1 DCR対応(§1.1でDCRとは何かを説明)、§2 WAF対応(今週新規検証)、§3 MCPプロトコルv2 SDK確認(ECS本位・Runtime参考)、§4 デモツール補足、§5 来週のアクションプラン
+- クライアント向け: `docs/18-weekly-verification-report-week4-client.md`(7ページ)。同じ構成を平易な言葉で説明、他レポートへの参照は含めず単体で完結させている(ユーザー指示)
+
+### 16.7 ブランチ状態(mainには何もマージされていない、要判断)
+
+今回の作業はすべて`feature/mcp-protocol-v2-spike`ブランチに積み上がっている。現時点で存在する未マージブランチは以下の4つ:
+
+| ブランチ | 内容 | 状態 |
+|---|---|---|
+| `fix/production-audience-config-proposal` | 本番`terraform/apigateway.tf`の`audience`バグ修正(1行) | レビュー待ちの提案。最優先で本番担当者へ共有すべき |
+| `latency-tuning/session-id-reuse` | 応答時間チューニング一式、`docs/15`・`docs/16`(week3レポート) | Runtime固有の内容、§16.1の方針転換により相対的に優先度低下 |
+| `feature/web-demo-verification-panels` | `web-demo/`アプリ本体、`docs/17`(環境整理) | デモ画面自体は継続して有用、mainへの反映を検討 |
+| `feature/mcp-protocol-v2-spike` | v2 SDK書き換え一式、ECS/Runtime両方のv2検証、`docs/18`(今回) | 本セッションの主要な成果物。ただしMCPサーバー本体のv2書き換えは依然スパイクのまま、mainへの反映は別途判断が必要 |
+
+4ブランチの内容がそれぞれ`docs/`の異なる番号(15〜18)・異なる`web-demo/`状態を持っており、**次回セッションの最初の判断として、マージ順序を決めるかこのまま並行運用するかを検討する必要がある**。`docs/README.md`目次への15〜18番追加も、マージ順序確定後にまとめて行う。
+
+### 16.8 新規作成したAWSリソース(playgroundアカウント、883660531246、今回分)
+
+| リソース | 識別子 | 状態 |
+|---|---|---|
+| v2 SDK検証用ECSサービス | `quick-mcp-poc-v2-sdk-demo`(`quick-mcp-poc-cluster`内) | 稼働中。タスク定義`quick-mcp-poc-v2-sdk-demo:1`、イメージ`quick-mcp-poc:pattern4-v2-sdk-demo-1` |
+| （検証後削除済み）WAF検証用Web ACL | `quick-mcp-poc-apigw-webacl`(REGIONAL) | ALBへのアタッチ・検証後に解除・削除済み。恒久的なリソースは残っていない |
+
+### 16.9 学び
+
+- **「先週発見したこと」と「今週の作業」を混同しないこと**。今回、DCRの`allowedScopes`仮説やWAFのSQLi未対応は先週(§15より前)の発見だったが、初稿では「今回発見した」と誤って書いてしまい、査読で指摘された。週をまたぐ検証の時系列は、書く前に元ドキュメントの日付を確認すること
+- **ビジネス上の方針転換(今回: Runtime不採用・ECS採用決定)があった場合、既に書いたレポートの力点を全面的に見直す必要がある**。技術的な正確性だけでなく「何を主・何を従として書くか」がビジネス判断に依存するため、方針が変わったら機械的な修正では済まず、章構成・TL;DRから見直すべき
+- **概念の説明(今回: DCR)を書く際は、「手順の説明」と「概念そのものの説明」を混同しないこと**。DCRのような標準規格の話をする場合は、(1)それが何か・なぜ存在するか、(2)本プロジェクトでどう実装したか、(3)本プロジェクト固有に追加した仕様(業務要件)、の3つを明確に分けて書くと、読者が「これはDCRの仕様なのか、独自追加なのか」を混同しない
+- **awsdacのTitleフィールドの改行は`\n`(実際の改行文字)であり、Mermaidの`<br/>`とは書式が異なる**。両方使うプロジェクトでは混同しやすいので注意
+- **自動テストスイートを作る際、各テストケースがどのプロトコル形式でリクエストを送っているかをコード上明示しておくと、後から「このテストは何を検証しているのか」を聞かれたときにコードを見るだけで即答できる**。今回`modern`引数のデフォルト値(`False`)を確認するだけでユーザーの質問に正確に回答できた
+
+### 16.10 来週の検証計画(2026-09-10、ユーザーからの指示を記録)
+
+セッション終了時にユーザーから次回の検証方針の指示があった。次回セッションはここから着手すること。
+
+**大前提**: **AgentCore Runtimeの検証・考察は今後不要**。今週からメインアーキテクチャはECS構成に確定したため、以降の検証はすべてECS構成のみを対象とする(§16.1の方針をさらに徹底する形)。
+
+1. **WAF対応の深掘り**
+   - MCPサーバーに対するAWSの推奨セキュリティ対策(ベストプラクティス)を調査する
+   - 攻撃テストのパターンを、本番運用を見据えてさらに充実させる(§16.3で実施したXSS・SQLiの2パターンに加えて、他の攻撃パターン・レート制限・ボット対策等も検討)
+   - 上記を踏まえて、次のステップとしてWAFの恒久的なアーキテクチャ・設計(ルール構成、運用体制、監視体制)を検討・実施する
+   - スコープ: ECS構成のみ
+
+2. **DCRの認証まわりのブラッシュアップ**
+   - 現状の実装はLambda(登録用・認可用)による簡易実装にとどまっている
+   - 「本来のDCR対応(RFC 7591準拠性等)」が実現できているといえるか、実装の妥当性を検証・チェックする
+
+3. **DCR・WAFを本番運用に向けたメイン検証項目に格上げ**
+   - 本番運用に必要な要件を満たしているか、抜け漏れがないかを継続的な観点として持つ(単発の実機確認で終わらせず、チェックリスト化・体系化することを検討)
+
+4. **商用リモートMCPサーバーの本番運用に向けた調査に着手**
+   - AgentCore GatewayなどAWSのAIサービスのベストプラクティスを参考に、DCR・WAFを中心とした商用MCPサーバー運用のための調査を開始する
+   - Runtime自体は不採用だが、AgentCore Gateway等の周辺サービスがDCR/WAF文脈での参考事例(ベストプラクティス)として調査対象になりうる点に注意(ホスティング方式としてのRuntime再検討ではないことを明確に区別すること)
+
+---
+
+## 17. Week5セッション完了サマリー(2026-09-13〜14実施)
+
+> このセクションが本ファイルの最新状態。§16までの記述と矛盾する場合はこちらを優先すること。
+
+### 17.1 このセッションでやったこと
+
+§16.10でユーザーから指示された今週の方針(WAF深掘り、DCR準拠性検証、チェックリスト化、商用MCP運用調査)に沿って、プランニングから実機検証・修正・再検証まで実施した。作業ブランチは`feature/week5-waf-dcr-production-readiness`(`feature/mcp-protocol-v2-spike`から分岐)。
+
+セッション冒頭にユーザーが決めた方針:
+
+- 今週の重点は**REST API移行の採否を今週中に判断**すること
+- WAFの主案は**CloudFront + WAF**(REST API v1 + NLBではない)。ALBを使わない変形(Cloud Map / NLB)は同じスパイクで比較する
+- DCRの修正スコープは**最小(真のRFC準拠 + E2E成立)**。RFC 7592は翌週以降
+- 新ブランチを切って随時コミットする
+
+### 17.2 成果物
+
+| 成果物 | 内容 |
+|---|---|
+| [19-weekly-verification-plan-week5.md](./19-weekly-verification-plan-week5.md) | 今週の検証プラン(WAF・DCR・チェックリスト・商用調査)。§1.9にWAFの実施結果、§2.10にDCRの実施結果を追記済み |
+| [20-production-readiness-checklist.md](./20-production-readiness-checklist.md) | 本番運用チェックリスト。WAF(`WAF-NN`)・DCR(仕様番号)・Authorizer(`AUTHZ-NN`)を固定IDで管理し、自動テストの結果IDと1対1で対応させる |
+| [21-commercial-remote-mcp-operations-research.md](./21-commercial-remote-mcp-operations-research.md) | AgentCore Gateway・AWS参照アーキテクチャ・MCP仕様・Anthropicコネクタ仕様の机上調査。`OPS-01`〜`OPS-10`の追加行を提案 |
+| [22-weekly-verification-report-week5.md](./22-weekly-verification-report-week5.md) / [同クライアント向け](./22-weekly-verification-report-week5-client.md) | 今週の検証レポート。社内向け11ページ・クライアント向け10ページ、PDF化済み(全ページ目視確認済み) |
+| `scripts/waf_attack_tests.py` | 攻撃パターン45件(A01〜A25)のハーネス。`X-Waf-Test-Id`でWAFログと突合できる |
+| `scripts/waf_log_correlate.py` | WAFログとハーネス結果の突合。どのルールが遮断したか、WAFが見た送信元IPは何かを判定する |
+| `scripts/dcr_conformance_tests.py` | RFC 7591 / 7592 / 8414 / 9728 / MCP認可の準拠性テスト。`--cleanup`でテストクライアントを削除 |
+| `scripts/pattern4_token.py` | DCRで検証用client_credentialsクライアントを作りトークンを取得するヘルパー |
+| `scripts/update_checklist.py` | ハーネスの結果JSONをチェックリストの状態列へ転記する |
+| `docs/evidence/` | 実行結果のJSON(DCR基準線・修正後、WAF ALB Count・CloudFront Count・Block・レート制限) |
+
+### 17.3 DCRの結果: 合格19→33、不合格16→2
+
+修正前の基準線を取ってから最小スコープの修正を適用し、再検証した。詳細は[19番 §2.10](./19-weekly-verification-plan-week5.md)。
+
+**基準線で判明した、プランに無かった欠陥**:
+
+- フラグメント付き`redirect_uri`、101件の`redirect_uris`、`client_credentials` + `none`の3ケースで、Cognitoの400が`server_error`の**500に化けていた**
+- `response_types: ["token"]`がそのまま受理されていた
+
+**適用した修正**: メタデータ(`scopes_supported`に`invoke`、`jwks_uri`、`revocation_endpoint`、ルートPRM、`openid-configuration`ミラー)、登録の検証とエラー翻訳、`Cache-Control: no-store`、リフレッシュトークンローテーション、Managed Loginブランディングの自動適用、登録数上限とIP別レート制限、Authorizerのdeny-on-missingとaud検証、API Gatewayアクセスログ、テーブル名の環境変数化。
+
+**E2Eで確認すべきこと**: well-knownプローブだけで実際にClaudeが接続できるか。成立すれば`WWW-Authenticate`(OPS-01)の優先度はさらに下がる。
+
+**特筆すべき成果**: HTTP APIのLambda Authorizerは拒否時に403を返すためClaudeがトークンをリフレッシュしない問題(A2)があったが、**Authorizerで例外を投げる方式(`DENY_MODE=throw`)にすると API Gatewayが401を返す**ことを実機で確認し、HTTP APIのまま解消した。
+
+**残る不合格2件**: `WWW-Authenticate`ヘッダ(HTTP APIでは付与不可)、RFC 7592(翌週以降)。
+
+**詰まった点**: リフレッシュトークンローテーションを有効にすると、Cognitoが`ExplicitAuthFlows: ALLOW_REFRESH_TOKEN_AUTH`との併用を拒否する。認可コードフローのリフレッシュは`/oauth2/token`経由なので`ExplicitAuthFlows`を外して解消した。
+
+### 17.4 WAFの結果: 主案(CloudFront + WAF)をBlockモードで検証、攻撃16件遮断・誤検知ゼロ
+
+詳細は[19番 §1.9](./19-weekly-verification-plan-week5.md)。45パターンの内訳は、WAFが403で遮断した攻撃16件(うち14件はWAFログで`terminatingRuleId`まで確認)、CloudFrontまたはサーバーが400/405/415で拒否した攻撃5件、記録のみの攻撃11件、そして**全件200で通過した正常系コーパス13件**である。
+
+**数値の注意**: ハーネスの「合格35」は正常系13件の通過を含む合否判定の数であり、遮断件数ではない。レポート初稿でこれを「35件遮断」と誤記し、証跡JSONからの再計算で気づいて訂正した(§17.7)。
+
+**先週の結論を修正すべき発見(最重要)**: ALBにWAFをアタッチすると、**WAFが見る送信元IPはVPC Link ENIのプライベートIP(10.0.11.94)に集約される**。真のクライアントIPは`forwarded`ヘッダにしか無く、IPベースのレート制限・Geo・IPレピュテーションは全クライアントを同一IPとして扱うため機能しない。[18番 §2](./18-weekly-verification-report-week4.md)の「ALBにアタッチすれば対応可能」はボディ検査に限れば正しいが、恒久設計としては不十分。CloudFront構成では真のクライアントIPで評価でき、Geoラベルも正しく付与された。
+
+**全ルート保護**: `/register`のSQLiと`/token`のXSSもBLOCKされた。ALBアタッチではこれらの経路は保護できない。
+
+**その他の新規発見**: (1) JSON文字列値に埋めたBase64のJavaシリアライズ列は`KnownBadInputsRuleSet`で検知されない、(2) ボディ検査上限の既定(CloudFront 16KB、ALB 8KB固定)では日本語の長文引数が誤検知するため64KBへ引き上げが必要、(3) CloudFrontはURIトラバーサルとTRACEをWAF評価前に自身で拒否する、(4) レートベースルールは反映遅延があり短時間バーストでは発火しない(閾値を一時的に下げて機構を確認済み)、(5) `/register`の連打はLambda内IP別カウンタとAPI GWスロットルで既に多層に止まっている。
+
+### 17.5 REST API移行の採否(今週の最重点): **移行しないと判断**
+
+ユーザーが「今週中に判断」と指示した項目。**結論: REST API v1へは移行せず、CloudFront + WAF + HTTP API(主案d)を継続する。** 詳細と根拠は[19番 §1.10](./19-weekly-verification-plan-week5.md)。
+
+REST移行の動機は4つあったが、
+
+- 「全ルート保護」「真のクライアントIP」はCloudFront + WAFで**達成済み**(§17.4)
+- 「テナント別スロットリング」はWAFのレートベースルール(`Authorization`集約キー)で代替する設計にした
+- 残るのは「Gateway Responsesによる`WWW-Authenticate`付与」のみ
+
+その`WWW-Authenticate`について、CloudFront Functions(viewer-response)で代替できるかを実測した(S12)。**結果は不可**: オリジンが4xxを返した応答ではviewer-response関数がトリガされない(200では実行され検証用ヘッダが付くが、401では一切付かない。関数単体の`test-function`では401イベントに正しく付与するため、コードではなくCloudFront側の制約)。
+
+ただしMCP 2026-07-28では保護リソースメタデータの提供は「`WWW-Authenticate` **または** well-known」の択一MUSTであり、現状のwell-known提供(今週ルートPRMも追加)で**仕様違反ではない**。したがって`WWW-Authenticate`は「相互運用性の信頼度を上げる推奨項目」と位置づけ、必要になった場合は**Lambda@Edge origin-response**(1〜2日、オリジンのエラー応答でも実行される)を第一候補とする。REST API移行(5〜7日)は、閉域網(PRIVATEエンドポイント)やテナント別クォータが要件として確定した時点で再評価する。
+
+### 17.6 playgroundに作成したAWSリソース(今回分)
+
+| リソース | 識別子 | 状態 |
+|---|---|---|
+| CloudFrontディストリビューション | `E1T56DLS986BE4` / `djwyl11zhnd52.cloudfront.net` | 稼働中。オリジンは現行HTTP API |
+| Web ACL(CLOUDFRONT、us-east-1) | `quick-mcp-poc-edge` | 稼働中、Blockモード。ボディ検査上限64KB |
+| WAFログ用ロググループ(us-east-1) | `aws-waf-logs-quick-mcp-poc-edge` | 90日保持 |
+| API Gatewayアクセスログ | `/quick-mcp-poc/apigw-access` | 90日保持 |
+| (削除済み)ALBプローブ用Web ACL | `quick-mcp-poc-alb-probe` | 検証後にデタッチ・削除。terraformファイルも削除済み |
+| DynamoDB TTL | `quick-mcp-poc-users`の`expiresAt`属性 | 有効化(IP別レート制限カウンタの自動削除用) |
+| 静的クライアントの`CLIENT#`レコード | `CLIENT#69eu35v522jnt0blnb26lij1ei`(`source: static`) | deny-on-missing対応のため投入 |
+
+**コスト注意**: CloudFront + Web ACL(us-east-1)で月額$6〜10程度が追加で発生する。§16.8までのplayground複製一式(月額約$46相当)に上乗せされる。不要になったら`terraform destroy -target=aws_cloudfront_distribution.edge -target=aws_wafv2_web_acl.edge`等で削除する。
+
+**テストクライアントの後片付け**: 検証で作成したDCRクライアントはすべて削除済み(`scripts/dcr_conformance_tests.py --cleanup`)。Cognitoに残っているのは`quick-mcp-poc-mcp-client`(静的)、`dcr-sanity-check-*`(§16以前から存在)、`dcr-pattern4-token-helper-*`(ハーネス用、継続利用するなら残置)の3つ。`COUNTER#dcr`は0に戻っている。
+
+### 17.7 学び
+
+- **「ハーネスの期待値」と「設計上の意図」を混同しないこと**。Blockモードの初回実行で8件がFAILになったが、実際には4件がCloudFrontのWAF評価前の拒否、2件が意図的なcount上書き、1件が未実装のカスタムルールで、真の欠陥は1件(Javaシリアライズ)だけだった。テストの期待値には「なぜその結果が正しいのか」をコメントで残すと、次回の実行者が誤った修正をしない
+- **WAFログの`clientIp`は配置場所で意味が変わる**。ALB配下では前段のENIのIPになる。IP系ルールを設計する前に、必ず実機でログの`clientIp`を確認すること
+- **マルチバイト文字はボディ検査上限を3倍速く消費する**。日本語主体のサービスでは既定16KBは実質5,000文字程度で、`oversize_handling = MATCH`のルールが誤検知する
+- **AWS CLIの引数は`$P`のような変数展開でまとめて渡せない**(1つの引数として解釈される)。プロファイルとリージョンは毎回明示するか、環境変数を使う
+- **レポートの数値は必ず証跡JSONから再計算して検証すること**。今回、Blockモードの結果を「45パターン中35件を遮断」と書いたが、35は正常系13件の通過を含む合格数であり、実際にWAFが遮断したのは16件だった。ハーネスの合格数をそのまま成果として書くと、正常系の通過を遮断件数として報告してしまう
+- **太字はCommonMarkのflanking ruleでPDFに`**`が生のまま残ることがある**。閉じの`**`が全角の閉じカッコ(`」`など)の直後で、かつ直後が日本語の文字だと強調として閉じられない。`pandoc -f gfm -t html5 <file> | grep -c '\*\*'`が0であることを機械チェックすること
+- **Mermaidの`<br/>`はPDF描画で無視される**(`scripts/render-pdf.sh`経由)。ノードラベルは`<br/>`に頼らず、短いラベル + 点線でつないだ詳細ノードに分けると読みやすい。長いラベルを`<br/>`で改行した図は、PDFで文字が詰まって判読しにくくなる
+- **SSOトークンは作業中に失効する**。長時間のterraform applyやハーネス実行の前に`aws sts get-caller-identity`で確認すると、途中で失敗して中途半端な状態になるのを避けられる
+
+### 17.8 ユーザー(人間)の確認・判断が必要な項目
+
+セッション終了時点で、私の側で完了できず**ユーザーの確認・判断を待っている**項目。次回セッションの冒頭でこの節の消化状況を確認すること。
+
+**A. ユーザーにしかできないこと**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| A1 | **本番の401バグの共有(最優先、数週間滞留中)** | `fix/production-audience-config-proposal`ブランチの1行修正案が未共有。本番のJWT Authorizerが、Cognitoが実際に発行するトークンと一致しない値を参照しているため**正当なトークンでも常に401**になる。playground複製で再現確認済み。本番アカウントは書き込み禁止のため共有はユーザーが行う必要がある。**今週の追加事実**: CognitoはRFC 8707の`resource`パラメータに対応しており(§17.3のF1相当)、`resource`を指定する前提なら現在の設定値のほうが正しくなる。共有時は「修正案」と「resource指定を前提にする案」の両方を提示すること |
+| A2 | **Claude Code / Claude.aiからの自己登録E2E** | ブラウザでのログイン操作が必要。確認すべきは3点。(1) DCRで作られたクライアントでログイン画面が表示されるか(今週修正したCL-03)、(2) `WWW-Authenticate`無しでwell-known経由だけで接続が成立するか、(3) 60分後もトークンが自動更新され接続が維持されるか(DS5)。**(3)が成立すればREST API移行を見送った判断(§17.5)が実地で裏付けられる** |
+
+**B. 判断が必要なもの**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| B1 | REST API移行を見送る判断の承認 | 私が結論を出したがアーキテクチャの意思決定。根拠は[19番 §1.10](./19-weekly-verification-plan-week5.md)と[22番 §3](./22-weekly-verification-report-week5.md) |
+| B2 | 例外台帳4件の承認 | 意図的にCountのまま運用するルール。すべて「未承認(検証段階の暫定)」で[20番 §4](./20-production-readiness-checklist.md)に登録済み。本番適用前に承認が要る |
+| B3 | `WAF-12`のリスク受容 | JSON内にBase64で埋めたJavaシリアライズ列が検知されない。カスタムルールを作るか、影響の小ささで許容するか |
+| B4 | playgroundリソースの残置可否 | CloudFrontとWeb ACLで月額$6〜10が追加発生(既存の複製一式 約$46への上乗せ)。削除手順は§17.6 |
+| B5 | 未マージ5ブランチの整理 | `docs/README.md`の目次更新(15〜22番)がこれ待ちで止まっている |
+
+**C. 私の作業でユーザーに確認してほしいもの**
+
+| # | 項目 | 内容 |
+|---|---|---|
+| C1 | **先週のクライアント向け報告の訂正** | 先週「ALBにアタッチすれば対応可能」と報告した結論を今週のレポートで訂正している。[18番](./18-weekly-verification-report-week4.md)を既にクライアントへ共有済みであれば、訂正が届く形になる。送付前に確認が要る |
+| C2 | クライアント向けレポートの文面 | QUICK様宛の10ページ。技術用語を平易な言葉に置き換えているが、その置き換えが意図どおりかは要確認 |
+| C3 | terraformの既知のドリフト | playgroundで`terraform plan`するとNATインスタンス2台の置き換えが提案される(`data.aws_ami`が最新AMIを拾うためで今回の作業とは無関係)。今回はすべて`-target`で回避した。`lifecycle { ignore_changes = [ami] }`を入れるかの判断が残っている |
+
+### 17.9 次回セッションの着手順
+
+1. §17.8の消化状況を確認する(特にA1・A2)
+2. **Claude Code / Claude.aiからの自己登録E2E**(A2)。これが済むまでDCRの修正は実地で裏付けられていない
+3. WAFのログ保全(Firehose → S3 Object Lock、S8)と監視(アラーム、S9)
+4. カスタムドメイン導入(OPS-08)と、それに伴う秘密ヘッダの強制(`ENFORCE_ORIGIN_VERIFY=true`、S10)
+5. 本番`terraform/`への移植コード準備(未適用、W6)
+6. `docs/README.md`の目次更新(15〜22番)は、未マージブランチのマージ順序を決めてからまとめて行う(§16.7の運用を踏襲)
+
+### 17.10 セッション終了時点の状態(2026-09-14)
+
+| 項目 | 状態 |
+|---|---|
+| ブランチ | `feature/week5-waf-dcr-production-readiness`(`feature/mcp-protocol-v2-spike`から分岐)。7コミット、作業ツリーはクリーン。**リモートへのpushは未実施** |
+| 未マージブランチ | 5本(`fix/production-audience-config-proposal`、`latency-tuning/session-id-reuse`、`feature/web-demo-verification-panels`、`feature/mcp-protocol-v2-spike`、本ブランチ) |
+| 疎通 | CloudFront経由・API Gateway直の両方で`tools/list`が200。XSSはCloudFront経由で403 |
+| テストクライアント | 全削除済み。Cognitoに残るのは`quick-mcp-poc-mcp-client`(静的)、`dcr-sanity-check-*`(§16以前)、`dcr-pattern4-token-helper-*`(ハーネス用、継続利用するなら残置)の3つ。`COUNTER#dcr`は0 |
+| 一時リソース | ALBプローブ用Web ACLは削除済み(terraformファイルも削除)。CloudFront検証用のCloudFront Functionも削除済み |
+| ハーネスの使い方 | `eval "$(python3 scripts/pattern4_token.py token)"`でトークン取得 → `scripts/waf_attack_tests.py` / `scripts/dcr_conformance_tests.py`を実行 → `scripts/update_checklist.py`で[20番](./20-production-readiness-checklist.md)へ転記。DCRテストは実行後に必ず`--cleanup`すること |
