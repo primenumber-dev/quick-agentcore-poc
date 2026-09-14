@@ -88,7 +88,12 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
   identity_sources = ["$request.header.Authorization"]
 
   jwt_configuration {
-    audience = [aws_cognito_resource_server.mcp.identifier]
+    # NOTE: aws_cognito_resource_server.mcp.identifier (the resource server
+    # identifier) does not match the `aud`/`client_id` claim Cognito actually
+    # puts in issued tokens, so this rejected every legitimate token with a
+    # 401. Verified in a playground replica of this stack; see
+    # docs/07-vpc-waf-cost-verification.md §2.4 for the reproduction.
+    audience = [aws_cognito_user_pool_client.mcp.id]
     issuer   = "https://cognito-idp.ap-northeast-1.amazonaws.com/${aws_cognito_user_pool.main.id}"
   }
 }
