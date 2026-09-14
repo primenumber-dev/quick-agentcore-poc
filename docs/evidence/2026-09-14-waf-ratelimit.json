@@ -1,0 +1,59 @@
+{
+  "検証": "レートベースルールの機構検証(WAF-17 / WAF-18)",
+  "run_at": "2026-09-14T13:13:01+0900",
+  "手順": "rate-ip-auth-endpoints の閾値を一時的に limit=10 / evaluation_window_sec=60 へ下げ、/token へ20リクエスト×2回(間に75秒待機)を送信。検証後 limit=50 / 300秒 へ復帰済み。",
+  "結果": {
+    "送信": 40,
+    "403": 40,
+    "遮断ルール": "rate-ip-auth-endpoints (RATE_BASED)",
+    "WAFログ該当行": 40
+  },
+  "備考": "直前のA18テスト(60リクエスト)で同一IPのカウントが既に蓄積していたため、burst1の1リクエスト目から403になった。レートベースルールは評価反映に遅延があるため、閾値到達直後は数十秒ブロックが始まらないことがある。",
+  "ログ抜粋": [
+    {
+      "testId": "ratelimit-b1-1",
+      "action": "BLOCK",
+      "terminatingRuleId": "rate-ip-auth-endpoints",
+      "terminatingRuleType": "RATE_BASED",
+      "uri": "/token",
+      "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+      "timestamp": 1789358861184
+    },
+    {
+      "testId": "ratelimit-b1-2",
+      "action": "BLOCK",
+      "terminatingRuleId": "rate-ip-auth-endpoints",
+      "terminatingRuleType": "RATE_BASED",
+      "uri": "/token",
+      "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+      "timestamp": 1789358861577
+    },
+    {
+      "testId": "ratelimit-b1-3",
+      "action": "BLOCK",
+      "terminatingRuleId": "rate-ip-auth-endpoints",
+      "terminatingRuleType": "RATE_BASED",
+      "uri": "/token",
+      "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+      "timestamp": 1789358862038
+    },
+    {
+      "testId": "ratelimit-b1-4",
+      "action": "BLOCK",
+      "terminatingRuleId": "rate-ip-auth-endpoints",
+      "terminatingRuleType": "RATE_BASED",
+      "uri": "/token",
+      "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+      "timestamp": 1789358862365
+    },
+    {
+      "testId": "ratelimit-b1-5",
+      "action": "BLOCK",
+      "terminatingRuleId": "rate-ip-auth-endpoints",
+      "terminatingRuleType": "RATE_BASED",
+      "uri": "/token",
+      "clientIp": "2406:2d40:5a83:7010:dcd7:9579:cc42:85c0",
+      "timestamp": 1789358862716
+    }
+  ]
+}

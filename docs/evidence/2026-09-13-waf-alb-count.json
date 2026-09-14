@@ -1,0 +1,892 @@
+{
+  "target": "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com",
+  "expect": "nowaf",
+  "run_id": "albcount-122437",
+  "run_at": "2026-09-13T12:24:51+0900",
+  "summary": {
+    "PASS": 44,
+    "INFO": 1
+  },
+  "results": [
+    {
+      "id": "A01",
+      "category": "XSS (body)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 2.35,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet CrossSiteScripting_BODY",
+      "test_header": "albcount-122437-A01",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:CrossSiteScripting_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:CrossSiteScripting_BODY(TERMINATING)",
+          "AWSManagedRulesCommonRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A02",
+      "category": "SQLi (body)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.21,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "SQLiRuleSet SQLi_BODY",
+      "test_header": "albcount-122437-A02",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:sql-database:SQLi_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesSQLiRuleSet:SQLi_BODY(TERMINATING)",
+          "AWSManagedRulesSQLiRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A03a",
+      "category": "Log4j/JNDI (body)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.27,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "KnownBadInputs Log4JRCE_BODY",
+      "test_header": "albcount-122437-A03a",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:known-bad-inputs:Log4JRCE_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesKnownBadInputsRuleSet:Log4JRCE_BODY(TERMINATING)",
+          "AWSManagedRulesKnownBadInputsRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A03b",
+      "category": "Log4j/JNDI (header)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.24,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "KnownBadInputs Log4JRCE_HEADER",
+      "test_header": "albcount-122437-A03b",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:known-bad-inputs:Log4JRCE_Header"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesKnownBadInputsRuleSet:Log4JRCE_HEADER(TERMINATING)",
+          "AWSManagedRulesKnownBadInputsRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A03c",
+      "category": "Log4j/JNDI (query)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.21,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "KnownBadInputs Log4JRCE_QUERYSTRING",
+      "test_header": "albcount-122437-A03c",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:known-bad-inputs:Log4JRCE_QueryString"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesKnownBadInputsRuleSet:Log4JRCE_QUERYSTRING(TERMINATING)",
+          "AWSManagedRulesKnownBadInputsRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A04",
+      "category": "Java deserialization (body)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.2,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "KnownBadInputs JavaDeserializationRCE_BODY",
+      "test_header": "albcount-122437-A04",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A05a",
+      "category": "Path traversal (URI)",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.15,
+      "detail": "HTTP 400 (expected [400, 401, 403, 404, 405]) <html>\r <head><title>400 Bad Request</title></head>\r <body>\r <center><h1>400 Bad Request</h1></center>\r </body>\r </html>\r ",
+      "note": "CommonRuleSet GenericLFI_URIPATH",
+      "test_header": "albcount-122437-A05a",
+      "waf_headers": {}
+    },
+    {
+      "id": "A05b",
+      "category": "Path traversal encoded (URI)",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.15,
+      "detail": "HTTP 400 (expected [400, 401, 403, 404, 405]) <html>\r <head><title>400 Bad Request</title></head>\r <body>\r <center><h1>400 Bad Request</h1></center>\r </body>\r </html>\r ",
+      "note": "CommonRuleSet GenericLFI_URIPATH",
+      "test_header": "albcount-122437-A05b",
+      "waf_headers": {}
+    },
+    {
+      "id": "A06",
+      "category": "LFI (body)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.26,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet GenericLFI_BODY",
+      "test_header": "albcount-122437-A06",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:GenericLFI_Body",
+          "awswaf:managed:aws:posix-os:UNIXShellCommandsVariables_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:GenericLFI_BODY(TERMINATING)",
+          "AWS#AWSManagedRulesUnixRuleSet:UNIXShellCommandsVariables_BODY(TERMINATING)",
+          "AWSManagedRulesCommonRuleSet(COUNT)",
+          "AWSManagedRulesUnixRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A07",
+      "category": "SSRF EC2 metadata (body)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.2,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet EC2MetaDataSSRF_BODY",
+      "test_header": "albcount-122437-A07",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:EC2MetaDataSSRF_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:EC2MetaDataSSRF_BODY(TERMINATING)",
+          "AWSManagedRulesCommonRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A08",
+      "category": "RFI external URL (body)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.25,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet GenericRFI_BODY(誤検知候補)",
+      "test_header": "albcount-122437-A08",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A09",
+      "category": "Host: localhost",
+      "status": "PASS",
+      "http": 403,
+      "elapsed_s": 0.15,
+      "detail": "HTTP 403 (expected [400, 403, 404, 421]) {\"message\":\"Forbidden\"}",
+      "note": "KnownBadInputs Host_localhost_HEADER",
+      "test_header": "albcount-122437-A09",
+      "waf_headers": {
+        "x-amzn-requestid": "fd856650-2047-4450-983d-730d16da35fa",
+        "x-amzn-errortype": "ForbiddenException"
+      }
+    },
+    {
+      "id": "A10a",
+      "category": "PROPFIND method",
+      "status": "PASS",
+      "http": 404,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 404 (expected [400, 401, 403, 404, 405, 501]) <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\"> <title>Error</title> </head> <body> <pre>Cannot PROPFIND /mcp</pre> </body> <",
+      "note": "KnownBadInputs PROPFIND_METHOD",
+      "test_header": "albcount-122437-A10a",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:known-bad-inputs:Propfind_Method"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesKnownBadInputsRuleSet:PROPFIND_METHOD(TERMINATING)",
+          "AWSManagedRulesKnownBadInputsRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A10b",
+      "category": "TRACE method",
+      "status": "PASS",
+      "http": 405,
+      "elapsed_s": 0.16,
+      "detail": "HTTP 405 (expected [400, 401, 403, 404, 405, 501]) <html>\r <head><title>405 Not Allowed</title></head>\r <body>\r <center><h1>405 Not Allowed</h1></center>\r </body>\r </html>\r ",
+      "note": "カスタム許可メソッド外Block",
+      "test_header": "albcount-122437-A10b",
+      "waf_headers": {}
+    },
+    {
+      "id": "A11a",
+      "category": "No User-Agent",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.21,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet NoUserAgent_HEADER(Count運用、MCPクライアントの実UAを要確認)",
+      "test_header": "albcount-122437-A11a",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A11b",
+      "category": "Bad bot UA",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.25,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet UserAgent_BadBots_HEADER",
+      "test_header": "albcount-122437-A11b",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:BadBots_Header"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:UserAgent_BadBots_HEADER(TERMINATING)",
+          "AWSManagedRulesCommonRuleSet(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A12",
+      "category": "Oversized body 12KB",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.23,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "CommonRuleSet SizeRestrictions_BODY(8KB超。誤検知候補、countにしカスタム64KB超へ)",
+      "test_header": "albcount-122437-A12",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:SizeRestrictions_BODY(TERMINATING)",
+          "AWSManagedRulesCommonRuleSet(COUNT)",
+          "body-over-64kb(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A13a",
+      "category": "Oversized body 70KB",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.35,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "カスタム size_constraint 64KB超 / oversize_handling",
+      "test_header": "albcount-122437-A13a",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:SizeRestrictions_BODY(TERMINATING)",
+          "AWSManagedRulesCommonRuleSet(COUNT)",
+          "body-over-64kb(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A13b",
+      "category": "Oversized body 200KB",
+      "status": "PASS",
+      "http": 413,
+      "elapsed_s": 0.4,
+      "detail": "HTTP 413 (expected [413]) <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\"> <title>Error</title> </head> <body> <pre>Payload Too Large</pre> </body> </ht",
+      "note": "サーバー express.json 100KB上限 → 413。WAF側は oversize_handling の設定次第",
+      "test_header": "albcount-122437-A13b",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:SizeRestrictions_BODY(TERMINATING)",
+          "AWSManagedRulesCommonRuleSet(COUNT)",
+          "body-over-64kb(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A14",
+      "category": "Malformed JSON",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.21,
+      "detail": "HTTP 400 (expected [400]) <!DOCTYPE html> <html lang=\"en\"> <head> <meta charset=\"utf-8\"> <title>Error</title> </head> <body> <pre>Bad Request</pre> </body> </html> ",
+      "note": "WAF json_body invalid_fallback_behavior が MATCH にならないこと",
+      "test_header": "albcount-122437-A14",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A15",
+      "category": "JSON-RPC batch x50",
+      "status": "INFO",
+      "http": 200,
+      "elapsed_s": 0.23,
+      "detail": "HTTP 200 (expected record only) [{\"result\":{},\"jsonrpc\":\"2.0\",\"id\":0},{\"result\":{},\"jsonrpc\":\"2.0\",\"id\":1},{\"result\":{},\"jsonrpc\":\"2.0\",\"id\":2},{\"result\":{},\"jsonrpc\":\"2.0\"",
+      "note": "基準線(2026-09-13)で v1 SDK サーバーは50件を200で全処理した(増幅攻撃の入口)。WAFカスタムルール(ボディ先頭 '[' をBlock)候補",
+      "test_header": "albcount-122437-A15",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": [
+          "jsonrpc-batch(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A19",
+      "category": "Geo (self IP)",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "geo_match は Count 運用。自IPの国コードをWAFログで確認",
+      "test_header": "albcount-122437-A19",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A22a",
+      "category": "Content-Type text/plain",
+      "status": "PASS",
+      "http": 415,
+      "elapsed_s": 0.23,
+      "detail": "HTTP 415 (expected [400, 406, 415]) {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Unsupported Media Type: Content-Type must be application/json\"},\"id\":null}",
+      "note": "カスタム: POST /mcp は application/json 必須",
+      "test_header": "albcount-122437-A22a",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A22b",
+      "category": "Missing Accept",
+      "status": "PASS",
+      "http": 406,
+      "elapsed_s": 0.18,
+      "detail": "HTTP 406 (expected [200, 400, 406]) {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Not Acceptable: Client must accept both application/json and text/event-stream\"},\"id\":nul",
+      "note": "MCPクライアントの実送信値を要確認",
+      "test_header": "albcount-122437-A22b",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A22c",
+      "category": "Oversized header 9KB",
+      "status": "PASS",
+      "http": 431,
+      "elapsed_s": 0.14,
+      "detail": "HTTP 431 (expected [200, 400, 431, 494]) {\"message\":\"Request Header Fields Too Large\"}",
+      "note": "ヘッダサイズ上限の挙動",
+      "test_header": "albcount-122437-A22c",
+      "waf_headers": {}
+    },
+    {
+      "id": "A23a",
+      "category": "Unknown MCP-Protocol-Version",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.21,
+      "detail": "HTTP 400 (expected [200, 400]) {\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Bad Request: Unsupported protocol version: 9999-99-99 (supported versions: 2025-11-25, 20",
+      "note": "サーバー側の版数検証を記録",
+      "test_header": "albcount-122437-A23a",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A23b",
+      "category": "Forged Mcp-Session-Id",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.21,
+      "detail": "HTTP 200 (expected [200, 400, 404]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "ステートレスサーバーでの扱いを記録",
+      "test_header": "albcount-122437-A23b",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A24",
+      "category": "x-cognito-sub spoof",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.26,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"tools\":[{\"name\":\"get_quote\",\"title\":\"銘柄スナップショット取得\",\"description\":\"QUICK quoteElement.do APIを叩き、指定された銘柄群について指定された項目の現在値スナップショットを取",
+      "note": "200 でもサーバーが見る sub は Authorizer 由来であること(ECSログで確認、S4)",
+      "test_header": "albcount-122437-A24",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A02r",
+      "category": "SQLi to /register (unauth route)",
+      "status": "PASS",
+      "http": 201,
+      "elapsed_s": 2.17,
+      "detail": "HTTP 201 (expected [201, 400, 429]) {\"client_id\":\"bkftl7oj4nq7mpbncelct5h45\",\"client_id_issued_at\":1789269887,\"client_name\":\"' OR '1'='1' UNION SELECT 1,2,3 --\",\"redirect_uris\"",
+      "note": "ALBアタッチでは守れない経路。201 の場合は --cleanup 対象",
+      "test_header": "albcount-122437-A02r",
+      "waf_headers": {}
+    },
+    {
+      "id": "A01t",
+      "category": "XSS to /token (unauth route)",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.49,
+      "detail": "HTTP 400 (expected [400, 401]) {\"error\":\"invalid_client\"}",
+      "note": "ALBアタッチでは守れない経路",
+      "test_header": "albcount-122437-A01t",
+      "waf_headers": {
+        "x-amzn-requestid": "a406fad7-7891-45c7-9fbd-71aa6731fabd",
+        "x-amzn-remapped-connection": "keep-alive",
+        "x-amzn-remapped-server": "Server",
+        "x-amzn-remapped-date": "Sun, 13 Sep 2026 03:24:48 GMT"
+      }
+    },
+    {
+      "id": "A05w",
+      "category": "Traversal to /.well-known",
+      "status": "PASS",
+      "http": 400,
+      "elapsed_s": 0.16,
+      "detail": "HTTP 400 (expected [400, 401, 403, 404]) <html>\r <head><title>400 Bad Request</title></head>\r <body>\r <center><h1>400 Bad Request</h1></center>\r </body>\r </html>\r ",
+      "note": "ALBアタッチでは守れない経路",
+      "test_header": "albcount-122437-A05w",
+      "waf_headers": {}
+    },
+    {
+      "id": "A01a",
+      "category": "XSS to /authorize query",
+      "status": "PASS",
+      "http": 302,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 302 (expected [302, 400]) ",
+      "note": "ALBアタッチでは守れない経路",
+      "test_header": "albcount-122437-A01a",
+      "waf_headers": {
+        "x-amzn-requestid": "ca534480-f425-4bae-9c36-04d9809e5672",
+        "x-amzn-remapped-content-length": "0",
+        "x-amzn-remapped-connection": "keep-alive",
+        "x-amzn-remapped-server": "Server",
+        "x-amzn-remapped-date": "Sun, 13 Sep 2026 03:24:48 GMT"
+      }
+    },
+    {
+      "id": "A25-01",
+      "category": "benign: get_quote 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool get_quote: [\\n  {\\n    \\\"c",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-01",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-02",
+      "category": "benign: search_stocks 日本語",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.21,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-02",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-03",
+      "category": "benign: search_stocks SQL風語句",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-03",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-04",
+      "category": "benign: search_stocks URL含む",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.23,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-04",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-05",
+      "category": "benign: search_stocks 記号多用",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.27,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-05",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-06",
+      "category": "benign: search_stocks 長文4KB",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.3,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-06",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-07",
+      "category": "benign: search_stocks 長文12KB",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.32,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Quick API QrdspWebMulti.do failed: 401 Unauthorized\"}],\"isError\":true},\"jsonrpc\":\"2.0\",\"id\":1}",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-07",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [
+          "awswaf:managed:aws:core-rule-set:SizeRestrictions_Body"
+        ],
+        "counted": [
+          "AWS#AWSManagedRulesCommonRuleSet:SizeRestrictions_BODY(TERMINATING)",
+          "AWSManagedRulesCommonRuleSet(COUNT)",
+          "body-over-64kb(COUNT)"
+        ]
+      }
+    },
+    {
+      "id": "A25-08",
+      "category": "benign: search_news 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.22,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool search_news: [\\n  {\\n    \\",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-08",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-09",
+      "category": "benign: get_ranking 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.18,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool get_ranking: [\\n  {\\n    \\",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-09",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-10",
+      "category": "benign: get_price_history 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.19,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool get_price_history: [\\n  {\\",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-10",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-11",
+      "category": "benign: get_intraday_history 通常",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.2,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"MCP error -32602: Input validation error: Invalid arguments for tool get_intraday_history: [\\n ",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-11",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-12",
+      "category": "benign: tools/list",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.25,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"tools\":[{\"name\":\"get_quote\",\"title\":\"銘柄スナップショット取得\",\"description\":\"QUICK quoteElement.do APIを叩き、指定された銘柄群について指定された項目の現在値スナップショットを取",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-12",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    },
+    {
+      "id": "A25-13",
+      "category": "benign: initialize",
+      "status": "PASS",
+      "http": 200,
+      "elapsed_s": 0.23,
+      "detail": "HTTP 200 (expected [200]) {\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{\"listChanged\":true}},\"serverInfo\":{\"name\":\"quick-mcp-poc\",\"version\":\"1.0.",
+      "note": "誤検知判定(FP)",
+      "test_header": "albcount-122437-A25-13",
+      "waf_headers": {},
+      "waf_log": {
+        "action": "ALLOW",
+        "terminatingRuleId": "Default_Action",
+        "clientIp": "10.0.11.94",
+        "country": "-",
+        "labels": [],
+        "counted": []
+      }
+    }
+  ],
+  "waf_log_summary": {
+    "log_group": "aws-waf-logs-quick-mcp-poc-alb-probe",
+    "client_ips_seen": [
+      "10.0.11.94"
+    ],
+    "my_ip": "206.83.106.9",
+    "waf02_verdict": "VPC Link ENI 等に集約(['10.0.11.94'])",
+    "matched_rows": 36
+  }
+}

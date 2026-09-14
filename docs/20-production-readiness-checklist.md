@@ -12,7 +12,7 @@
 | # | 論点 | 結論 |
 |---|---|---|
 | 1 | チェックリストの位置づけ | WAF(`WAF-NN`)、DCR(仕様番号+連番)、運用(`OPS-NN`)を同一スキーマで管理する。自動テスト(`scripts/waf_attack_tests.py`、`scripts/dcr_conformance_tests.py`)の結果IDと1対1で対応させ、表の「状態」「最終実施」「証跡」列のみを更新する運用にする(§1) |
-| 2 | 2026-09-13時点の状態 | DCR: 最小スコープ修正後の再検証で合格33・不合格2(残りは`WWW-Authenticate`とRFC 7592)。deny-on-missing(AUTHZ-01/02)と無効トークン401(MCP-04)を実機確認。WAF: 基準線(WAF未適用)を取得し45パターンのサーバー側応答を記録(11行が検証中)。Claude Code / Claude.aiからの自己登録E2Eは未実施(§2、§3) |
+| 2 | 2026-09-14時点の状態 | WAF: CloudFront + WAFをplaygroundに構築しBlockモードで45パターンを実行、35件がBLOCK・誤検知ゼロ。全ルート保護(WAF-01)と真のクライアントIP(WAF-02)を確認。DCR: 最小スコープ修正後の再検証で合格33・不合格2(残りは`WWW-Authenticate`とRFC 7592)。Claude Code / Claude.aiからの自己登録E2Eは未実施(§2、§3) |
 | 3 | 再評価のトリガー | `terraform/`または`terraform-playground-pattern4/`のWAF・API Gateway・Lambda関連ファイル変更時、月次、MCPプロトコル新版リリース時、Anthropicコネクタ仕様変更時(§5) |
 
 ---
@@ -47,8 +47,8 @@
 
 | ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
 |---|---|---|---|---|---|---|---|
-| WAF-01 | `/mcp`だけでなく`/register`・`/token`・`/authorize`・`/.well-known`の全ルートがWAFの検査対象になる | 18番 §2.3(ALBアタッチでは無認証経路が未保護) | ハーネスをルート別に実行しBlockを確認(S1) | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-02 | WAFが評価する送信元IPが真のクライアントIPである(VPC Link ENIに集約されない) | 19番 §1.1 D2 | WAFログ`httpRequest.clientIp`と検証端末の公開IPを比較(S2) | 必須 | 要確認 | - | - |
+| WAF-01 | `/mcp`だけでなく`/register`・`/token`・`/authorize`・`/.well-known`の全ルートがWAFの検査対象になる | 18番 §2.3(ALBアタッチでは無認証経路が未保護) | ハーネスをルート別に実行しBlockを確認(S1) | 必須 | 合格: `/register`のSQLi(A02r)と`/token`のXSS(A01t)もWAFログ上BLOCK。ALBアタッチ構成では到達しない経路が保護された | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| WAF-02 | WAFが評価する送信元IPが真のクライアントIPである(VPC Link ENIに集約されない) | 19番 §1.1 D2 | WAFログ`httpRequest.clientIp`と検証端末の公開IPを比較(S2) | 必須 | 合格: WAFログ`clientIp`が検証端末の公開IP(Geoラベル JP)。ALBアタッチ構成ではVPC Link ENIの10.0.11.94に集約され不合格([2026-09-13-waf-alb-count.json](./evidence/2026-09-13-waf-alb-count.json)) | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
 | WAF-03 | CloudFrontを経由しないexecute-apiへの直アクセスが全ルートで拒否される(バイパス対策) | 19番 §1.3 | 秘密ヘッダ無しで各ルートを直接呼び出し401/403(S10) | 必須 | 未着手 | - | - |
 | WAF-04 | Cognito Hosted UIおよび`/oauth2/token`がWAFで保護される | 19番 §1.1 D9 | Cognito User PoolへのWeb ACL関連付けをterraformとコンソールで確認 | 必須 | 未着手 | - | - |
 | WAF-05 | カスタムドメインでissuer・エンドポイントURLが固定され、経路変更時に登録済みDCRクライアントが無効化されない | 19番 §1.1 D5 | カスタムドメイン経由でClaude Codeの再接続が成立(S7) | 必須 | 未着手 | - | - |
@@ -57,18 +57,18 @@
 
 | ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
 |---|---|---|---|---|---|---|---|
-| WAF-10 | JSON-RPCボディ内のXSSを遮断する(A01) | AWS Managed Rules CommonRuleSet | `waf_attack_tests.py --pattern A01` | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-11 | JSON-RPCボディ内のSQLiを遮断する(A02) | AWS Managed Rules SQLiRuleSet | `--pattern A02` | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-12 | Log4j/JNDI・Javaデシリアライズ等の既知の悪性入力を遮断する(A03、A04) | KnownBadInputsRuleSet | `--pattern A03,A04` | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-13 | パストラバーサル・LFI・SSRF(EC2メタデータ)を遮断する(A05〜A07) | CommonRuleSet、LinuxRuleSet | `--pattern A05,A06,A07` | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-14 | RFI・Host異常・禁止メソッド・悪性UAを遮断する(A08〜A11) | CommonRuleSet、KnownBadInputsRuleSet | `--pattern A08,A09,A10,A11` | 推奨 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-15 | 巨大ボディを遮断し、WAF検査上限とサーバー側上限(100KB)の整合が取れている(A12、A13) | AWS WAF oversize handling | `--pattern A12,A13` | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-16 | 不正JSON・JSON-RPCバッチ・プロトコルバージョン異常でWAFが誤動作せずサーバーが400を返す(A14、A15、A23) | MCP仕様(バッチ非対応) | `--pattern A14,A15,A23` | 推奨 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-17 | IP単位およびクライアント単位のフラッディングを遮断する(A16) | AWS WAF rate-based rule | `--pattern A16`(専用低閾値ルールで実施) | 必須 | 未着手 | - | - |
-| WAF-18 | `/register`乱用と`/token`ブルートフォースを遮断する(A17、A18) | RFC 7591 §5、19番 §1.5 | `--pattern A17,A18` | 必須 | 未着手 | - | - |
-| WAF-19 | Geo・IPレピュテーション・匿名IP・ボット制御のルールが正規クライアント(Claude.ai等のクラウド発信)を遮断しない(A19〜A21) | 19番 §1.1 D3 | Countモードでラベル観測、正規クライアントのラベルを記録 | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
+| WAF-10 | JSON-RPCボディ内のXSSを遮断する(A01) | AWS Managed Rules CommonRuleSet | `waf_attack_tests.py --pattern A01` | 必須 | 合格: `CrossSiteScripting_BODY`および`CrossSiteScripting_QUERYARGUMENTS`でBLOCK | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| WAF-11 | JSON-RPCボディ内のSQLiを遮断する(A02) | AWS Managed Rules SQLiRuleSet | `--pattern A02` | 必須 | 合格: `SQLi_BODY`でBLOCK(`/mcp`・`/register`の両方) | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| WAF-12 | Log4j/JNDI・Javaデシリアライズ等の既知の悪性入力を遮断する(A03、A04) | KnownBadInputsRuleSet | `--pattern A03,A04` | 必須 | 不合格: Log4j/JNDIは`Log4JRCE_BODY`/`_HEADER`/`_QUERYSTRING`でBLOCKするが、**JSON文字列値に埋めたBase64のJavaシリアライズ列(A04)はBLOCKもCOUNTもされない**。カスタムルールの要否を判断する | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| WAF-13 | パストラバーサル・LFI・SSRF(EC2メタデータ)を遮断する(A05〜A07) | CommonRuleSet、LinuxRuleSet | `--pattern A05,A06,A07` | 必須 | 合格: `GenericLFI_BODY`・`EC2MetaDataSSRF_BODY`でBLOCK。URIのトラバーサル(A05)はWAF評価前にCloudFrontが400で拒否 | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| WAF-14 | RFI・Host異常・禁止メソッド・悪性UAを遮断する(A08〜A11) | CommonRuleSet、KnownBadInputsRuleSet | `--pattern A08,A09,A10,A11` | 推奨 | 合格: `UserAgent_BadBots_HEADER`・`Host_localhost_HEADER`・`PROPFIND_METHOD`でBLOCK。`GenericRFI_BODY`(A08)は正当な引数のURLを誤検知するため意図的にcount上書き | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| WAF-15 | 巨大ボディを遮断し、WAF検査上限とサーバー側上限(100KB)の整合が取れている(A12、A13) | AWS WAF oversize handling | `--pattern A12,A13` | 必須 | 合格: 70KB・200KBのボディをカスタムルール`body-over-64kb`でBLOCK。`SizeRestrictions_BODY`(8KB)はcount上書き。ボディ検査上限は16KB→64KBへ引き上げ済み | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| WAF-16 | 不正JSON・JSON-RPCバッチ・プロトコルバージョン異常でWAFが誤動作せずサーバーが400を返す(A14、A15、A23) | MCP仕様(バッチ非対応) | `--pattern A14,A15,A23` | 推奨 | 合格: JSON-RPCバッチ(A15)をカスタムルール`jsonrpc-batch`でBLOCK。不正JSON(A14)・未知のプロトコル版数(A23a)はWAFが誤検知せずサーバーが400を返す | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
+| WAF-17 | IP単位およびクライアント単位のフラッディングを遮断する(A16) | AWS WAF rate-based rule | `--pattern A16`(専用低閾値ルールで実施) | 必須 | 検証中: 60リクエストのバーストでは設定閾値(IP 2000/5分、Authorization 1000/5分)に到達せず未発火。本番相当の負荷での検証が必要 | 2026-09-14 playground | [2026-09-14-waf-ratelimit.json](./evidence/2026-09-14-waf-ratelimit.json) |
+| WAF-18 | `/register`乱用と`/token`ブルートフォースを遮断する(A17、A18) | RFC 7591 §5、19番 §1.5 | `--pattern A17,A18` | 必須 | 合格: `/register`は60回中55回が429(Lambda内IP別カウンタ+APIGWスロットル)。`/token`は閾値を一時的に10/60秒へ下げ、40リクエスト全件を`rate-ip-auth-endpoints`がBLOCK(検証後に50/300秒へ復帰済み) | 2026-09-14 playground | [2026-09-14-waf-ratelimit.json](./evidence/2026-09-14-waf-ratelimit.json) |
+| WAF-19 | Geo・IPレピュテーション・匿名IP・ボット制御のルールが正規クライアント(Claude.ai等のクラウド発信)を遮断しない(A19〜A21) | 19番 §1.1 D3 | Countモードでラベル観測、正規クライアントのラベルを記録 | 必須 | 検証中: Geoラベル(`awswaf:clientip:geo:country:JP`)の付与を確認。`AnonymousIpList`は恒久count、Geoはcount運用。Anthropic egress(160.79.104.0/21)での観測は未実施 | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
 | WAF-20 | `x-cognito-sub`なりすましヘッダを送っても、サーバーはAuthorizer由来のsubで認可判定する(A24) | 09番、19番 §1.1 D8 | `--pattern A24`+ECSログ確認(S4) | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
-| WAF-21 | 正常系コーパス(6ツール×長文・URL・SQL風・記号・日本語)が全件200になる(A25) | 19番 §1.1 D4 | `--pattern A25`(S3) | 必須 | 検証中(基準線取得、WAF未適用) | 2026-09-13 playground | [2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json) |
+| WAF-21 | 正常系コーパス(6ツール×長文・URL・SQL風・記号・日本語)が全件200になる(A25) | 19番 §1.1 D4 | `--pattern A25`(S3) | 必須 | 合格: 正常系コーパス13件(日本語・長文12KB・URL・SQL風語句・記号)が全件200。ボディ検査上限を64KBへ引き上げたことで長文の誤検知が解消 | 2026-09-14 playground | [2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json) |
 
 ### 2.3 ログ・監視・運用
 
@@ -200,5 +200,6 @@
 | 日付 | 変更 |
 |---|---|
 | 2026-09-10 | 初版作成。全行を未着手または要確認で登録。WAF-10・WAF-11のみ18番の実機結果(ALB一時アタッチ)を転記 |
+| 2026-09-14 | CloudFront + WAFのBlockモード検証を反映([2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json)、[2026-09-14-waf-ratelimit.json](./evidence/2026-09-14-waf-ratelimit.json))。新発見: JSON文字列値内のBase64 Javaシリアライズ列がKnownBadInputsで検知されない(WAF-12)。CloudFrontはURIトラバーサルとTRACEをWAF評価前に拒否する |
 | 2026-09-13 | DCR最小スコープ修正後の再検証([2026-09-13-dcr-postfix.json](./evidence/2026-09-13-dcr-postfix.json)、[2026-09-13-dcr-mcp04.json](./evidence/2026-09-13-dcr-mcp04.json)、[2026-09-13-dcr-authz.json](./evidence/2026-09-13-dcr-authz.json))を反映。合格33・不合格2 |
 | 2026-09-13 | DCR基準線([2026-09-13-dcr-baseline.json](./evidence/2026-09-13-dcr-baseline.json))とWAF基準線([2026-09-13-waf-baseline.json](./evidence/2026-09-13-waf-baseline.json))を`scripts/update_checklist.py`で反映。新発見: フラグメント付きredirect_uri・101件redirect_uris・client_credentials+noneでCognitoの400が500化(7591-06、7591-09)、`response_types: [token]`受理(7591-05)、JSON-RPCバッチ50件を200で全処理(WAF-16、A15) |

@@ -74,6 +74,9 @@ resource "aws_lambda_function" "dcr_authorizer" {
       # docs/19 §2.4-a: 401化の試行。"throw" で例外を投げたときの API Gateway の応答コードを観測する。
       DENY_MODE                        = "throw"
       REQUIRE_AUDIENCE_FOR_USER_TOKENS = "false"
+      # WAF-03: CloudFront の秘密ヘッダ(cloudfront_waf.tf)。観測モード(false)から開始
+      ORIGIN_VERIFY_SECRET  = random_password.origin_verify.result
+      ENFORCE_ORIGIN_VERIFY = "false"
     }
   }
 }

@@ -30,6 +30,12 @@ const REQUIRE_AUDIENCE_FOR_USER_TOKENS = (process.env.REQUIRE_AUDIENCE_FOR_USER_
 // DENY_MODE=throw では例外を投げて API Gateway 側の応答コードを観測する(docs/19 §2.4-a の試行)。
 const DENY_MODE = process.env.DENY_MODE ?? "deny";
 
+// WAF-03(docs/19 §1.3 主案 d): CloudFront がオリジンへ付与する秘密ヘッダ X-Origin-Verify を検証し、
+// execute-api への直アクセスを閉じる。ENFORCE_ORIGIN_VERIFY=false の間は観測のみ(ログに残す)。
+// 強制はカスタムドメインへの URL 移行(D5)と同時に行う。
+const ORIGIN_VERIFY_SECRET = process.env.ORIGIN_VERIFY_SECRET ?? "";
+const ENFORCE_ORIGIN_VERIFY = (process.env.ENFORCE_ORIGIN_VERIFY ?? "false") === "true";
+
 type Context = { sub: string; clientId: string };
 
 const DENY: APIGatewaySimpleAuthorizerWithContextResult<Context> = {
@@ -46,6 +52,11 @@ function deny(reason: string): APIGatewaySimpleAuthorizerWithContextResult<Conte
 export async function handler(
   event: APIGatewayRequestAuthorizerEventV2
 ): Promise<APIGatewaySimpleAuthorizerWithContextResult<Context>> {
+  const originVerify = event.headers?.["x-origin-verify"] ?? event.headers?.["X-Origin-Verify"];
+  const viaCloudFront = ORIGIN_VERIFY_SECRET !== "" && originVerify === ORIGIN_VERIFY_SECRET;
+  console.log(JSON.stringify({ originVerify: viaCloudFront ? "match" : originVerify ? "mismatch" : "absent", sourceIp: event.requestContext?.http?.sourceIp }));
+  if (ENFORCE_ORIGIN_VERIFY && !viaCloudFront) return deny("origin_verify_failed");
+
   const authHeader = event.headers?.authorization ?? event.headers?.Authorization;
   if (!authHeader?.startsWith("Bearer ")) return deny("missing_bearer");
   const token = authHeader.slice("Bearer ".length);

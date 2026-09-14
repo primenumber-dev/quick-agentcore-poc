@@ -146,6 +146,32 @@ REST APIスパイク(時間制限1.5日)で判定すること: WAFをステー�
 | W6 | 本番`terraform/`へのコード移植(未適用、`terraform validate`まで)。awsdac構成図の更新(主案dと変形b / c) | `terraform/cloudfront.tf`、`terraform/waf.tf`ほか | 1.5日(翌週) |
 | | **今週分合計** | | **約8.5日** |
 
+### 1.9 実施済み(2026-09-13〜14): 主案(d)の構築とBlockモード検証
+
+W1〜W3・W5前半を実施した。証跡は[2026-09-13-waf-alb-count.json](./evidence/2026-09-13-waf-alb-count.json)(ALB Count観測)、[2026-09-13-waf-cloudfront-count.json](./evidence/2026-09-13-waf-cloudfront-count.json)(CloudFront Count観測)、[2026-09-14-waf-cloudfront-block.json](./evidence/2026-09-14-waf-cloudfront-block.json)(Blockモード)、[2026-09-14-waf-ratelimit.json](./evidence/2026-09-14-waf-ratelimit.json)(レート制限)。
+
+**構築したもの(playground)**: CloudFrontディストリビューション(オリジン=現行HTTP API、CachingDisabled、AllViewerExceptHostHeader、`X-Origin-Verify`秘密ヘッダ付与)、CLOUDFRONTスコープのWeb ACL(us-east-1、マネージド7グループ+カスタム3ルール+レートベース3ルール+Geo観測)、WAFログ(CloudWatch Logs、`authorization`は秘匿)。攻撃ハーネス`scripts/waf_attack_tests.py`(45パターン)とWAFログ突合`scripts/waf_log_correlate.py`。
+
+**D2(ALBアタッチ時のIP集約)を事実として確定**: ALBにCountモードのWeb ACLをアタッチして観測したところ、WAFログの`httpRequest.clientIp`は**すべてVPC Link ENIのプライベートIP(10.0.11.94)**であり、真のクライアントIPは`forwarded`ヘッダにしか存在しなかった。IPベースのレート制限・Geo・IPレピュテーションは全クライアントを同一IPとして扱うため機能しない。CloudFront構成では`clientIp`が検証端末の公開IPとなり、Geoラベル(`awswaf:clientip:geo:country:JP`)も正しく付与された。**[18-weekly-verification-report-week4.md §2](./18-weekly-verification-report-week4.md)の「ALBにアタッチすれば対応可能」という結論は、ボディ検査に限れば正しいが、IP系ルールを含む恒久設計としては不十分である。**
+
+**全ルート保護(WAF-01、S1)**: `/register`に埋めたSQLi(A02r)は`SQLi_BODY`で、`/token`に埋めたXSS(A01t)は`CrossSiteScripting_BODY`でBLOCKされた。ALBアタッチ構成ではこれらの経路はALBを通らないため保護できない。
+
+**Blockモードの結果**: 45パターン中35件がBLOCK、誤検知ゼロ(FAILなし)。記録のみ10件の内訳は、意図的なcount上書き(A08 `GenericRFI_BODY`、A12 `SizeRestrictions_BODY`)、CloudFrontがWAF評価前に拒否するもの(A05 URIトラバーサル=400、A10b TRACE=405)、サーバー側で処理されるもの(A14不正JSON=400、A22 ヘッダ異常=406/415/431、A23 版数異常=400)。
+
+**新規発見**:
+
+| # | 発見 | 対応 |
+|---|---|---|
+| 1 | **JSON文字列値に埋めたBase64のJavaシリアライズ列(A04)は`AWSManagedRulesKnownBadInputsRuleSet`でBLOCKもCOUNTもされない**。ラベルが一切付かず素通りする | JSONボディ内のBase64ペイロードは検知対象外とみなす。カスタムルールの要否を判断する(チェックリストWAF-12を不合格で登録) |
+| 2 | ボディ検査上限の既定(CloudFront 16KB)では、**日本語の長文引数(12KB相当、UTF-8で約20KB)が`oversize_handling = MATCH`のサイズ制約ルールに誤検知**する。ALB(8KB固定)ではさらに顕著 | Web ACLの`association_config`で`default_size_inspection_limit = "KB_64"`へ引き上げ、誤検知が解消することを確認。16KB超のリクエストのみ追加課金 |
+| 3 | CloudFrontはURIのパストラバーサル(`/mcp/../../etc/passwd`)とTRACEメソッドを**WAF評価前に自身で400/405拒否**する | 防御は成立するがWAFログには残らない。検知の証跡はCloudFrontアクセスログ側で取る必要がある |
+| 4 | レートベースルールは閾値到達の反映に遅延があり、短時間のバーストでは発火しない。実運用閾値(IP 2000/5分)は60リクエストのバーストでは当然到達しない | 機構検証は閾値を一時的に10/60秒へ下げて実施し、`/token`への40リクエスト全件が`rate-ip-auth-endpoints`でBLOCKされることを確認(検証後に復帰済み) |
+| 5 | `/register`の連打は60回中55回が429。内訳はLambda内のIP別カウンタ(5/分)とAPI Gatewayのルートスロットル | WAFのレートベースルールに到達する前に多層で止まっている。WAF側は保険として維持する |
+
+**未実施(翌週)**: 秘密ヘッダの強制(`ENFORCE_ORIGIN_VERIFY=true`、S10)はカスタムドメイン移行(D5)と同時に行う必要があるため観測モードのまま。CloudFront Functionsによる`WWW-Authenticate`付与(S12)、ログ保全(Firehose → S3 Object Lock、S8)、アラーム(S9)、REST APIスパイク(W4)、本番`terraform/`への移植(W6)。
+
+**注意(既知のドリフト)**: playgroundの`terraform plan`はNATインスタンス2台の置き換えを提案する(`data.aws_ami`が最新AMIを拾うためで、DCR・WAFとは無関係)。今回はすべて`-target`で該当リソースのみ適用した。`vpc.tf`に`lifecycle { ignore_changes = [ami] }`を追加するか、本番同様にAMIを固定することを推奨する。
+
 ### 1.7 成功判定基準(事前登録)
 
 | ID | 結果 | 判定 |
