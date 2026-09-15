@@ -52,6 +52,8 @@ flowchart LR
 | 21 | [21-commercial-remote-mcp-operations-research.md](./21-commercial-remote-mcp-operations-research.md) | 商用リモートMCPサーバー運用の机上調査。AgentCore Gateway・AWS参照アーキテクチャ・MCP仕様・Anthropicコネクタ仕様を参考事例として整理し、運用要件(OPS-01〜10)を提案 | アーキテクト、意思決定者 |
 | 22 | [22-weekly-verification-report-week5.md](./22-weekly-verification-report-week5.md) | Week5(2026-09-13〜14)の検証レポート。DCR準拠性(不合格16→2)、CloudFront + WAFのBlockモード検証、REST API移行を見送った判断 | 意思決定者、エンジニア |
 | 22c | [22-weekly-verification-report-week5-client.md](./22-weekly-verification-report-week5-client.md) | 22番のクライアント向け版(用語解説付き、対外報告用) | クライアント(QUICK様) |
+| 23 | [23-weekly-verification-plan-week6.md](./23-weekly-verification-plan-week6.md) | Week6の作業プラン。Terraformの変数化とモジュール化(フェーズ2)。引き継ぎメモが「最大の難所」としたCognito ⇄ API Gatewayの循環参照が存在しないことの確認と、本物のモジュール循環の所在、納品ブロッカー記述の訂正3件を含む | エンジニア(再現・引き継ぎ用)、アーキテクト |
+| — | [fde/](./fde/) | FDE(Forward Deployed Engineer)成果物。[ARCHITECTURE-VERSIONS.md](./fde/ARCHITECTURE-VERSIONS.md)(バージョン台帳)、[DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md)(納品ブロッカー台帳、DB-01〜09) | primenumber社内、納品準備の担当者 |
 | — | [agentcore-iam/](./agentcore-iam/) | AgentCore Runtime実行ロール用のIAMポリシー一式 | 本番アカウント適用時の管理者 |
 | — | [images/](./images/) | 構成図のPNGおよび生成元YAML([awsdac](https://github.com/awslabs/diagram-as-code)形式) | 図を再生成・改変したい人 |
 

@@ -1,9 +1,9 @@
-# セッション引き継ぎメモ(2026-09-10時点)
+# セッション引き継ぎメモ(2026-09-15時点)
 
 > **この章で分かること**
 > 前回セッションで何をどこまでやったか、次に何をすべきか、そして再開する上で最初につまずきそうな点(PATH、SSOトークン、サンドボックス制限)を先回りしてまとめる。次回セッションはまずこのファイルを読んでから作業を再開すること。
 >
-> **最新の状況(2026-09-10時点)は末尾の「16. 今週の検証の総括とセッション完了サマリー」を先に読むこと。** それより前の記述は2026-08-20〜09-08時点の古い状態を含む(誤りではないが、一部は§13・§14・§15・§16で更新・訂正されている)。
+> **最新の状況(2026-09-15時点)は末尾の「19. フェーズ2の着手前調査と作業計画の作成」を先に読むこと。** それより前の記述は過去時点の状態を含む(誤りではないが、一部は後続セクションで更新・訂正されている)。特に §18.4 の納品ブロッカー一覧は §19.2 で3件を訂正しており、以降は [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md) を正とする。
 
 ## 1. 状況サマリー
 
@@ -770,7 +770,7 @@ REST移行の動機は4つあったが、
 
 ## 18. main集約・バージョニング・納品準備の着手(2026-09-15実施)
 
-> このセクションが本ファイルの最新状態。§17までの記述と矛盾する場合はこちらを優先すること。
+> §17までの記述と矛盾する場合はこちらを優先すること。ただし**本ファイルの最新状態は§19**であり、§18.4・§18.8の一部は§19で訂正されている。
 
 ### 18.1 このセッションの位置づけ
 
@@ -793,7 +793,7 @@ REST移行の動機は4つあったが、
 | 5 | mainの扱い | **mainを最新にする**(統合ブランチをマージしpush) |
 | 6 | バージョンタグ | **承認**。遡及タグを含めて発番 |
 
-注: 決定1でユーザーは「ホストはEC2」と記述したが、これまでの全検証がECS Fargate前提のため**ECSと解釈**した。次回セッションで認識が異なる場合は指摘を求めること。
+注: 決定1でユーザーは「ホストはEC2」と記述したが、これまでの全検証がECS Fargate前提のため**ECSと解釈**した。→ **§19.1で解決済み(2026-09-15)。ユーザーに確認し、ECS Fargateで正しいことが確定した。**
 
 ### 18.3 完了した作業
 
@@ -847,6 +847,8 @@ REST移行の動機は4つあったが、
 ### 18.4 調査で判明した納品ブロッカー(重要度順、**すべて未対応**)
 
 次回セッションのフェーズ2はこれを潰す作業になる。
+
+> **§19.2で3件を訂正済み。以降は[docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md)を正とする**(固定ID DB-01〜09で追跡)。訂正は 5(59→**75**リソース)、6(**ほぼ解消済み**)、1(`secrets`のみ`terraform/`側を正とする例外あり)。
 
 1. **`terraform/`(本番相当)はplaygroundより1世代以上古い**。WAF・CloudFront・DCR Lambda・Lambda Authorizerが**一切無い**。統合方向は playground → terraform
 2. **ECSサービスとタスク定義がTerraform管理外**。`aws_ecs_service`はどの`.tf`にも存在せず、ecspressoが所有。`ecspresso/app/ecspresso.yml:10`がprimenumberのtfstate S3 URLをハードコードして直読みしている
@@ -902,6 +904,7 @@ MCP仕様(2026-07-28)は「`tools/list`の内容を**リクエストの資格情
    - 環境: `infra/environments/{playground,primenumber,quick}`
    - §18.4のブロッカー1〜7を潰す。特に**ECSサービスのecspresso→Terraform移行**と**KMS暗号文の環境別化**
    - モジュール化の難所: **Cognito ⇄ API Gatewayの循環参照**(`cognito.tf:43`のresource server identifierがAPI GW endpointを参照し、`apigateway.tf:91`のaudienceがCognitoを参照)。カスタムドメインを先に固定してidentifierを変数化する設計が要る
+     → **§19.3で訂正。この循環参照は存在しない**。依存は一方向DAGであり、引用した`apigateway.tf:91`はplayground世代には無い(1世代古い`terraform/`側の行)。カスタムドメインの先行固定も不要。ただし`resource_server_identifier`の変数化は別の理由で必要で、**本物のモジュール循環は`random_password.origin_verify`にある**
 2. **フェーズ3: AWS環境の整理とバージョニング**。playgroundは他プロジェクトと**共用**(trocco、PetStore等が同居)のため`quick-mcp-poc*`に限定する。削除候補は§17.6とフェーズ3の表を参照。**削除は必ず事前確認を取る**
 3. **フェーズ4: CI/CD方針の文書化**(`docs/fde/CICD-DESIGN.md`)
 4. フェーズ5: 細粒度権限管理のECS側実装(§18.6)
@@ -922,3 +925,100 @@ MCP仕様(2026-07-28)は「`tools/list`の内容を**リクエストの資格情
 - **同じファイルを「書き換える」ブランチと「追記する」ブランチが並走すると、gitは助けてくれない**。v2の全面書き換えとlatency-tuningの計測追加は、機械的には競合として出るが、正しい解決は「両方を意図どおり共存させる」ことで、これは手作業でしか判断できない。マージ後に**起動して両方の機能が効いていることを確認**するまで完了とみなさないこと
 - **ロックファイルの競合は解決しようとせず再生成する**。`server/pnpm-lock.yaml`は両側で大きく異なっていたが、`package.json`さえ正しく統合すれば`pnpm install`が正解を作る
 - **「検証が終わっている」ことと「納品できる」ことは別物**。46件の機能検証が終わっていても、アカウントIDのハードコード1箇所で他環境では動かない。納品を見据えるなら、検証と並行して変数化を進めるべきだった
+
+---
+
+## 19. フェーズ2の着手前調査と作業計画の作成(2026-09-15実施、Week6)
+
+> **このセクションが本ファイルの最新状態。§18までの記述と矛盾する場合はこちらを優先すること。**
+
+### 19.1 ユーザーへの確認で確定した事項
+
+| # | 論点 | 確定内容 |
+|---|---|---|
+| 1 | **ホスティング方式**(§18.2の注が確認を求めていた件) | **ECS Fargateで正しい**。決定事項1の「ホストはEC2」は誤記であり、前セッションのECS解釈が正しかった。§18.2の注記は解決済みとして更新した |
+| 2 | 今セッションのスコープ | **変数化とモジュール骨格まで**。AWSへの`plan`/`apply`は行わない。ECSサービスのecspresso→Terraform移行(DB-02)とKMS再暗号化(DB-04)は設計文書のみ |
+| 3 | ドキュメントの形 | 作業計画を`docs/23`として新規作成し、納品ブロッカー9件は`docs/fde/DELIVERY-BLOCKERS.md`として固定ID(DB-01〜09)の追跡台帳にする |
+
+### 19.2 §18.4の納品ブロッカー記述の訂正(3件)
+
+以降は[docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md)を正とする。
+
+| ブロッカー | §18.4の記述 | 実際 | 根拠 |
+|---|---|---|---|
+| 5 | 「**59リソース**の唯一のstateがディスク上にある」 | **75リソース**(managed 75 / instances 82、ほかdata source 12) | `terraform-playground-pattern4/terraform.tfstate`を直接パースして計数。差は`for_each`で2インスタンスを持つ7リソース(`aws_eip.nat`、`aws_instance.nat`、`aws_route_table.private`、`aws_route_table_association.private`/`.public`、`aws_subnet.private`/`.public`)。**`moved`ブロックの作業量見積もりが変わる** |
+| 6 | 「アプリコードがDynamoDBテーブル名とリージョンを直書き(`server/src/db.ts:20`、`cli/src/db.ts:4`)」 | **ほぼ解消済み**。両ファイルとも`process.env.TABLE_NAME ?? "quick-mcp-poc-users"`。Week5の[docs/19 §2.1 F12](./19-weekly-verification-plan-week5.md)の対応が入っている | `server/src/db.ts:21`、`cli/src/db.ts:5`。残作業は`??`除去と`ecspresso/app/ecs-task-def.json:26-31`への`TABLE_NAME`追加の2点のみ |
+| 1 | 「統合方向は playground → terraform」 | 方向は正しいが**1箇所だけ例外**。`terraform/ssm.tf:20-72`の`for_each`マップ + `aws_kms_secrets`パターンがplayground側より汎用で、`payload != ""`ガード(`:57,65`)がKMS再暗号化の二段階適用を支える | `secrets`モジュールのみ`terraform/`を正とする |
+
+なおブロッカー5の緊急度は据え置く。stateファイルにはSSMのプレースホルダ値と`random_password.origin_verify`の生成結果が含まれる。`.gitignore:3`(`*.tfstate`)で追跡対象外であることは確認済み。
+
+### 19.3 §18.8が「最大の難所」とした循環参照は存在しない
+
+§18.8-1は「`cognito.tf:43`のresource server identifierがAPI GW endpointを参照し、`apigateway.tf:91`のaudienceがCognitoを参照する循環」としていたが、**API Gateway側からCognitoを指す辺が無い**。
+
+- `aws_apigatewayv2_api.main`(`apigateway.tf:37`)は**依存ゼロ**
+- 引用された`apigateway.tf:91`の`audience`行は**playground世代には存在しない**。playgroundはJWT AuthorizerをLambda REQUEST型に置換済み(`apigateway.tf:94-103`)。それは1世代古い`terraform/apigateway.tf:96`の行で、しかも参照先はresource serverではなく**アプリクライアントID**
+- 実際の依存は `apigw-api → cognito → dcr-lambda → apigw-authorizer → cloudfront` の一方向DAG。循環があればTerraformは`Cycle:`エラーで`plan`すら通らない
+
+**「カスタムドメインを先に固定する」という前提条件も不要**だった。Cognitoのresource server `identifier`は不透明文字列で、URLとして解決されることはない。
+
+ただし `resource_server_identifier` の変数化は**別の2つの理由で必要**。
+
+1. identifierがAPI GatewayのURL由来のため**`apply`前に確定しない**。`quick`環境の新規構築で実害が出る
+2. API再作成でidentifierが変わると`aws_cognito_resource_server`とスコープが連鎖再作成され、**発行済みDCRクライアントのスコープ付与が全滅する**
+
+**tfvarsには現行の実値をstateからコピーすること。手打ち禁止。** 1文字違えば上記2がそのまま起きる。
+
+**本物のモジュール循環は別にあった。** `random_password.origin_verify`(`cloudfront_waf.tf:48`)が`dcr`(`lambda.tf:78`)と`edge-waf`(`cloudfront_waf.tf:459`)の両方から参照され、`edge-waf → dcr → api-gateway → edge-waf`を作る。**環境ルートへ引き上げ、`moved`ブロックを書かない**(ルートのアドレスが変わらないため)。誤って消すと再作成で`X-Origin-Verify`がローテートし、稼働中のCloudFrontとLambda Authorizerの間に値の不一致窓が開く。
+
+### 19.4 その他の調査結果
+
+- **`mcp-server-agentcore`に移行元コードが存在しない**。両ディレクトリの`.tf`にAgentCoreリソースは**1件も無く**、コメント言及3件(`ecs.tf:86`、`cognito.tf:38`、`ssm.tf:3`)のみ。AWS CLIで作成されたままTerraform化されたことがない。**移行ではなく新規作成**のため、今回はスタブに留める
+- **モジュールが1つ足りない**。API Gateway(`apigateway.tf` 213行 + `openapi.yaml`)が§18.8の7モジュールのどれにも属さず、しかも依存グラフの中心。`api-gateway`を8つ目として独立させる。`mcp-server-ecs`に混ぜると将来AgentCoreバリアントを同じAPI Gatewayの背後に置けなくなる
+- **`module`ブロックに`depends_on`/`count`/`for_each`を付けてはならない**。いずれもモジュールを単一グラフノードに潰し、存在しなかったはずの循環を発生させる。任意化はモジュール内リソースの`count`で行う
+- **ルート`outputs`はecspressoとの互換契約**。`ecs-task-def.json`と`ecs-service-def.json`が8つの出力を名前で読む。改名するとTerraformエラーではなく難解なecspressoテンプレートエラーになる
+- **playgroundにはecspresso設定が存在しない**。stateがローカルでtfstateプラグインが読めないため。DB-05とDB-02は連動している
+- **`terraform/apigateway.tf:91-95`に本番401バグの記録がコメントで残っている**(resource server identifierをaudienceにして全トークンが壊れた)。世代マージで失わないこと
+
+### 19.5 作成・更新したドキュメント
+
+| ファイル | 内容 |
+|---|---|
+| [docs/23-weekly-verification-plan-week6.md](./23-weekly-verification-plan-week6.md)(新規) | Week6の作業プラン。上記の調査結果、8モジュールの構成と入出力、変数一覧、`moved.tf`の注意点、バックエンド方針、実施順序と判定基準 |
+| [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md)(新規) | 納品ブロッカー台帳。DB-01〜09を固定IDで管理し、根拠・影響・対処・状態を記録 |
+| [docs/README.md](./README.md) | 目次に`docs/23`行と**`fde/`ディレクトリ行**を追加(`fde/`は前セッションで作成されたが目次に未掲載だった) |
+| [docs/00-handoff.md](./00-handoff.md) | 本§19。§18.2の注記、§18.4の見出し、§18.8-1に訂正への参照を追記 |
+
+### 19.6 セッション終了時点の状態
+
+| 項目 | 状態 |
+|---|---|
+| ブランチ | `feature/week6-terraform-modularization`(`main`から分岐) |
+| `infra/` | **未作成**。設計のみ完了 |
+| AWS環境 | **今回も一切変更していない** |
+| `terraform-playground-pattern4/` | **未変更**。ロールバック参照として残置する方針 |
+
+### 19.7 次回セッションの着手順
+
+1. **フェーズ2の実装**([docs/23 §7](./23-weekly-verification-plan-week6.md)のP1〜P6)。`infra/modules/`8モジュールと`infra/environments/`3環境を作成し、`moved.tf`を生成する。AWSへの`plan`は`terraform init -backend=false` + `validate`が全環境で通ってから
+2. **`plan`の実行**。受け入れ基準は`0 to add, 0 to change, 0 to destroy`(例外は`aws_api_gateway_deployment.metadata`の1件のみ)。`aws_cloudfront_distribution.edge`に`-/+`が出たら**即中断**
+3. **設計文書F1〜F6**([docs/23 §5](./23-weekly-verification-plan-week6.md))を`docs/fde/`へ。特に**F5(`WWW-Authenticate`/RFC 9728の否定的知見)は`cloudfront_waf.tf:494-512`のコメントにしか存在せず、今回の再構成で消えるファイルにある**ため優先度が高い
+4. フェーズ3: AWS環境の整理とバージョニング。**削除は必ず事前確認を取る**(playgroundはtrocco・PetStore等と共用)
+5. フェーズ4: CI/CD方針の文書化(`docs/fde/CICD-DESIGN.md`)
+6. フェーズ5: 細粒度権限管理のECS側実装(§18.6)
+7. フェーズ6: FDE成果物の残り(ADR、DELIVERY-REQUIREMENTS、RUNBOOK、RISK-REGISTER)
+
+### 19.8 人の判断待ち項目(§18.9から継続、**いずれも未解消**)
+
+コード作業では解消できない。
+
+- **A1 本番の401バグの共有**(数週間滞留中)。`fix/production-audience-config-proposal`は`main`にマージ済みだが、**本番担当者への共有は未実施**。CognitoがRFC 8707の`resource`に対応と判明したため「修正案」と「`resource`指定前提案」の両論提示が正確。なお§19.4のとおり`terraform/apigateway.tf:91-95`に当時の失敗記録がコメントで残っている
+- **A2 Claude Code / Claude.aiからの自己登録E2E**。ブラウザ操作が必要で未実施
+- **フェーズ3の削除候補**。実行前に必ず確認を取る
+- B1〜B5、C1〜C3(§18.9)
+
+### 19.9 学び
+
+- **引き継ぎメモの「難所」は、着手前に実コードで裏を取る価値がある**。§18.8が最大の障害として名指しした循環参照は存在せず、根拠として引用された行番号は1世代古いディレクトリのものだった。一方で本物の循環は別の場所(`random_password.origin_verify`)にあり、こちらは指摘されていなかった。調査に半日かけたことで、無意味なカスタムドメイン先行導入を回避できた
+- **「〜が直書き」のようなブロッカー記述は、書かれた時点の事実でしかない**。DB-06は別トラック(Week5のDCR対応)で既に解消されていたが、ブロッカー一覧はそれを知らないまま残っていた。台帳化して状態欄を持たせたのはこのため
+- **数え間違いは作業量の見積もりを直撃する**。59と75では`moved`ブロックの手間が3割違う。stateのようなものは「読んだ記憶」ではなく毎回パースして数えること
