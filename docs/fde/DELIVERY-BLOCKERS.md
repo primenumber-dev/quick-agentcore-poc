@@ -22,13 +22,13 @@
 
 | ID | 重要度 | 概要 | 状態 | 担当フェーズ |
 |---|---|---|---|---|
-| [DB-01](#db-01-本番相当のterraformが1世代以上古い) | 高 | `terraform/`(本番相当)が1世代以上古く、WAF・CloudFront・DCRが無い | 未対応 | フェーズ2(設計)/ 別途(適用) |
+| [DB-01](#db-01-本番相当のterraformが1世代以上古い) | 高 | `terraform/`(本番相当)が1世代以上古く、WAF・CloudFront・DCRが無い | **構造的に解消**(適用は別途) | フェーズ2(設計)/ 別途(適用) |
 | [DB-02](#db-02-ecsサービスがterraform管理外) | 高 | ECSサービスとタスク定義がTerraform管理外(ecspresso所有) | 未対応 | フェーズ2(設計のみ) |
-| [DB-03](#db-03-variableブロックが0個) | 高 | `variable`ブロックが0個、`.tfvars`が0個 | 対応中 | フェーズ2 |
+| [DB-03](#db-03-variableブロックが0個) | 高 | `variable`ブロックが0個、`.tfvars`が0個 | **解消**(要 plan 確認) | フェーズ2 |
 | [DB-04](#db-04-kms暗号文が特定アカウントの鍵に紐づく) | 高 | `terraform/ssm.tf`のKMS暗号文がprimenumberの鍵に紐づく | 未対応 | フェーズ2(設計のみ) |
 | [DB-05](#db-05-playgroundのstateがローカルファイルのみ) | 高 | playgroundのstateがローカルファイルのみ(**75リソース**) | 未対応 | フェーズ2 |
 | [DB-06](#db-06-アプリコードのテーブル名直書き) | 低 | アプリコードのDynamoDBテーブル名直書き | **ほぼ解消** | フェーズ2(残作業2点) |
-| [DB-07](#db-07-cognitoドメインプレフィックスのグローバル一意性) | 中 | Cognitoドメインプレフィックスがリージョン内でグローバル一意 | 対応中 | フェーズ2 |
+| [DB-07](#db-07-cognitoドメインプレフィックスのグローバル一意性) | 中 | Cognitoドメインプレフィックスがリージョン内でグローバル一意 | **解消** | フェーズ2 |
 | [DB-08](#db-08-本番相当環境へ一度もデプロイしていない) | 中 | 本番相当環境へ一度もデプロイしていない | 未対応 | フェーズ4以降 |
 | [DB-09](#db-09-terraform管理外の手作業リソースが多数) | 中 | Terraform管理外の手作業リソースが多数 | 未対応 | フェーズ3 |
 
@@ -36,7 +36,7 @@
 
 ## DB-01 本番相当のterraformが1世代以上古い
 
-**重要度**: 高 | **状態**: 未対応
+**重要度**: 高 | **状態**: **構造的に解消**(2026-09-15)。世代マージの適用は別途
 
 `terraform/`(11ファイル、925行)にはWAF・CloudFront・DCR Lambda・Lambda Authorizerが**一切無い**。Week4〜5の成果([18](../18-weekly-verification-report-week4.md)・[22](../22-weekly-verification-report-week5.md))はすべて`terraform-playground-pattern4/`(13ファイル、1642行)にのみ存在する。
 
@@ -51,7 +51,11 @@
 
 **統合方向は playground → terraform**。ただし1箇所だけ例外があり、`terraform/ssm.tf:20-72`の`for_each`マップ + `aws_kms_secrets`パターンはplayground側より汎用のため、`secrets`モジュールはこちらを正とする。
 
-**対処**: `enable_dcr` / `edge-waf.enabled`フラグで`primenumber`環境を旧世代の挙動から開始させ(差分ゼロ)、世代マージを意図的な別変更として切り出す。
+**対処(2026-09-15 実施)**: 3環境が`infra/environments/*/main.tf`を**同一ファイルとして共有**し、差分を`tfvars`だけに閉じ込める構成にした。世代差は`enable_dcr` / `enable_edge_waf` / `enable_local_pool`の3トグルで表す。
+
+これにより**同じドリフトが構造的に起きえなくなった**。本ブロッカーの根本原因は「環境ごとに別々の`.tf`を持っていたこと」であり、片方だけ更新できる状態そのものだった。
+
+残る作業は`primenumber`のトグルを`false`から`true`へ倒す**適用**であり、これは差分ゼロを確認した後の意図的な別変更として扱う。
 
 **引き継ぐべき知見**: `terraform/apigateway.tf:91-95`に、**resource server identifierを`audience`に設定して全トークンが壊れた記録**がコメントで残っている。これは本番401バグ([00-handoff.md §14.2](../00-handoff.md))そのもので、世代マージの際に失ってはならない。
 
@@ -79,7 +83,7 @@
 
 ## DB-03 variableブロックが0個
 
-**重要度**: 高 | **状態**: 対応中(フェーズ2の主作業)
+**重要度**: 高 | **状態**: **解消**(2026-09-15、plan での確認待ち)
 
 `terraform/`・`terraform-playground-pattern4/`とも`variable`ブロック**0個**、`.tfvars`**0個**。リポジトリ内で唯一`variable`を持つのは`docs/terraform-examples/agentcore-vpc-mode/main.tf`(6個)だが、これは参考実装である。
 
@@ -95,9 +99,15 @@
 | リソース名プレフィックス | 約40行の`quick-mcp-poc` |
 | 外部ドメイン | `ssm.tf:26` / `terraform/ssm.tf:23`(`qr1.devmarket.myquick.net`) |
 
-**対処**: `infra/modules/` + `infra/environments/{playground,primenumber,quick}`へ再構成し、環境差分を`terraform.tfvars`と`backend.hcl`に集約する。詳細は[23-weekly-verification-plan-week6.md §3](../23-weekly-verification-plan-week6.md)。
+**対処(2026-09-15 実施)**: `infra/modules/`(8モジュール) + `infra/environments/{playground,primenumber,quick}`へ再構成し、環境差分を`terraform.tfvars`と`backend.hcl`に集約した。3環境とも`terraform validate`が通っている。詳細は[23-weekly-verification-plan-week6.md §3](../23-weekly-verification-plan-week6.md)。
 
-**注意**: ルート`outputs`の名称は`ecspresso`との互換契約であり、改名するとデプロイが壊れる(同 §3.3)。
+アカウント ID・AWS プロファイル名・リージョン・AMI フィルタ・バケット名はすべて変数化され、`.tf`から直書きが消えた。
+
+**`plan`が`0 to add, 0 to change, 0 to destroy`になることを確認するまでは「解消」と見なさない。** 変数化は値の転記作業であり、転記ミスは`plan`でしか検出できない。
+
+**注意1**: ルート`outputs`の名称は`ecspresso`との互換契約であり、改名するとデプロイが壊れる(同 §3.3)。全14件を名称そのままで再現済み。
+
+**注意2**: `resource_suffix`をグローバルに適用してはならない。接尾辞が付くのは`cognito.tf` / `dynamodb.tf` / `ssm.tf`の3ファイルだけで、`vpc` / `ecs` / `alb` / `ecr` / `apigateway` / `lambda` / `cloudfront_waf`には付かない。一律に渡すと IAM ロール名・SG 名・TG 名が変わり **destroy/create** になる(同 §3.1)。
 
 ---
 
@@ -158,7 +168,7 @@ Week5の[19-weekly-verification-plan-week5.md §2.1 F12](../19-weekly-verificati
 
 ## DB-07 Cognitoドメインプレフィックスのグローバル一意性
 
-**重要度**: 中 | **状態**: 対応中
+**重要度**: 中 | **状態**: **解消**(2026-09-15)
 
 Cognitoのドメインプレフィックスは**リージョン内でグローバル一意**。同一リージョンに複数環境を立てるには変数化が必須である。
 
@@ -170,7 +180,7 @@ Cognitoのドメインプレフィックスは**リージョン内でグロー�
 
 playgroundが`-pattern4-verify`を名乗っているのは、**`quick-mcp-poc-auth`が既に取られていたため**である(ファイル冒頭コメント)。つまりこの制約は既に一度実害を出している。
 
-**対処**: `domain_prefix`を`auth`モジュールの入力とし、環境ごとに指定する。`quick`環境には新規かつ未使用の値を割り当てる。
+**対処(2026-09-15 実施)**: `cognito_domain_prefix`を環境変数化し、`auth`モジュールの入力にした。`quick`環境の`terraform.tfvars.example`には`CHANGEME-未使用のドメインプレフィックス`を置き、既に使用済みの2値を注記してある。
 
 **関連**: カスタムドメイン(ACM)を導入すればこの制約から外れ、同時に`ENFORCE_ORIGIN_VERIFY`(`lambda.tf:79`)を`true`にできる([19-weekly-verification-plan-week5.md §1.1 D5](../19-weekly-verification-plan-week5.md))。
 

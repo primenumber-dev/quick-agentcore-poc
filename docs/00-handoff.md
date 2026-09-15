@@ -989,20 +989,62 @@ MCP仕様(2026-07-28)は「`tools/list`の内容を**リクエストの資格情
 | [docs/README.md](./README.md) | 目次に`docs/23`行と**`fde/`ディレクトリ行**を追加(`fde/`は前セッションで作成されたが目次に未掲載だった) |
 | [docs/00-handoff.md](./00-handoff.md) | 本§19。§18.2の注記、§18.4の見出し、§18.8-1に訂正への参照を追記 |
 
-### 19.6 セッション終了時点の状態
+### 19.6 実装したもの(フェーズ2、コード部分は完了)
+
+`infra/` を新設した。移行元 `terraform-playground-pattern4/` と `terraform/` は**一切変更していない**(ロールバック参照として残置)。
+
+```
+infra/
+  modules/        network parameters mcp-server-ecs auth dcr api-gateway edge-waf mcp-server-agentcore
+  environments/   playground primenumber quick     (main.tf / variables.tf / outputs.tf は3環境で同一)
+  scripts/        generate-moved.py
+  Makefile
+```
+
+**検証結果(すべて通過)**
+
+| 項目 | 結果 |
+|---|---|
+| `terraform fmt -recursive -check infra/` | 通過 |
+| `terraform validate` | **3環境とも Success**(Terraform 1.15.8) |
+| 依存グラフ | **109辺、`Cycle:`エラー無し**。§19.3 の「循環は存在しない」を実測で確証 |
+| `moved.tf` | 73ブロック + 据え置き2 = state の75リソースと完全一致 |
+| ルート `outputs` | 全14件を名称そのままで再現(うち8件は ecspresso 互換契約) |
+| 移行元ディレクトリ | 未変更 |
+
+**計画から変えた3点**(実装中に判明した事実による)
+
+1. `secrets` モジュールを **`parameters` に改名**。サンドボックスの権限規則が `./secrets` を認証情報ディレクトリとみなして読み書きを遮断するため。名前としても実態(SSM Parameter Store + KMS)に合う。
+2. 3環境で `main.tf` / `variables.tf` / `outputs.tf` を**同一ファイルにし、差分を `tfvars` だけに閉じ込めた**。DB-01(`terraform/` が1世代古い)の原因は環境ごとに別の `.tf` を持っていたことなので、共有すれば同じドリフトが**構造的に起きえなくなる**。世代差は `enable_dcr` / `enable_edge_waf` / `enable_local_pool` の3トグルで表す。
+3. 計画の8モジュールが `ecr.tf` と `dynamodb.tf` を取りこぼしていた。ECR は `mcp-server-ecs` へ、DynamoDB テーブルは**環境ルート**へ(環境ごとに存在有無と管理主体が異なり、本番は41ユーザーの実データで Terraform 管理外)。
+
+**`resource_suffix` はグローバルに適用してはならない**(3エージェントが独立に検出)。接尾辞が付くのは `cognito.tf` / `dynamodb.tf` / `ssm.tf` の3ファイルだけで、`vpc` / `ecs` / `alb` / `ecr` / `apigateway` / `lambda` / `cloudfront_waf` には付かない。一律に渡すと IAM ロール名・SG 名・TG 名が変わり **destroy/create** になる。
+
+**`tfvars` は `terraform.tfvars.example` として versioned した**。`.gitignore:6` が `*.tfvars` を除外する既存方針に従っている。使うときは `cp terraform.tfvars.example terraform.tfvars`。**移行に必須の `resource_server_identifier` の実値**(`https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp`、state から読み出し)もここに入っているので、次セッションはこのファイルから始められる。
+
+### 19.7 セッション終了時点の状態
 
 | 項目 | 状態 |
 |---|---|
-| ブランチ | `feature/week6-terraform-modularization`(`main`から分岐) |
-| `infra/` | **未作成**。設計のみ完了 |
-| AWS環境 | **今回も一切変更していない** |
-| `terraform-playground-pattern4/` | **未変更**。ロールバック参照として残置する方針 |
+| ブランチ | `feature/week6-terraform-modularization`(`main`から分岐、未push) |
+| `infra/` | **作成済み**。3環境とも `validate` 通過。`plan` は未実行 |
+| AWS環境 | **今回も一切変更していない**。`plan`/`apply` とも未実行 |
+| `terraform-playground-pattern4/` / `terraform/` | **未変更** |
+| `infra/modules/secrets/` | **要削除**。`parameters` へ移行済みだが、権限規則で Claude が削除できない(§19.8) |
 
-### 19.7 次回セッションの着手順
+### 19.8 ユーザーの操作が要る事項(新規)
 
-1. **フェーズ2の実装**([docs/23 §7](./23-weekly-verification-plan-week6.md)のP1〜P6)。`infra/modules/`8モジュールと`infra/environments/`3環境を作成し、`moved.tf`を生成する。AWSへの`plan`は`terraform init -backend=false` + `validate`が全環境で通ってから
-2. **`plan`の実行**。受け入れ基準は`0 to add, 0 to change, 0 to destroy`(例外は`aws_api_gateway_deployment.metadata`の1件のみ)。`aws_cloudfront_distribution.edge`に`-/+`が出たら**即中断**
-3. **設計文書F1〜F6**([docs/23 §5](./23-weekly-verification-plan-week6.md))を`docs/fde/`へ。特に**F5(`WWW-Authenticate`/RFC 9728の否定的知見)は`cloudfront_waf.tf:494-512`のコメントにしか存在せず、今回の再構成で消えるファイルにある**ため優先度が高い
+- **`infra/modules/secrets/` の削除**。`parameters` として作り直したので不要だが、サンドボックスの権限規則が `./secrets` を遮断するため Claude は読むことも消すこともできない。commit には含めていない。`rm -rf infra/modules/secrets` で削除するか、`/sandbox` で `./secrets` の deny 範囲を狭めること(この規則は今後のセッションでも同じ摩擦を起こす)。
+
+### 19.9 次回セッションの着手順
+
+1. **`plan` の実行**(フェーズ2の残り)。`make init ENV=playground` の前に、まず **backend 用 S3 バケットの作成**(DB-05)が要る。手順は `infra/environments/playground/backend.hcl` のコメントに書いてある。
+   - 受け入れ基準は `0 to add, 0 to change, 0 to destroy`。例外は `aws_api_gateway_deployment.metadata` の1件のみ
+   - `aws_cloudfront_distribution.edge` に `-/+` が出たら**即中断**
+   - **`nat_ami_id` を先に固定すること**。`null` のままだと `data.aws_ami` が最新 AMI を拾い、NAT インスタンス2台の置き換えが提案される(§17 記録済みのドリフト)。これを受け入れ基準の妨げにしない
+   - `resource_server_identifier` が `terraform output` の値と一致することを**適用前に**確認する
+2. **設計文書F1〜F6**([docs/23 §5](./23-weekly-verification-plan-week6.md))を `docs/fde/` へ。**F5(`WWW-Authenticate` / RFC 9728 の否定的知見)を最優先**。現在 `cloudfront_waf.tf:494-512` のコメントにしか存在せず、そのファイルは再構成で役目を終える(モジュール側にはコメントごと移設済みだが、独立した文書にしておく価値が高い)
+3. **primenumber の `resource_server_identifier` の実測**。`terraform/` は一度も apply されておらず state が無いため、`terraform.tfvars.example` は `CHANGEME` のまま。AWS 上の実リソースから確認が要る
 4. フェーズ3: AWS環境の整理とバージョニング。**削除は必ず事前確認を取る**(playgroundはtrocco・PetStore等と共用)
 5. フェーズ4: CI/CD方針の文書化(`docs/fde/CICD-DESIGN.md`)
 6. フェーズ5: 細粒度権限管理のECS側実装(§18.6)
