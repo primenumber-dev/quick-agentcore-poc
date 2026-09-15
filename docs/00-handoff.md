@@ -765,3 +765,160 @@ REST移行の動機は4つあったが、
 | テストクライアント | 全削除済み。Cognitoに残るのは`quick-mcp-poc-mcp-client`(静的)、`dcr-sanity-check-*`(§16以前)、`dcr-pattern4-token-helper-*`(ハーネス用、継続利用するなら残置)の3つ。`COUNTER#dcr`は0 |
 | 一時リソース | ALBプローブ用Web ACLは削除済み(terraformファイルも削除)。CloudFront検証用のCloudFront Functionも削除済み |
 | ハーネスの使い方 | `eval "$(python3 scripts/pattern4_token.py token)"`でトークン取得 → `scripts/waf_attack_tests.py` / `scripts/dcr_conformance_tests.py`を実行 → `scripts/update_checklist.py`で[20番](./20-production-readiness-checklist.md)へ転記。DCRテストは実行後に必ず`--cleanup`すること |
+
+---
+
+## 18. main集約・バージョニング・納品準備の着手(2026-09-15実施)
+
+> このセクションが本ファイルの最新状態。§17までの記述と矛盾する場合はこちらを優先すること。
+
+### 18.1 このセッションの位置づけ
+
+ユーザーから新しい方向性が示され、検証フェーズから**納品フェーズ**へ移行した。
+
+- **QUICK様のAWS環境にTerraformを納品する**ことが決定
+- Week1以降の各アーキテクチャを`main`に集約し、**LLMのモデル名のようにバージョン管理**する
+- **CI/CD**(納品・デプロイ・Terraform適用)の検討に着手する
+- **FDE(Forward Deployed Engineer)成果物**をprimenumber社内資料として整理する
+- ツール・リソース・プロンプト単位の**権限管理**を検討する
+
+### 18.2 ユーザー決定事項(2026-09-15)
+
+| # | 論点 | 決定 |
+|---|---|---|
+| 1 | MCP SDK v2をmainへ入れるか | **v2は決定事項として取り込む**。加えて**AgentCore版もmainに含める**(ホスティングはECS確定だが、AgentCore構成もTerraformとして保持) |
+| 2 | 納品の構成 | **納品用ディレクトリを分離**。検証レポートとFDE内部資料はprimenumber側に残す |
+| 3 | 細粒度権限管理 | **まずECSサーバー内で実装**。AgentCore Gatewayは評価トラック |
+| 4 | 今週の範囲 | **ブランチのmain集約とTerraformの変数化・モジュール化を優先**。CI/CDとFDE資料は設計方針の文書化まで |
+| 5 | mainの扱い | **mainを最新にする**(統合ブランチをマージしpush) |
+| 6 | バージョンタグ | **承認**。遡及タグを含めて発番 |
+
+注: 決定1でユーザーは「ホストはEC2」と記述したが、これまでの全検証がECS Fargate前提のため**ECSと解釈**した。次回セッションで認識が異なる場合は指摘を求めること。
+
+### 18.3 完了した作業
+
+**(1) 依存関係の脆弱性46件を解消し、mainへ反映**
+
+- 46件すべてが**推移的依存**(直接依存は該当なし)。`main`から`fix/dependabot-vulnerabilities`を切り、既存のバージョン範囲内でロックファイルを更新
+- hono 4.12.12→4.13.7、fast-uri 3.1.0→3.1.7、qs 6.15.0→6.16.0、ip-address 10.1.0→10.7.0、body-parser 2.2.2→2.3.0、esbuild→0.28.2。fast-xml-parser / fast-xml-builder は新しいAWS SDKが依存しなくなり消滅
+- マニフェスト変更は1件のみ: `lambda/package.json`が esbuild を `^0.24.2` に固定しており修正版0.25.0が範囲外だったため `^0.28.2` へ引き上げ
+- **main反映後、GitHubのアラートは0件になったことを確認済み**
+
+**(2) 6ブランチをmainへ集約**
+
+マージ順序と競合の解決内容:
+
+| # | ブランチ | 競合 | 解決 |
+|---|---|---|---|
+| 1 | `fix/dependabot-vulnerabilities` | なし | — |
+| 2 | `fix/production-audience-config-proposal` | なし | — |
+| 3 | `feature/web-demo-verification-panels` | なし | — |
+| 4 | `latency-tuning/session-id-reuse` | `docs/00-handoff.md`・`docs/README.md` | 新しいHEAD側を採用。自動マージ部分は保持 |
+| 5 | `feature/mcp-protocol-v2-spike` | `server/src/index.ts`・`package.json`・lock・`docs/00-handoff.md`・`docs/12` | **下記の手作業が必要だった** |
+| 6 | `feature/week5-waf-dcr-production-readiness` | なし | — |
+
+**実質的な競合は2つ**だった。
+
+- `server/src/index.ts`: v2が`app.all("/mcp", ...)`ハンドラに全面書き換えした一方、latency-tuningが同じ箇所に`LOG_TIMING`計測を入れていた。**v2ハンドラを採用し、計測コードを手で再適用**。起動して`boot`・`request_received`の両ログが出ることを確認済み
+- `server/package.json`: v2のMCPパッケージ(`@modelcontextprotocol/node` + `server`)と、脆弱性修正済みのAWS SDK 3.1131.0を**両立**させる必要があった。ロックを削除して`pnpm install`で再生成
+
+`docs/00-handoff.md`は§13→§14→§15→§16と時系列順に並ぶよう解決した。
+
+**(3) バージョンタグ5件を発番(すべてSSH署名付き)**
+
+| タグ | 対象コミット | 内容 |
+|---|---|---|
+| `quick-mcp-ecs-1.0-20260903` | `83e0f17` | DCR実装、クロステナントなりすまし脆弱性修正まで。WAF未対応、MCP SDK v1 |
+| `quick-mcp-ecs-1.1-20260903` | `c0fc0d9` | 応答時間チューニング、ECS本番化の課題整理 |
+| `quick-mcp-ecs-1.2-20260910` | `8a651ca` | MCP v2 SDK、ECS構成へのWAF初適用 |
+| `quick-mcp-ecs-1.3-20260914` | `275495d` | DCRのRFC 7591準拠(不合格16→2)、CloudFront + WAF(Block)、REST API移行の見送り判断 |
+| `quick-mcp-ecs-1.4-20260915` | `2bf9ea2` | 全成果をmainへ集約。Terraform製品化の起点 |
+
+命名規則は `quick-mcp-<variant>-<major>.<minor>-<YYYYMMDD>`。`variant`は`ecs`(本採用)と`agentcore`(代替)。
+
+**`agentcore`バリアントのタグは未発番**。AgentCore RuntimeはAWS CLIで作成されておりTerraform化されていないため、タグを付けられるコード状態が存在しない。フェーズ2で`infra/modules/mcp-server-agentcore/`を作成した時点で`quick-mcp-agentcore-1.0-<日付>`を発番する。
+
+**(4) FDE成果物の1本目を作成**
+
+`docs/fde/ARCHITECTURE-VERSIONS.md` — バージョン台帳。各バージョンの構成・検証済み項目・既知の課題を記録し、命名規則と運用ルールを定義。
+
+**(5) docs/README.mdの目次を18〜22番まで更新**。リポジトリ全体でリンク切れゼロを確認。
+
+### 18.4 調査で判明した納品ブロッカー(重要度順、**すべて未対応**)
+
+次回セッションのフェーズ2はこれを潰す作業になる。
+
+1. **`terraform/`(本番相当)はplaygroundより1世代以上古い**。WAF・CloudFront・DCR Lambda・Lambda Authorizerが**一切無い**。統合方向は playground → terraform
+2. **ECSサービスとタスク定義がTerraform管理外**。`aws_ecs_service`はどの`.tf`にも存在せず、ecspressoが所有。`ecspresso/app/ecspresso.yml:10`がprimenumberのtfstate S3 URLをハードコードして直読みしている
+3. **`variable`ブロックが0個、`.tfvars`が0個**。アカウントID・AWSプロファイル名・AMI ID・S3バケット名が直書き(`terraform-playground-pattern4/provider.tf:21`に`profile = "quick-agentcore-poc-playground"`等)
+4. **`terraform/ssm.tf:35,39`のKMS暗号文がprimenumberのKMSキーに紐づく**。別アカウントでは復号できず`apply`が必ず失敗する。納品先での再暗号化手順が必須
+5. **playgroundのstateがローカルファイルのみ**。59リソースの唯一のstateがディスク上にある
+6. **アプリコードがDynamoDBテーブル名とリージョンを直書き**(`server/src/db.ts:20`、`cli/src/db.ts:4`)。Terraformが作るテーブル名と一致せず、IAMで両方許可する回避策が入っている(Lambdaは`TABLE_NAME`環境変数化済み)
+7. **Cognitoドメインプレフィックスはリージョン内でグローバル一意**。複数環境を同一リージョンに立てるには変数化が必須
+8. **本番相当環境へは一度もデプロイされていない**。プロファイルが`AWSPowerUserAccess`でIAM作成権限が無く、書き込み禁止運用のため。CI/CDの本番パスは未検証の白地
+9. 手作業でTerraform管理外のリソースが多数(AgentCore Runtime、VPCエンドポイント、Webデモ用Lambda、テストユーザー、DynamoDBテーブル本体)
+
+### 18.5 CI/CDの現状(調査結果、**未着手**)
+
+**存在しない**。`.github/`もCI設定も0件。ビルド・デプロイは`README.md:54-69`の手動9行。設計時に効く落とし穴:
+
+- `docker build --platform=linux/amd64`の付け忘れでFargateが`exec format error`
+- ECRが`IMMUTABLE`のため同一タグの再pushが不可
+- `lambda/dist/`は未コミットで`terraform apply`前に`pnpm build`が必要だが**手順が文書化されていない**
+- ECSサービスに`deploymentCircuitBreaker`が無く**自動ロールバック無効**
+- SSOトークンがapply途中で失効する。CIからはSSO不可でGitHub OIDC → AssumeRoleへの置換が必須
+- リポジトリは**SSH署名必須**。CIからのcommit/tag pushには署名鍵の設定が要る
+
+### 18.6 細粒度権限管理(調査の最大の発見、**未実装**)
+
+**ECS側に実装がすでに存在し、2行のコメントアウトを外すだけの状態**だった。
+
+- `server/src/tools/registry.ts` — `TOOL_MAP[serviceId][plan]`のプラン別ツール表が実装済み
+- `server/src/auth.ts` — `resolveTools(user.services)`が`allowedTools: string[]`を返す
+- `server/src/tools/earthquake.ts` / `crypto.ts` — `allowedTools.includes(...)`で登録を出し分ける実装済み
+- `server/src/index.ts` — `registerEarthquakeTools(server, userContext.allowedTools)`が**コメントアウト**され、`registerQuickTools(server)`を無条件登録している
+
+MCP仕様(2026-07-28)は「`tools/list`の内容を**リクエストの資格情報によって**変える」ことを明示的に許可している(接続ごとに変えるのは禁止)。したがって`createMcpHandler`を**リクエストスコープ化**して`allowedTools`を渡す必要がある。
+
+**AgentCore Gatewayについて**: 既存のリモートMCPサーバーを**MCP server target**として前段に置けることを確認した。Cedarポリシーとinterceptor Lambdaで引数レベルまでの認可が可能で、`toolName`単位のレート制限と`WWW-Authenticate`の標準実装も得られる。ただし**2LOのclient_credentialsではECS側から全リクエストが同一identityに見え、`USER#<sub>`によるテナント管理が壊れる**。回避には`TOKEN_EXCHANGE`(RFC 8693)が要るが、**Cognitoでの成立可否は未確認**。ここが案の成否を決める唯一の論点。
+
+### 18.7 セッション終了時点の状態(2026-09-15)
+
+| 項目 | 状態 |
+|---|---|
+| `main` | `692315d`。リモートと同期済み。docs 30本、目次22番まで反映、リンク切れゼロ |
+| ビルド | `server`・`lambda`・`cli`の3パッケージとも型チェック通過 |
+| Dependabot | **0件**(46件すべて解消) |
+| タグ | `quick-mcp-ecs-1.0`〜`1.4`の5件をpush済み |
+| 統合前のブランチ | 6本ともmainにマージ済み。**削除していない**(履歴確認用に残置。不要なら削除可) |
+| `integrate/main-consolidation` | 作業用。mainへマージ済みでリモート未push |
+| AWS環境 | **今回は一切変更していない**。playgroundのリソースは§17.6のまま |
+
+### 18.8 次回セッションの着手順
+
+1. **フェーズ2: Terraformの変数化とモジュール化**(今回の主目的、未着手)
+   - `terraform-playground-pattern4/`を正として`infra/modules/`へ再構成(`terraform/`は1世代古いため取り込まない)
+   - モジュール候補: `network` / `auth` / `secrets` / `mcp-server-ecs` / `mcp-server-agentcore` / `dcr` / `edge-waf`
+   - 環境: `infra/environments/{playground,primenumber,quick}`
+   - §18.4のブロッカー1〜7を潰す。特に**ECSサービスのecspresso→Terraform移行**と**KMS暗号文の環境別化**
+   - モジュール化の難所: **Cognito ⇄ API Gatewayの循環参照**(`cognito.tf:43`のresource server identifierがAPI GW endpointを参照し、`apigateway.tf:91`のaudienceがCognitoを参照)。カスタムドメインを先に固定してidentifierを変数化する設計が要る
+2. **フェーズ3: AWS環境の整理とバージョニング**。playgroundは他プロジェクトと**共用**(trocco、PetStore等が同居)のため`quick-mcp-poc*`に限定する。削除候補は§17.6とフェーズ3の表を参照。**削除は必ず事前確認を取る**
+3. **フェーズ4: CI/CD方針の文書化**(`docs/fde/CICD-DESIGN.md`)
+4. フェーズ5: 細粒度権限管理のECS側実装(§18.6)
+5. フェーズ6: FDE成果物の残り(ADR、DELIVERY-REQUIREMENTS、RUNBOOK、RISK-REGISTER)
+
+### 18.9 §17.8から持ち越した、ユーザーの確認待ち項目
+
+いずれも**今回のセッションでは解消していない**。
+
+- **A1 本番の401バグの共有**(数週間滞留中)。`fix/production-audience-config-proposal`はmainにマージ済みだが、**本番担当者への共有は未実施**。なおWeek5でCognitoがRFC 8707の`resource`パラメータに対応していると判明したため、「修正案」と「resource指定を前提にする案」の両論を提示するのが正確
+- **A2 Claude Code / Claude.aiからの自己登録E2E**。ブラウザ操作が必要。DCR修正が実接続で効いているかは未確定
+- B1〜B5(REST API見送りの承認、例外台帳4件の承認、WAF-12のリスク受容、playgroundリソースの残置可否、未マージブランチの整理)
+- C1 先週のクライアント向け報告の訂正が送付済みか、C2 クライアント向けレポートの文面確認、C3 NATインスタンスのAMIドリフト対応
+
+### 18.10 学び
+
+- **マージ順序は「触るファイルが少ないブランチから」が正解だった**。依存更新・1行修正・独立ディレクトリを先に入れ、`server/`を書き換える2本を最後に回したことで、実質的な競合は2箇所に収束した。逆順だと同じ競合を何度も解き直すことになる
+- **同じファイルを「書き換える」ブランチと「追記する」ブランチが並走すると、gitは助けてくれない**。v2の全面書き換えとlatency-tuningの計測追加は、機械的には競合として出るが、正しい解決は「両方を意図どおり共存させる」ことで、これは手作業でしか判断できない。マージ後に**起動して両方の機能が効いていることを確認**するまで完了とみなさないこと
+- **ロックファイルの競合は解決しようとせず再生成する**。`server/pnpm-lock.yaml`は両側で大きく異なっていたが、`package.json`さえ正しく統合すれば`pnpm install`が正解を作る
+- **「検証が終わっている」ことと「納品できる」ことは別物**。46件の機能検証が終わっていても、アカウントIDのハードコード1箇所で他環境では動かない。納品を見据えるなら、検証と並行して変数化を進めるべきだった
