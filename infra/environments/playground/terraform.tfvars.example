@@ -1,0 +1,208 @@
+# playground (883660531246) の実値。
+#
+# このファイルは terraform.tfvars.example として versioned されている。
+# 使うときは cp terraform.tfvars.example terraform.tfvars すること
+# (*.tfvars は .gitignore で除外されている。認証情報が入りうるため)。
+#
+# ssm_plaintext_parameters の値はプレースホルダであり実 credential ではないため、
+# このファイルはそのままコピーして使える。
+#
+# すべて terraform-playground-pattern4/ の現行値をそのまま写している。
+# moved の適用で plan が 0 to add, 0 to change, 0 to destroy になることが
+# 受け入れ基準なので、ここの値を「きれいにする」誘惑に乗らないこと。
+
+aws_region  = "ap-northeast-1"
+aws_profile = "quick-agentcore-poc-playground"
+
+# 移行元 provider.tf:22-28。各リソースの tags には入っていないため、
+# モジュールへは tags = {} を渡し、タグ付けはここに集約する。
+default_tags = {
+  App = "quick-mcp-poc-pattern4-verification"
+}
+
+name_prefix = "quick-mcp-poc"
+
+# 接尾辞が付くのは cognito / dynamodb / ssm だけ。main.tf を見ると分かるとおり、
+# network / ecs / dcr / api-gateway / edge-waf へは "" を渡している。
+resource_suffix = "-pattern4-verify"
+
+# --- ネットワーク (移行元 vpc.tf) ---
+
+vpc_cidr = "10.0.0.0/16"
+
+public_subnets = {
+  "az-a" = { cidr_block = "10.0.1.0/24", availability_zone = "ap-northeast-1a" }
+  "az-c" = { cidr_block = "10.0.2.0/24", availability_zone = "ap-northeast-1c" }
+}
+
+private_subnets = {
+  "az-a" = { cidr_block = "10.0.10.0/24", availability_zone = "ap-northeast-1a" }
+  "az-c" = { cidr_block = "10.0.11.0/24", availability_zone = "ap-northeast-1c" }
+}
+
+nat_instance_type = "t3.nano"
+
+# TODO(適用前): 稼働中の NAT インスタンス 2 台の AMI ID を入れる。
+#   aws ec2 describe-instances --profile quick-agentcore-poc-playground \
+#     --filters "Name=tag:Name,Values=quick-mcp-poc-nat*" \
+#     --query 'Reservations[].Instances[].ImageId'
+# null のままだと data.aws_ami が最新 AMI を拾い、plan が NAT 2 台の置き換えを
+# 提案する。これは week5 で記録済みのドリフトで DCR・WAF とは無関係 (docs/19 §1.9)。
+# 受け入れ基準の 0 to change を満たすには固定が要る。
+nat_ami_id = null
+
+# --- パラメータ / シークレット (移行元 ssm.tf) ---
+
+ssm_path_prefix = "/quick-mcp-poc"
+kms_alias_name  = "alias/quick-mcp-poc-pattern4-verify-ssm"
+
+ssm_plain_parameters = {
+  "/quick-api/base" = {
+    value       = "https://qr1.devmarket.myquick.net/home/member/wam_mxlgn/common/docs/api/"
+    description = "QUICK API base URL(検証用、本番と同一の公開値)"
+  }
+}
+
+# playground は暗号文方式を使っていない。本番相当は terraform/ssm.tf:35,39 の
+# 暗号文がここに入る (DELIVERY-BLOCKERS DB-04)。
+ssm_encrypted_parameters = {}
+
+# プレースホルダ。実 credential ではない。値は state に平文で残る。
+ssm_plaintext_parameters = {
+  "/quick-api/user" = {
+    value       = "placeholder-not-a-real-credential"
+    description = "QUICK API basic auth user(プレースホルダー、実credentialではない)"
+  }
+  "/quick-api/pass" = {
+    value       = "placeholder-not-a-real-credential"
+    description = "QUICK API basic auth password(プレースホルダー、実credentialではない)"
+  }
+}
+
+# --- DynamoDB ---
+
+# Terraform が作る検証用テーブル (移行元 dynamodb.tf:2)
+dynamodb_table_name = "quick-mcp-poc-pattern4-verify-users"
+
+# アプリと DCR Lambda が実際に読むテーブル。Terraform 管理外。
+# 移行元は lambda.tf:9 と ecs.tf:88 でアカウント ID 込みの ARN を直書きしていた。
+dcr_table_name = "quick-mcp-poc-users"
+
+# --- ECS / ALB (移行元 ecs.tf, alb.tf) ---
+
+container_port = 3000
+
+health_check = {
+  path                = "/health"
+  matcher             = "200"
+  interval            = 30
+  timeout             = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 2
+}
+
+log_retention_days = 90
+
+# --- Cognito (移行元 cognito.tf) ---
+
+user_pool_name = "quick-mcp-poc-pattern4-verify-users"
+
+# リージョン内でグローバル一意。quick-mcp-poc-auth が既に取られていたため
+# この名前になっている (DELIVERY-BLOCKERS DB-07)。
+cognito_domain_prefix = "quick-mcp-poc-pattern4-verify"
+
+cognito_callback_urls = ["http://localhost:3030/callback"]
+
+cognito_explicit_auth_flows = [
+  "ALLOW_USER_PASSWORD_AUTH",
+  "ALLOW_REFRESH_TOKEN_AUTH",
+]
+
+# 2026-09-15 に playground の state から読み出した現行の実値。
+#   terraform output cognito_resource_server_identifier
+#
+# 手打ちしないこと。1 文字違えば resource server が destroy/create され、
+# 発行済み DCR クライアントに付与済みのスコープがすべて失われる (docs/23 §1.2)。
+#
+# この値は現在 API Gateway の execute-api URL (API ID: 2a5r57wfoa) に由来するが、
+# Cognito にとっては不透明文字列であり URL として解決されることはない。
+# カスタムドメイン移行時はこの 1 行の変更で移せる。
+resource_server_identifier = "https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/mcp"
+
+resource_server_name = "quick-mcp-poc-mcp"
+
+# --- DCR Lambda (移行元 lambda.tf) ---
+
+# lambda/dist/ は未コミットのため apply 前に pnpm build が必要 (00-handoff.md §18.5)。
+lambda_source_dir = "../../../lambda/dist"
+
+lambda_runtime         = "nodejs22.x"
+dcr_authorizer_timeout = 5
+dcr_register_timeout   = 10
+
+dcr_deny_mode                        = "throw"
+dcr_require_audience_for_user_tokens = "false"
+
+# カスタムドメイン移行までは観測モードのまま (cloudfront_waf.tf:6-9)。
+dcr_enforce_origin_verify = "false"
+
+dcr_allowed_redirect_hosts              = "claude.ai,claude.com"
+dcr_default_token_endpoint_auth_method  = "none"
+dcr_max_clients                         = "200"
+dcr_max_registrations_per_ip_per_minute = "5"
+dcr_access_token_validity_minutes       = "60"
+dcr_apply_managed_login_branding        = "true"
+
+# --- API Gateway (移行元 apigateway.tf) ---
+
+api_name                    = "quick-mcp-poc"
+apigw_access_log_group_name = "/quick-mcp-poc/apigw-access"
+
+register_throttle = {
+  burst = 5
+  rate  = 2
+}
+
+# 0 にしているのは、cli delete-client による失効が最大 5 分遅延する問題への
+# 対応 (2026-09-02 のセキュリティレビュー、apigateway.tf:167-168)。
+authorizer_ttl_seconds = 0
+
+service_documentation_url = "https://github.com/primenumber-dev/quick-agentcore-poc"
+
+# --- エッジ (移行元 cloudfront_waf.tf) ---
+
+origin_verify_length = 48
+
+# 2026-09-13 の Count 観測で正常系コーパスに誤検知が無いことを確認し block へ切替。
+waf_mode = "block"
+
+waf_managed_rule_groups = {
+  AWSManagedRulesAmazonIpReputationList = { priority = 20, mode = "block" }
+  # HostingProviderIPList が正規クライアント (Claude.ai 等) を遮断しうるため恒久 Count。
+  AWSManagedRulesAnonymousIpList       = { priority = 21, mode = "count" }
+  AWSManagedRulesKnownBadInputsRuleSet = { priority = 30, mode = "block" }
+  AWSManagedRulesCommonRuleSet         = { priority = 40, mode = "block" }
+  AWSManagedRulesSQLiRuleSet           = { priority = 50, mode = "block" }
+  AWSManagedRulesLinuxRuleSet          = { priority = 60, mode = "block" }
+  AWSManagedRulesUnixRuleSet           = { priority = 61, mode = "block" }
+}
+
+waf_common_rule_set_count_overrides = [
+  "SizeRestrictions_BODY",
+  "GenericRFI_BODY",
+  "NoUserAgent_HEADER",
+]
+
+# この 2 つは 1 つの判断の両半分。片方だけ動かすと日本語長文 (UTF-8 で 1 文字
+# 3 バイト) の誤検知が再発する (cloudfront_waf.tf:65-67、docs/19 §1.9)。
+waf_body_inspection_limit = "KB_64"
+waf_body_size_limit_bytes = 65536
+
+waf_geo_observe_countries = ["JP", "US"]
+cloudfront_price_class    = "PriceClass_200"
+
+# --- 世代トグル ---
+
+enable_dcr        = true
+enable_edge_waf   = true
+enable_local_pool = false

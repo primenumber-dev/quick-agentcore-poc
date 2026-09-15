@@ -1,0 +1,185 @@
+# quick (納品先、QUICK 様アカウント) の実値。
+#
+# 【未確定】このファイルはテンプレートである。CHANGEME を実値に置き換えるまで
+# apply してはならない。アカウント ID・プロファイル・ドメイン名は納品時に決まる。
+#
+# playground と同じ現行世代 (DCR + CloudFront + WAF) で構築する。
+# 本番相当 (primenumber) が旧世代なのは移行の都合であって、納品先が
+# 引き継ぐべき構成ではない。
+
+aws_region  = "ap-northeast-1"
+aws_profile = "CHANGEME"
+
+default_tags = {
+  App = "quick-mcp-poc"
+}
+
+name_prefix     = "quick-mcp-poc"
+resource_suffix = ""
+
+# --- 世代トグル ---
+#
+# 納品先は最初から現行世代で立てる。
+enable_dcr        = true
+enable_edge_waf   = true
+enable_local_pool = false
+
+# --- ネットワーク ---
+#
+# 将来 VPC ピアリングを検討する可能性があるなら、他環境と重ならない CIDR に
+# すること。下記は playground と同一で重複している。
+vpc_cidr = "10.0.0.0/16"
+
+public_subnets = {
+  "az-a" = { cidr_block = "10.0.1.0/24", availability_zone = "ap-northeast-1a" }
+  "az-c" = { cidr_block = "10.0.2.0/24", availability_zone = "ap-northeast-1c" }
+}
+
+private_subnets = {
+  "az-a" = { cidr_block = "10.0.10.0/24", availability_zone = "ap-northeast-1a" }
+  "az-c" = { cidr_block = "10.0.11.0/24", availability_zone = "ap-northeast-1c" }
+}
+
+nat_instance_type = "t3.nano"
+
+# 新規構築時は最新 AMI で問題ないが、構築後は稼働中の AMI ID を固定して
+# ドリフトを止めること (docs/19 §1.9)。
+nat_ami_id = null
+
+# --- パラメータ / シークレット ---
+
+ssm_path_prefix = "/quick-mcp-poc"
+kms_alias_name  = "alias/quick-mcp-poc-ssm"
+
+ssm_plain_parameters = {
+  "/quick-api/base" = {
+    value       = "CHANGEME-納品先のQUICK APIベースURL"
+    description = "QUICK API base URL"
+  }
+}
+
+# 空のままにすることを推奨する。
+#
+# 暗号文をコミットする方式は、鍵が同じ apply で作られるため二段階適用が必要で、
+# 納品先ごとに再暗号化の手順が発生する (DELIVERY-BLOCKERS DB-04)。
+# 代わりに帯域外で put-parameter し、アプリ側は SSM から読む運用にすれば
+# クロスアカウント問題が恒久的に消える。これが DB-04 の推奨対処。
+ssm_encrypted_parameters = {}
+ssm_plaintext_parameters = {}
+
+# --- DynamoDB ---
+
+dynamodb_table_name = "quick-mcp-poc-users"
+dcr_table_name      = "quick-mcp-poc-users"
+
+# --- ECS / ALB ---
+
+container_port = 3000
+
+health_check = {
+  path                = "/health"
+  matcher             = "200"
+  interval            = 30
+  timeout             = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 2
+}
+
+log_retention_days = 90
+
+# --- Cognito ---
+
+user_pool_name = "quick-mcp-poc-users"
+
+# リージョン内でグローバル一意。quick-mcp-poc-auth は primenumber が、
+# quick-mcp-poc-pattern4-verify は playground が使用済み。
+# 納品先では未使用の値を選ぶこと (DELIVERY-BLOCKERS DB-07)。
+cognito_domain_prefix = "CHANGEME-未使用のドメインプレフィックス"
+
+cognito_callback_urls = [
+  "https://claude.ai/api/mcp/auth_callback",
+  "http://localhost:3000/callback",
+]
+
+cognito_explicit_auth_flows = null
+
+# 新規環境ではまだ API Gateway が存在せず、この値を事前に決められない。
+# これが resource_server_identifier を変数化した理由そのものである
+# (docs/23 §1.2 の理由 1)。
+#
+# 構築手順:
+#   1. この値を、使いたい最終的な識別子 (できればカスタムドメイン) に決め打つ
+#   2. apply する
+#   3. Cognito にとっては不透明文字列なので、API Gateway のエンドポイントと
+#      一致している必要はない
+#
+# カスタムドメインを先に用意できるなら、execute-api の URL を使わずに
+# 最初からそれを指定するのが望ましい。後から変えると発行済みクライアントの
+# スコープが失われる。
+resource_server_identifier = "CHANGEME-例: https://mcp.example.com/mcp"
+
+resource_server_name = "quick-mcp-poc-mcp"
+
+# --- DCR Lambda ---
+
+lambda_source_dir = "../../../lambda/dist"
+
+lambda_runtime         = "nodejs22.x"
+dcr_authorizer_timeout = 5
+dcr_register_timeout   = 10
+
+dcr_deny_mode                        = "throw"
+dcr_require_audience_for_user_tokens = "false"
+
+# カスタムドメインを用意できるなら true にできる。
+# execute-api 直アクセスを閉じる唯一の手段 (cloudfront_waf.tf:6-9)。
+dcr_enforce_origin_verify = "false"
+
+dcr_allowed_redirect_hosts              = "claude.ai,claude.com"
+dcr_default_token_endpoint_auth_method  = "none"
+dcr_max_clients                         = "200"
+dcr_max_registrations_per_ip_per_minute = "5"
+dcr_access_token_validity_minutes       = "60"
+dcr_apply_managed_login_branding        = "true"
+
+# --- API Gateway ---
+
+api_name                    = "quick-mcp-poc"
+apigw_access_log_group_name = "/quick-mcp-poc/apigw-access"
+
+register_throttle = {
+  burst = 5
+  rate  = 2
+}
+
+authorizer_ttl_seconds    = 0
+service_documentation_url = "CHANGEME-納品先向けのドキュメントURL"
+
+# --- エッジ (CloudFront + WAF) ---
+
+origin_verify_length = 48
+
+# 新規環境では count で 2 週間観測してから block へ倒すことを推奨する
+# (docs/19 §1.5 の運用方針)。正常系コーパスでの誤検知確認が前提。
+waf_mode = "count"
+
+waf_managed_rule_groups = {
+  AWSManagedRulesAmazonIpReputationList = { priority = 20, mode = "count" }
+  AWSManagedRulesAnonymousIpList        = { priority = 21, mode = "count" }
+  AWSManagedRulesKnownBadInputsRuleSet  = { priority = 30, mode = "count" }
+  AWSManagedRulesCommonRuleSet          = { priority = 40, mode = "count" }
+  AWSManagedRulesSQLiRuleSet            = { priority = 50, mode = "count" }
+  AWSManagedRulesLinuxRuleSet           = { priority = 60, mode = "count" }
+  AWSManagedRulesUnixRuleSet            = { priority = 61, mode = "count" }
+}
+
+waf_common_rule_set_count_overrides = [
+  "SizeRestrictions_BODY",
+  "GenericRFI_BODY",
+  "NoUserAgent_HEADER",
+]
+
+waf_body_inspection_limit = "KB_64"
+waf_body_size_limit_bytes = 65536
+waf_geo_observe_countries = ["JP", "US"]
+cloudfront_price_class    = "PriceClass_200"

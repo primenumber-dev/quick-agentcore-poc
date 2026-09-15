@@ -174,10 +174,27 @@ AgentCore Runtimeは`scripts/invoke_agentcore_mcp*.py`からAWS CLIで作成さ�
 | `aws_profile` | **`provider.tf:21`**、**`cloudfront_waf.tf:18`** | `quick-agentcore-poc-playground` | `null` |
 | `account_id` | **`lambda.tf:9`**、**`ecs.tf:88`**(`883660531246`直書き) | `data.aws_caller_identity`由来、変数の既定は`null` | 同左 |
 | `name_prefix` | 約40行の`quick-mcp-poc` | `quick-mcp-poc` | 同左 |
-| `resource_suffix` | `cognito.tf:6`、`ssm.tf:10,14,19`、`dynamodb.tf:2,14` | `-pattern4-verify` | `""` |
+| `resource_suffix` | `cognito.tf:6,24,62`、`ssm.tf:10,14,19`、`dynamodb.tf:2,14` | `-pattern4-verify` | `""` |
 | `app_tag` | `provider.tf:26`、`cloudfront_waf.tf:22` | `quick-mcp-poc-pattern4-verification` | `quick-mcp-poc` |
 
 `account_id`は原則`data.aws_caller_identity.current`(`ssm.tf:7`で既に宣言済み)から取り、変数は「別アカウントのテーブルを指す必要が生じた場合」の逃げ道として`null`既定で置く。
+
+#### `resource_suffix`はグローバルに適用してはならない(実装時に判明)
+
+playgroundのソースを全文検索した結果、`-pattern4-verify`が付いているのは**`cognito.tf` / `ssm.tf` / `dynamodb.tf`の3ファイルのみ**だった。`vpc.tf`・`ecs.tf`・`alb.tf`・`ecr.tf`・`apigateway.tf`・`lambda.tf`・`cloudfront_waf.tf`のリソース名は接尾辞なしの`quick-mcp-poc-*`である(`quick-mcp-poc-vpc`、`quick-mcp-poc-cluster`、`quick-mcp-poc-alb`、`quick-mcp-poc-tg`、`quick-mcp-poc-ecs-task-execution-role`等)。
+
+| モジュール | `resource_suffix`に渡す値(playground) |
+|---|---|
+| `auth`、`secrets` | `-pattern4-verify` |
+| `network`、`mcp-server-ecs`、`dcr`、`api-gateway`、`edge-waf` | **`""`** |
+
+**これを間違えると実害が出る。** 全モジュールに一律で`-pattern4-verify`を渡すと、IAMロール名・セキュリティグループ名・ターゲットグループ名が変わる。これらは**改名がdestroy/createになる**リソースであり、§4の受け入れ基準(`0 to change, 0 to destroy`)を大きく外れる。
+
+#### タグは`default_tags`のまま残す
+
+`App = "quick-mcp-poc-pattern4-verification"`は**providerの`default_tags`**(`provider.tf:22-28`)で付与されており、各リソースの`tags`属性には入っていない。モジュールには`tags = {}`を渡し、Appタグは環境ルートのprovider側で`default_tags`として維持する。モジュールへ非空の`tags`を渡すとstate上の全リソースにタグ追加のdiffが出る。
+
+[fde/ARCHITECTURE-VERSIONS.md](./fde/ARCHITECTURE-VERSIONS.md)が計画している`McpBaseVersion`タグの付与は、この`default_tags`へ追加する形で行う。**ただしそれは`moved`の適用が`0 to change`で完了した後の別変更とする。**
 
 ### 3.2 特に注意を要するモジュール変数
 
@@ -273,16 +290,34 @@ ecspresso設定も環境別に分割する。なお**playgroundにはecspresso�
 
 AWSへの書き込みは行わない。
 
-| # | 手順 | 判定 |
+| # | 手順 | 判定 | 結果 |
+|---|---|---|---|
+| P0 | `.gitignore`で`terraform-playground-pattern4/terraform.tfstate`が追跡対象外であることを確認 | 追跡対象外 | **完了**(`.gitignore:3`) |
+| P1 | `infra/modules/`8モジュールを作成し変数化 | `terraform fmt -recursive -check infra/`が通る | **完了** |
+| P2 | `infra/environments/{playground,primenumber,quick}/`を作成 | 3環境とも`terraform init -backend=false` + `terraform validate`が通る | **完了**(3環境とも Success) |
+| P3 | 依存グラフの非循環を確認 | `terraform graph`が出力でき、`module`ブロックに`depends_on`/`count`/`for_each`が無い(§1.4) | **完了**(109辺、`Cycle:`エラー無し) |
+| P4 | `moved.tf`を生成 | state の managed リソース数と`moved`ブロック数 + 据え置きが一致 | **完了**(73 + 据え置き2 = 75) |
+| P5 | ルート`outputs`の互換確認 | `terraform-playground-pattern4/outputs.tf`の全名称が各環境ルートに存在(§3.3) | **完了**(ecspresso が読む8件を含め全14件) |
+| P6 | ドキュメント更新 | リポジトリ全体でリンク切れゼロ | **完了** |
+| — | **`plan`は次セッション** | `0 to add, 0 to change, 0 to destroy`(§4) | 未実施 |
+
+`terraform validate`の実行には Terraform 1.15.8 を使用した。`graph`は backend を要するため、スクラッチパッドに複製してローカル backend で実行した。
+
+### 7.1 実装で構成を変えた点
+
+計画時から3点変えている。いずれも実装中に判明した事実による。
+
+| # | 変更 | 理由 |
 |---|---|---|
-| P0 | `.gitignore`で`terraform-playground-pattern4/terraform.tfstate`が追跡対象外であることを確認 | 確認済み(`.gitignore:3`) |
-| P1 | `infra/modules/`8モジュールを作成し変数化 | `terraform fmt -recursive -check infra/`が通る |
-| P2 | `infra/environments/{playground,primenumber,quick}/`を作成 | 3環境とも`terraform init -backend=false` + `terraform validate`が通る |
-| P3 | 依存グラフの非循環を確認 | `terraform graph`が出力でき、`module`ブロックに`depends_on`/`count`/`for_each`が無い(§1.4) |
-| P4 | `moved.tf`を生成 | `terraform state list \| grep -v '^data\.' \| wc -l`が75で、`moved`ブロック数(`random_password.origin_verify`を除く74)と整合 |
-| P5 | ルート`outputs`の互換確認 | `terraform-playground-pattern4/outputs.tf`の全名称が各環境ルートに存在(§3.3) |
-| P6 | ドキュメント更新 | リポジトリ全体でリンク切れゼロ |
-| — | **`plan`は次セッション** | `0 to add, 0 to change, 0 to destroy`(§4) |
+| 1 | `secrets`モジュールを**`parameters`に改名** | サンドボックスの権限規則が`./secrets`を認証情報ディレクトリとみなして読み書きを遮断する。Terraform モジュール名としては`parameters`の方が実態(SSM Parameter Store + KMS)にも合う |
+| 2 | 3環境で`main.tf` / `variables.tf` / `outputs.tf`を**同一ファイルにし、差分を`tfvars`だけに閉じ込めた** | DB-01(`terraform/`が1世代古い)の原因は、環境ごとに別々の`.tf`を持っていたこと。構成ファイルを共有すれば同じドリフトが**構造的に起きえなくなる**。世代差は`enable_dcr` / `enable_edge_waf` / `enable_local_pool`の3トグルで表現する |
+| 3 | `api-gateway`に加え、ECR を`mcp-server-ecs`へ、DynamoDB テーブルを**環境ルート**へ配置 | 計画の8モジュールは`ecr.tf`と`dynamodb.tf`を取りこぼしていた。DynamoDB は環境ごとに存在有無と管理主体が異なる(本番は41ユーザーの実データで Terraform 管理外)ためモジュール化しない |
+
+### 7.2 `tfvars`の扱い
+
+`.gitignore:6`が`*.tfvars`を除外している(認証情報が入りうるため)既存方針に従い、**`terraform.tfvars.example`として versioned**した。使うときは`cp terraform.tfvars.example terraform.tfvars`する。
+
+playground の`ssm_plaintext_parameters`はプレースホルダ値であり実 credential ではないため、example をそのままコピーして使える。**移行に必須の`resource_server_identifier`の実値もここに入っている**ので、次セッションはこのファイルから始められる。
 
 ---
 

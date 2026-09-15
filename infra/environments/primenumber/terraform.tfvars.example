@@ -1,0 +1,201 @@
+# primenumber (620369151795、本番相当) の実値。
+#
+# 【重要】このアカウントには実クライアントデータ (41 ユーザー) がある。
+# 書き込みは厳禁。plan までに留めること (CLAUDE.md)。
+#
+# 値は terraform/ の現行コードから写している。ただし terraform/ は一度も
+# apply されたことがない (DELIVERY-BLOCKERS DB-08) ため、「稼働中の実態」では
+# なく「コードの記述」でしかない。moved を当てる前に、AWS 上の実リソースと
+# 突き合わせること。
+#
+# 世代トグルは両方 false にしてある。これにより terraform/ の旧世代と
+# 同じ形になり、差分ゼロから始められる。WAF・CloudFront・DCR の導入は
+# 意図的な別変更として切り出す (docs/23 §5 F1)。
+
+aws_region = "ap-northeast-1"
+
+# terraform/provider.tf:20-21 には profile 指定が無い (環境変数で渡していた)。
+aws_profile = null
+
+default_tags = {
+  App = "quick-mcp-poc"
+}
+
+name_prefix = "quick-mcp-poc"
+
+# 本番相当には接尾辞が無い。
+resource_suffix = ""
+
+# --- 世代トグル ---
+#
+# false = terraform/ の現行世代 (Cognito JWT Authorizer、/register なし、
+#         アクセスログなし、WAF・CloudFront なし)。
+# 差分ゼロを確認してから true へ倒す。
+enable_dcr      = false
+enable_edge_waf = false
+
+# 本番相当のみローカル開発用の 2 つ目のプールを持つ (terraform/cognito.tf:59-116)。
+enable_local_pool = true
+
+# --- ネットワーク (terraform/vpc.tf、playground と同一) ---
+
+vpc_cidr = "10.0.0.0/16"
+
+public_subnets = {
+  "az-a" = { cidr_block = "10.0.1.0/24", availability_zone = "ap-northeast-1a" }
+  "az-c" = { cidr_block = "10.0.2.0/24", availability_zone = "ap-northeast-1c" }
+}
+
+private_subnets = {
+  "az-a" = { cidr_block = "10.0.10.0/24", availability_zone = "ap-northeast-1a" }
+  "az-c" = { cidr_block = "10.0.11.0/24", availability_zone = "ap-northeast-1c" }
+}
+
+nat_instance_type = "t3.nano"
+nat_ami_id        = null
+
+# --- パラメータ / シークレット (terraform/ssm.tf) ---
+
+ssm_path_prefix = "/quick-mcp-poc"
+kms_alias_name  = "alias/quick-mcp-poc-ssm"
+
+ssm_plain_parameters = {
+  "/quick-api/base" = {
+    value       = "https://qr1.devmarket.myquick.net/home/member/wam_mxlgn/common/docs/api/"
+    description = "QUICK API base URL"
+  }
+}
+
+# TODO(適用前): terraform/ssm.tf:35,39 の CiphertextBlob をここへそのまま移す。
+#
+# 意図的に空にしてある。暗号文は作成したアカウントの KMS キーに紐づくため、
+# 他アカウントでは復号できず apply が必ず失敗する (DELIVERY-BLOCKERS DB-04)。
+# このアカウント自身では復号できるので、コードから tfvars へ移すだけなら
+# 差分ゼロで済む。
+#
+# 納品先 (quick) では再暗号化が必要で、鍵が同じ apply で作られる鶏卵問題がある。
+# 推奨は暗号文のコミットをやめ、帯域外で put-parameter して
+# data.aws_ssm_parameter で読む方式へ移ること。
+ssm_encrypted_parameters = {}
+
+ssm_plaintext_parameters = {}
+
+# --- DynamoDB ---
+
+# 41 ユーザーの実データを持つ本番テーブル。作り直してはならない。
+# 現状 terraform/dynamodb.tf が管理しているが、アプリが読むテーブルと
+# 同一かどうかは適用前に確認すること (DELIVERY-BLOCKERS DB-06/DB-09)。
+# terraform/dynamodb.tf:2。アプリが読むテーブル名と同一であることに注意
+# (playground では両者が食い違っており IAM で両方許可する回避策が入っていた)。
+dynamodb_table_name = "quick-mcp-poc-users"
+dcr_table_name      = "quick-mcp-poc-users"
+
+# --- ECS / ALB ---
+
+container_port = 3000
+
+health_check = {
+  path                = "/health"
+  matcher             = "200"
+  interval            = 30
+  timeout             = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 2
+}
+
+log_retention_days = 90
+
+# --- Cognito (terraform/cognito.tf) ---
+
+user_pool_name = "quick-mcp-poc-users"
+
+# リージョン内でグローバル一意。playground がこの名前を取れず
+# -pattern4-verify を名乗ることになった元の値 (DELIVERY-BLOCKERS DB-07)。
+cognito_domain_prefix = "quick-mcp-poc-auth"
+
+cognito_callback_urls = [
+  "https://claude.ai/api/mcp/auth_callback",
+  "http://localhost:3000/callback",
+]
+
+# 本番相当には ALLOW_USER_PASSWORD_AUTH の指定が無い。
+cognito_explicit_auth_flows = null
+
+# TODO(適用前): AWS 上の実際の resource server identifier を確認して入れる。
+#
+# terraform/ は一度も apply されていないため state が無く、playground のように
+# terraform output から読み出せない。下記は terraform/cognito.tf:43 の式から
+# 導かれる想定値であって、実測値ではない。
+#
+#   aws cognito-idp describe-resource-server \
+#     --user-pool-id <本番のプールID> --identifier <値>
+#
+# 1 文字違えば resource server が destroy/create され、発行済みクライアントの
+# スコープ付与が失われる (docs/23 §1.2)。
+resource_server_identifier = "CHANGEME-本番のAPI-GWエンドポイント/mcp"
+
+resource_server_name = "quick-mcp-poc-mcp"
+
+# ローカル開発用プール (terraform/cognito.tf:95-107)
+local_pool_domain_prefix              = "local-quick-mcp-poc-auth"
+local_pool_callback_urls              = ["http://localhost:3000/callback"]
+local_pool_resource_server_identifier = "http://localhost:8080/mcp"
+
+# --- DCR Lambda ---
+#
+# enable_dcr = false のため現状は未使用だが、世代マージ時にそのまま使える
+# よう playground と同じ値を置いている。
+lambda_source_dir = "../../../lambda/dist"
+
+lambda_runtime         = "nodejs22.x"
+dcr_authorizer_timeout = 5
+dcr_register_timeout   = 10
+
+dcr_deny_mode                           = "throw"
+dcr_require_audience_for_user_tokens    = "false"
+dcr_enforce_origin_verify               = "false"
+dcr_allowed_redirect_hosts              = "claude.ai,claude.com"
+dcr_default_token_endpoint_auth_method  = "none"
+dcr_max_clients                         = "200"
+dcr_max_registrations_per_ip_per_minute = "5"
+dcr_access_token_validity_minutes       = "60"
+dcr_apply_managed_login_branding        = "true"
+
+# --- API Gateway ---
+
+api_name                    = "quick-mcp-poc"
+apigw_access_log_group_name = "/quick-mcp-poc/apigw-access"
+
+register_throttle = {
+  burst = 5
+  rate  = 2
+}
+
+authorizer_ttl_seconds    = 0
+service_documentation_url = "https://github.com/primenumber-dev/quick-agentcore-poc"
+
+# --- エッジ (enable_edge_waf = false のため未使用) ---
+
+origin_verify_length = 48
+waf_mode             = "block"
+
+waf_managed_rule_groups = {
+  AWSManagedRulesAmazonIpReputationList = { priority = 20, mode = "block" }
+  AWSManagedRulesAnonymousIpList        = { priority = 21, mode = "count" }
+  AWSManagedRulesKnownBadInputsRuleSet  = { priority = 30, mode = "block" }
+  AWSManagedRulesCommonRuleSet          = { priority = 40, mode = "block" }
+  AWSManagedRulesSQLiRuleSet            = { priority = 50, mode = "block" }
+  AWSManagedRulesLinuxRuleSet           = { priority = 60, mode = "block" }
+  AWSManagedRulesUnixRuleSet            = { priority = 61, mode = "block" }
+}
+
+waf_common_rule_set_count_overrides = [
+  "SizeRestrictions_BODY",
+  "GenericRFI_BODY",
+  "NoUserAgent_HEADER",
+]
+
+waf_body_inspection_limit = "KB_64"
+waf_body_size_limit_bytes = 65536
+waf_geo_observe_countries = ["JP", "US"]
+cloudfront_price_class    = "PriceClass_200"
