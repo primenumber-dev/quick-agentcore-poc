@@ -3,7 +3,7 @@
 > **この章で分かること**
 > 前回セッションで何をどこまでやったか、次に何をすべきか、そして再開する上で最初につまずきそうな点(PATH、SSOトークン、サンドボックス制限)を先回りしてまとめる。次回セッションはまずこのファイルを読んでから作業を再開すること。
 >
-> **最新の状況(2026-09-16時点)は末尾の「21. フェーズ2(Terraform変数化・モジュール化)の実装とセッション終了」を先に読むこと。** §20 と §21 は別々のセッションが並行して進めた作業であり、**§20 の一部の記述は §21.1 で訂正している**。また **5コミットが未pushである点(§21.4)は再開時に最初に確認すること。** それより前の記述は過去時点の状態を含む(誤りではないが、一部は後続セクションで更新・訂正されている)。特に §18.4 の納品ブロッカー一覧は §19.2 で3件を訂正しており、以降は [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md) を正とする。**さらに、§19以前の本文中に残る`docs/NN-xxx.md`形式のリンクの一部は§20のリネームで`internal-`/`external-`が挿入されている(リンク自体は追随済みで切れていないが、ファイル名の見た目が変わっている点に注意)。**
+> **最新の状況(2026-09-16時点)は末尾の「21. フェーズ2(Terraform変数化・モジュール化)の実装とセッション終了」を先に読むこと。** §20 と §21 は別々のセッションが並行して進めた作業であり、**§20 の一部の記述は §21.1 で訂正している**。**5コミットは 2026-09-16 に push 済み(§21.4)。** それより前の記述は過去時点の状態を含む(誤りではないが、一部は後続セクションで更新・訂正されている)。特に §18.4 の納品ブロッカー一覧は §19.2 で3件を訂正しており、以降は [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md) を正とする。**さらに、§19以前の本文中に残る`docs/NN-xxx.md`形式のリンクの一部は§20のリネームで`internal-`/`external-`が挿入されている(リンク自体は追随済みで切れていないが、ファイル名の見た目が変わっている点に注意)。**
 
 ## 1. 状況サマリー
 
@@ -1208,7 +1208,7 @@ infra/
 | worktree | `/Users/mamoru.ishino/projects/quick-agentcore-poc` の**1つのみ**(別 worktree は存在しない) |
 | 作業ツリー | `infra/modules/secrets/`(untracked)のみ。他は clean |
 | stash | なし |
-| 上流ブランチ | **未設定** |
+| 上流ブランチ | `origin/feature/week6-terraform-modularization`(**push 済み**、ローカルと同一) |
 
 コミット履歴(新しい順、`main` から 5 つ先):
 
@@ -1221,16 +1221,16 @@ infra/
 | `6d4b89a` | 作業計画 `docs/23` と納品ブロッカー台帳の新規作成 | §21 側 |
 | `7693b1d` | (前セッション)main 集約の記録 | — |
 
-### 21.4 【最重要】4コミットが未push
+### 21.4 push 済み(2026-09-16 完了)
 
-**`main` から 5 つ先のコミットが、このマシンの worktree にしか存在しない。上流ブランチも未設定である。**
+ユーザーの指示により `git push -u origin feature/week6-terraform-modularization` を実行し、**5コミットすべてが `origin` に反映済み**。上流ブランチも設定済みで、ローカルとリモートの HEAD は一致している(未push 0件)。
 
-フェーズ2の成果(`infra/` 一式)も docs リネームも、すべてこの 5 コミットの中にある。worktree を失えば復元できない。
+セッション終了時点ではこれらのコミットがローカル worktree にしか存在せず、フェーズ2の成果(`infra/` 一式)も docs リネームも失われうる状態だったが、解消した。
 
-両セッションともユーザーから push の指示を受けていないため、**意図的に push していない**。次セッションの冒頭で、ユーザーに push の可否を確認することを推奨する。
+GitHub 上で PR を作成する場合はこちら。**PR はまだ作成していない。**
 
 ```
-git push -u origin feature/week6-terraform-modularization
+https://github.com/primenumber-dev/quick-agentcore-poc/pull/new/feature/week6-terraform-modularization
 ```
 
 なおこのリポジトリは **SSH 署名必須**で、署名鍵は `~/.ssh/id_ed25519_signing.pub` にある。サンドボックス既定では `~/.ssh` が遮断されるため `git commit` が
@@ -1274,7 +1274,6 @@ git push -u origin feature/week6-terraform-modularization
 
 - **A1 本番の401バグの共有(数週間滞留中)**。`fix/production-audience-config-proposal` は `main` にマージ済みだが、**本番担当者への共有は未実施**。Cognito が RFC 8707 の `resource` に対応と判明したため「修正案」と「`resource` 指定前提案」の両論提示が正確。なお `terraform/apigateway.tf:91-95` に当時の失敗記録がコメントで残っており、`infra/modules/api-gateway` へ移設済み
 - **A2 Claude Code / Claude.ai からの自己登録 E2E**。ブラウザ操作が必要で未実施
-- **4コミットの push 可否**(§21.4、新規)
 - **`infra/modules/secrets/` の削除可否**(§21.7-3)
 - **§20 のリネームが意図した変更か**(§21.1)
 - フェーズ3の playground 削除候補。**削除は必ず事前確認を取る**(trocco・PetStore 等と共用)
