@@ -3,7 +3,7 @@
 > **この章で分かること**
 > 前回セッションで何をどこまでやったか、次に何をすべきか、そして再開する上で最初につまずきそうな点(PATH、SSOトークン、サンドボックス制限)を先回りしてまとめる。次回セッションはまずこのファイルを読んでから作業を再開すること。
 >
-> **最新の状況(2026-09-16時点)は末尾の「20. docs命名のinternal/external化と納品ヒアリング準備」を先に読むこと。** それより前の記述は過去時点の状態を含む(誤りではないが、一部は後続セクションで更新・訂正されている)。特に §18.4 の納品ブロッカー一覧は §19.2 で3件を訂正しており、以降は [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md) を正とする。**さらに、§19以前の本文中に残る`docs/NN-xxx.md`形式のリンクの一部は§20のリネームで`internal-`/`external-`が挿入されている(リンク自体は追随済みで切れていないが、ファイル名の見た目が変わっている点に注意)。**
+> **最新の状況(2026-09-16時点)は末尾の「21. フェーズ2(Terraform変数化・モジュール化)の実装とセッション終了」を先に読むこと。** §20 と §21 は別々のセッションが並行して進めた作業であり、**§20 の一部の記述は §21.1 で訂正している**。また **5コミットが未pushである点(§21.4)は再開時に最初に確認すること。** それより前の記述は過去時点の状態を含む(誤りではないが、一部は後続セクションで更新・訂正されている)。特に §18.4 の納品ブロッカー一覧は §19.2 で3件を訂正しており、以降は [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md) を正とする。**さらに、§19以前の本文中に残る`docs/NN-xxx.md`形式のリンクの一部は§20のリネームで`internal-`/`external-`が挿入されている(リンク自体は追随済みで切れていないが、ファイル名の見た目が変わっている点に注意)。**
 
 ## 1. 状況サマリー
 
@@ -1159,3 +1159,130 @@ Week5レポート([22-internal-...](./22-internal-weekly-verification-report-wee
 
 - **「用語解説は対外版だけに付ける」という過去の暗黙の慣習は、内部版の読者(エンジニア以外のレビュアー含む)にとって不親切になりうる**。内部版でも、その回だけ登場する専門用語(RFC番号、AWSサービス固有語)は解説した方が良いというフィードバックを得た。今後の内部レポートでも、初出の専門用語が多い回は用語解説の追加を検討する
 - **ファイル名のリネームは「見た目の変更」で済まず、相互参照の全数更新とリンク切れチェックが必須**。今回は28ファイル+スクリプト9本に波及した。`git mv`後に機械的な文字列置換とリンク切れチェックのワンライナーを流す、という手順を踏まないと参照だけが古いまま残る
+
+---
+
+## 21. フェーズ2(Terraform変数化・モジュール化)の実装とセッション終了(2026-09-15〜16実施、Week6)
+
+> **このセクションが本ファイルの最新状態。**§19 の続きであり、§20 とは並行して別セッションで進んでいた作業である。§20 の一部の記述は本セクションで訂正する(§21.1)。
+
+### 21.1 §20 の記述の訂正
+
+§20 は執筆時点の認識で書かれており、その後の経緯で 3 点が事実と異なる状態になっている。
+
+| §20 の記述 | 実際 |
+|---|---|
+| 「本セッションでは意図的にコミットを行わず終了した」(§20.4 末尾) | **コミット済み**。`bbe7133 Rename docs to internal/external naming and add delivery hearing sheet` として確定している。§20.5-1 の「コミットするかどうかの確認」も対応不要 |
+| 「もう一方のセッション(quick-agentcore-poc-34)が**リポジトリ整理**として具体的に何をしているかは未確認のまま終了した」(§20.4-3) | もう一方のセッションが行っていたのは**リポジトリ整理ではなく、フェーズ2の Terraform 変数化・モジュール化**(本§21の内容)。両セッションは `SendMessage` で連絡を取り合い、作業範囲の切り分けと重複回避を確認済み |
+| 「同じ内容(docsリネーム等)を両セッションが別々にコミットしようとするとコンフリクトが発生する」(§20.4-4) | docs リネームに着手したのは §20 のセッションのみで、重複は発生しなかった。両セッションの成果はいずれも失われていない |
+
+**なお §20 のリネームは、§19 のセッションが書いた `docs/23` と `docs/fde/DELIVERY-BLOCKERS.md` の本文中リンクも書き換えている。** リンク切れは無いことを確認済みだが、意図した変更であるかはユーザー未確認のままである。
+
+### 21.2 実装したもの
+
+`infra/` を新設した。移行元 `terraform-playground-pattern4/` と `terraform/` は**一切変更していない**(ロールバック参照として残置)。
+
+```
+infra/
+  modules/        network parameters mcp-server-ecs auth dcr api-gateway edge-waf mcp-server-agentcore
+  environments/   playground primenumber quick   (main.tf / variables.tf / outputs.tf は3環境で同一)
+  scripts/        generate-moved.py
+  Makefile
+```
+
+詳細な設計判断と検証結果は [23-internal-weekly-verification-plan-week6.md](./23-internal-weekly-verification-plan-week6.md) と §19 にある。要点のみ再掲する。
+
+- **§19.3 の「循環参照は存在しない」を実測で確証した**。`terraform graph` で 109 辺・`Cycle:` エラー無し。引き継ぎメモが「最大の難所」としていた Cognito ⇄ API Gateway の循環は実在しなかった
+- **本物の循環は `random_password.origin_verify`** だった。環境ルートへ引き上げ、`moved` ブロックを書かないことで解消
+- **3環境で `main.tf` / `variables.tf` / `outputs.tf` を同一ファイルにした**。DB-01(本番相当が1世代古い)の原因は環境ごとに別の `.tf` を持っていたことなので、共有すれば同じドリフトが構造的に起きえなくなる。世代差は `enable_dcr` / `enable_edge_waf` / `enable_local_pool` の3トグルで表す
+- **`resource_suffix` をグローバルに適用してはならない**。接尾辞が付くのは `cognito.tf` / `dynamodb.tf` / `ssm.tf` の3ファイルだけ。一律に渡すと IAM ロール名・SG 名・TG 名が変わり **destroy/create** になる
+
+### 21.3 セッション終了時点の git 状態(2026-09-16)
+
+**次セッションはまずここを `git log` / `git status` で照合すること。**
+
+| 項目 | 状態 |
+|---|---|
+| ブランチ | `feature/week6-terraform-modularization` |
+| HEAD | 本§21を追記したコミット(`Close out the phase 2 session...`)。`main` から 5 つ先 |
+| worktree | `/Users/mamoru.ishino/projects/quick-agentcore-poc` の**1つのみ**(別 worktree は存在しない) |
+| 作業ツリー | `infra/modules/secrets/`(untracked)のみ。他は clean |
+| stash | なし |
+| 上流ブランチ | **未設定** |
+
+コミット履歴(新しい順、`main` から 5 つ先):
+
+| コミット | 内容 | セッション |
+|---|---|---|
+| (HEAD) | 本§21の追記(セッション終了の記録)。`Close out the phase 2 session and correct the section 20 record` | §21 側 |
+| `bbe7133` | docs の internal/external リネーム、納品ヒアリングシート追加 | §20 側 |
+| `c9627f7` | 引き継ぎメモ §19 と納品ブロッカー台帳の更新 | §21 側 |
+| `73db96e` | `infra/modules`(8モジュール)+ `infra/environments`(3環境)の新設 | §21 側 |
+| `6d4b89a` | 作業計画 `docs/23` と納品ブロッカー台帳の新規作成 | §21 側 |
+| `7693b1d` | (前セッション)main 集約の記録 | — |
+
+### 21.4 【最重要】4コミットが未push
+
+**`main` から 5 つ先のコミットが、このマシンの worktree にしか存在しない。上流ブランチも未設定である。**
+
+フェーズ2の成果(`infra/` 一式)も docs リネームも、すべてこの 5 コミットの中にある。worktree を失えば復元できない。
+
+両セッションともユーザーから push の指示を受けていないため、**意図的に push していない**。次セッションの冒頭で、ユーザーに push の可否を確認することを推奨する。
+
+```
+git push -u origin feature/week6-terraform-modularization
+```
+
+なおこのリポジトリは **SSH 署名必須**で、署名鍵は `~/.ssh/id_ed25519_signing.pub` にある。サンドボックス既定では `~/.ssh` が遮断されるため `git commit` が
+`Couldn't load public key ... No such file or directory` で失敗する。その場合はサンドボックスを外して実行する(§21.6 参照)。
+
+### 21.5 同一ブランチを複数セッションで触る場合の注意
+
+今回、2つのセッション(`quick-agentcore-poc-34` と `quick-agentcore-poc-b7`)が**同一ブランチ・同一 worktree**で並行作業した。得られた知見を残す。
+
+- **リスクは git のマージコンフリクトではない。** worktree が1つしかないので、そもそも merge は発生しない。実際のリスクは (a) 2セッションが同じファイルを同時に編集して片方が黙って消えること、(b) 片方が `git add` した直後にもう片方が commit して HEAD が動くこと、の2つである
+- **有効だったのは、ファイル単位で事前に「これから書く」と宣言すること。** 今回は `docs/00-handoff.md` を書く前に `SendMessage` で宣言し、相手から「完了連絡まで触らない」と返answer を得てから書いた
+- **`git status` の全量照合が出所特定に効いた。** 一方のセッションが「54件の未コミット変更は自分のものだ」と誤認していたが、`git log` で自分のコミットを特定し、それ以降の変更を「出所不明」として切り分けることで正しく訂正できた
+- **他セッションに、自分の権限で拒否された操作を代行させないこと。** 今回 `infra/modules/secrets/` の削除を一度依頼しかけたが撤回した。サンドボックスの deny はユーザーが設定した権限判断であり、別セッションに迂回させるのは筋が悪い。相手のユーザーが独立に判断するなら問題ないが、こちらからの依頼としては行わない
+- `ListAgents` で生存セッションを確認し、`SendMessage` の `from=` 属性をそのまま `to` に使えば返信できる
+
+### 21.6 サンドボックス制限(実際につまずいた点)
+
+| 事象 | 原因と対処 |
+|---|---|
+| `git commit` が `Couldn't load public key /Users/.../.ssh/id_ed25519_signing.pub` で失敗 | サンドボックスが `~/.ssh` を遮断。`dangerouslyDisableSandbox: true` で実行する |
+| `terraform validate` が全プロバイダで `Failed to read any lines from plugin's stdout` | サンドボックスがダウンロードしたプラグインバイナリの実行を阻む。同上 |
+| `infra/modules/secrets/` を読むことも消すこともできない | 権限規則が `./secrets` を認証情報ディレクトリとみなす。**Terraform モジュールを `secrets` という名前にしないこと**。今回は `parameters` に改名して回避した |
+| `terraform graph` が backend 初期化を要求 | スクラッチパッドに複製し、ローカル backend を override して実行した |
+
+### 21.7 次回セッションの着手順
+
+1. **`git log` / `git status` を §21.3 の表と照合する。** 一致しない場合、いきなり `git checkout` / `git stash` せず差分の由来を先に特定すること
+2. **push の可否をユーザーに確認する**(§21.4)。4コミットがローカルにしかない
+3. **`infra/modules/secrets/` の削除**。untracked・参照0件・`.terraform` キャッシュ参照0件で、中身は `parameters/` と機能的に等価であることを確認済み。削除して安全だが、判断はユーザー待ち
+4. **フェーズ2の残り: `terraform plan` の実行**。着手前に2つの前提作業がある
+   - **backend 用 S3 バケットの作成**(DB-05)。手順は `infra/environments/playground/backend.hcl` のコメントにある
+   - **`nat_ami_id` の固定**。`null` のままだと `data.aws_ami` が最新 AMI を拾い、NAT インスタンス2台の置き換えが提案されて受け入れ基準を満たせない
+   - 受け入れ基準は `0 to add, 0 to change, 0 to destroy`。例外は `aws_api_gateway_deployment.metadata` の1件のみ。`aws_cloudfront_distribution.edge` に `-/+` が出たら**即中断**
+   - `resource_server_identifier` が `terraform output` の値と一致することを**適用前に**確認する
+   - `terraform.tfvars` は `cp terraform.tfvars.example terraform.tfvars` で作る(`*.tfvars` は `.gitignore` 対象)
+5. **設計文書 F1〜F6**([docs/23 §5](./23-internal-weekly-verification-plan-week6.md))を `docs/fde/` へ。**F5(`WWW-Authenticate` / RFC 9728 の否定的知見)を最優先**
+6. **primenumber の `resource_server_identifier` の実測**。`terraform/` は一度も apply されておらず state が無いため、`terraform.tfvars.example` は `CHANGEME` のまま
+7. §20.5 の納品ヒアリング、フェーズ3〜6 は従来どおり
+
+### 21.8 人の判断待ち項目(**いずれも未解消のまま**)
+
+- **A1 本番の401バグの共有(数週間滞留中)**。`fix/production-audience-config-proposal` は `main` にマージ済みだが、**本番担当者への共有は未実施**。Cognito が RFC 8707 の `resource` に対応と判明したため「修正案」と「`resource` 指定前提案」の両論提示が正確。なお `terraform/apigateway.tf:91-95` に当時の失敗記録がコメントで残っており、`infra/modules/api-gateway` へ移設済み
+- **A2 Claude Code / Claude.ai からの自己登録 E2E**。ブラウザ操作が必要で未実施
+- **4コミットの push 可否**(§21.4、新規)
+- **`infra/modules/secrets/` の削除可否**(§21.7-3)
+- **§20 のリネームが意図した変更か**(§21.1)
+- フェーズ3の playground 削除候補。**削除は必ず事前確認を取る**(trocco・PetStore 等と共用)
+- B1〜B5、C1〜C3(§18.9)
+
+### 21.9 学び
+
+- **引き継ぎメモが名指しした「最大の難所」は、着手前に実コードで裏を取る価値がある。** §18.8 が挙げた循環参照は存在せず、根拠の行番号は1世代古いディレクトリのものだった。一方、本物の循環は指摘されていない別の場所にあった。半日の調査で、不要なカスタムドメイン先行導入を回避できた
+- **「〜が直書き」のようなブロッカー記述は、書かれた時点の事実でしかない。** DB-06 は別トラックで既に解消済みだったが、一覧はそれを知らないまま残っていた。台帳化して状態欄を持たせたのはこのため
+- **環境ごとに別の `.tf` を持つ構成は、ドリフトを「起こりうる」ではなく「いずれ必ず起きる」ものにする。** DB-01 はまさにそれが顕在化したものだった。構成ファイルを共有して差分を `tfvars` に閉じ込めれば、同じ失敗が構造的に不可能になる。バグを直すのではなく、バグを書けなくするのが正しい対処だった
+- **並行セッションでは、引き継ぎメモ自体が競合資源になる。** §20 は執筆時点では正しかったが、その後の経緯で 3 点が古くなった(§21.1)。メモは「誰が・いつ・何を確定したか」を書き、他セッションの動向は推測で書かないほうが安全である
