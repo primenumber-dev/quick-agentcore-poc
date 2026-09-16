@@ -1,7 +1,7 @@
 # 本番運用チェックリスト(WAF・DCR・運用): 継続更新用
 
 > この章で分かること
-> ECS(API Gateway)アーキテクチャで商用リモートMCPサーバーを本番運用するために、WAF・DCR(動的クライアント登録)・運用の3領域で満たすべき要件を固定IDで一覧化し、検証方法・現在の状態・証跡を1行ずつ管理する。単発の実機確認で終わらせず、terraform変更時・月次・MCP新版リリース時に同じ表を再評価する。要件の根拠と検証手順は[19-weekly-verification-plan-week5.md](./19-weekly-verification-plan-week5.md)に記載する。
+> ECS(API Gateway)アーキテクチャで商用リモートMCPサーバーを本番運用するために、WAF・DCR(動的クライアント登録)・運用の3領域で満たすべき要件を固定IDで一覧化し、検証方法・現在の状態・証跡を1行ずつ管理する。単発の実機確認で終わらせず、terraform変更時・月次・MCP新版リリース時に同じ表を再評価する。要件の根拠と検証手順は[19-internal-weekly-verification-plan-week5.md](./19-internal-weekly-verification-plan-week5.md)に記載する。
 
 作成日: 2026-09-10 | 対象: ECS + API Gateway構成(pattern4)のみ。AgentCore Runtimeは対象外(ホスティング方式として不採用、[00-handoff.md §16.1](./00-handoff.md))
 
@@ -41,7 +41,7 @@
 
 ## 2. WAF(`WAF-NN`)
 
-攻撃パターンID(A01〜A25)の詳細と注入方法は[19-weekly-verification-plan-week5.md §1.4](./19-weekly-verification-plan-week5.md)を参照。
+攻撃パターンID(A01〜A25)の詳細と注入方法は[19-internal-weekly-verification-plan-week5.md §1.4](./19-internal-weekly-verification-plan-week5.md)を参照。
 
 ### 2.1 保護範囲・配置
 
@@ -84,7 +84,7 @@
 
 ## 3. DCR(動的クライアント登録)と認可
 
-各行の現状(コード上の根拠)と修正方針は[19-weekly-verification-plan-week5.md §2](./19-weekly-verification-plan-week5.md)を参照。自動テストは`scripts/dcr_conformance_tests.py --id <ID>`。
+各行の現状(コード上の根拠)と修正方針は[19-internal-weekly-verification-plan-week5.md §2](./19-internal-weekly-verification-plan-week5.md)を参照。自動テストは`scripts/dcr_conformance_tests.py --id <ID>`。
 
 ### 3.1 RFC 7591(登録)
 
@@ -175,7 +175,7 @@
 
 ## 3.8 運用(`OPS-NN`)
 
-[21-commercial-remote-mcp-operations-research.md §6](./21-commercial-remote-mcp-operations-research.md)で提案した行。根拠はAgentCore Gatewayの標準挙動、AWS参照アーキテクチャ、MCP仕様、Anthropicコネクタ仕様。
+[21-internal-commercial-remote-mcp-operations-research.md §6](./21-internal-commercial-remote-mcp-operations-research.md)で提案した行。根拠はAgentCore Gatewayの標準挙動、AWS参照アーキテクチャ、MCP仕様、Anthropicコネクタ仕様。
 
 | ID | 要件 | 根拠 | 検証方法 | 重要度 | 状態 | 最終実施 | 証跡 |
 |---|---|---|---|---|---|---|---|

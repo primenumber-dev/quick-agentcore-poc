@@ -1,7 +1,7 @@
 # パターン4(API Gateway + ECS)稼働確認ログ
 
 > **この章で分かること**
-> パターン4(API Gateway + ECS)が既存本番相当アカウントで実際に稼働していることの確認記録。実クライアントデータへの影響を避けるための判断も記載する。構成図・比較は[01-architecture-comparison.md](./01-architecture-comparison.md)を参照。
+> パターン4(API Gateway + ECS)が既存本番相当アカウントで実際に稼働していることの確認記録。実クライアントデータへの影響を避けるための判断も記載する。構成図・比較は[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)を参照。
 
 検証日: 2026-08-17
 
@@ -34,5 +34,5 @@
 ## 所見
 
 - インフラ構成要素(VPC、ECS、ALB、API Gateway、Cognito、DynamoDB、KMS/SSM、NATインスタンス)はすべてTerraformでコード化済みで、`terraform/`配下の各`.tf`ファイルと一致する形で実際に稼働していることを確認できた。
-- 認証レイヤー(API GatewayのJWT Authorizer)がアプリケーションコードに到達する前段でブロックしている設計であり、パターン3(AgentCore Runtime単体)で確認した「アプリコード内(`extractSub`/`resolveAuthorization`)で認可する」設計とは責務の分界点が異なる(詳細は[01-architecture-comparison.md](./01-architecture-comparison.md)参照)。
+- 認証レイヤー(API GatewayのJWT Authorizer)がアプリケーションコードに到達する前段でブロックしている設計であり、パターン3(AgentCore Runtime単体)で確認した「アプリコード内(`extractSub`/`resolveAuthorization`)で認可する」設計とは責務の分界点が異なる(詳細は[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)参照)。
 - 完全なエンドツーエンド(Cognitoログイン→JWT取得→MCP tools/list実行)の疎通確認は、実クライアントデータへの影響を避けるため今回は実施していない。実施する場合は、明確にテスト用と分かるCognitoユーザーを新規作成し、対応するDynamoDBレコードを追加する必要がある(既存の`quick-mcp-poc-users`テーブル・User Poolへの書き込みが発生する)。

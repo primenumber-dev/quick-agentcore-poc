@@ -32,7 +32,7 @@
 | ブロッカー | メモの記述 | 実際 | 根拠 |
 |---|---|---|---|
 | 5 | 「**59リソース**の唯一のstateがディスク上にある」 | **75リソース**(managed 75 / instances 82、ほかdata source 12) | `terraform-playground-pattern4/terraform.tfstate`を直接パースして計数。`for_each`で2インスタンスを持つリソースが7つある(`aws_eip.nat`、`aws_instance.nat`、`aws_route_table.private`、`aws_route_table_association.private`/`.public`、`aws_subnet.private`/`.public`) |
-| 6 | 「アプリコードがDynamoDBテーブル名とリージョンを直書き(`server/src/db.ts:20`、`cli/src/db.ts:4`)」 | **ほぼ解消済み**。両ファイルとも `process.env.TABLE_NAME ?? "quick-mcp-poc-users"` になっており、Week5の[19-weekly-verification-plan-week5.md §2.1 F12](./19-weekly-verification-plan-week5.md)の対応が入っている | `server/src/db.ts:21`、`cli/src/db.ts:5`。残るリージョン直書きは`DYNAMODB_ENDPOINT_URL`分岐内のLocalStack専用箇所のみで無害 |
+| 6 | 「アプリコードがDynamoDBテーブル名とリージョンを直書き(`server/src/db.ts:20`、`cli/src/db.ts:4`)」 | **ほぼ解消済み**。両ファイルとも `process.env.TABLE_NAME ?? "quick-mcp-poc-users"` になっており、Week5の[19-internal-weekly-verification-plan-week5.md §2.1 F12](./19-internal-weekly-verification-plan-week5.md)の対応が入っている | `server/src/db.ts:21`、`cli/src/db.ts:5`。残るリージョン直書きは`DYNAMODB_ENDPOINT_URL`分岐内のLocalStack専用箇所のみで無害 |
 | 1 | 「統合方向は playground → terraform」 | 方向は正しいが**1箇所だけ例外**。`terraform/ssm.tf:20-72`の`for_each`マップ + `aws_kms_secrets`パターンはplayground(`ssm.tf:9-44`、個別宣言)より汎用で、`payload != ""`ガード(`terraform/ssm.tf:57,65`)がKMS再暗号化の二段階適用をそのまま支える | `secrets`モジュールのみ`terraform/`を正とする |
 
 ブロッカー6の残作業は「`??`フォールバックの除去」と「`ecspresso/app/ecs-task-def.json:26-31`への`TABLE_NAME`追加」の2点のみであり、フェーズ2の主要作業ではない。
@@ -76,7 +76,7 @@ flowchart LR
 循環回避のためではなく、**別の2つの理由**による。
 
 1. **`apply`前に値が確定しない**。identifierがAPI GatewayのURLから導出されるため、新規環境では「APIを作るまでidentifierが分からない」。`quick`環境の構築で実害が出る。
-2. **API再作成が資産を巻き込む**。execute-api IDが変わるとidentifierが変わり、`aws_cognito_resource_server`とそのスコープが連鎖再作成される。その結果、**発行済みDCRクライアントに付与されたスコープがすべて失われる**。[19-weekly-verification-plan-week5.md §1.1 D5](./19-weekly-verification-plan-week5.md)が「REST移行もCloudFront前置も登録済みDCRクライアントを全無効化する」と指摘した問題の、Terraform側の写像にあたる。
+2. **API再作成が資産を巻き込む**。execute-api IDが変わるとidentifierが変わり、`aws_cognito_resource_server`とそのスコープが連鎖再作成される。その結果、**発行済みDCRクライアントに付与されたスコープがすべて失われる**。[19-internal-weekly-verification-plan-week5.md §1.1 D5](./19-internal-weekly-verification-plan-week5.md)が「REST移行もCloudFront前置も登録済みDCRクライアントを全無効化する」と指摘した問題の、Terraform側の写像にあたる。
 
 Cognitoのresource server `identifier`は**不透明文字列**であり、URLとして解決されることはない。スコープ名(`${identifier}/invoke`、`cognito.tf:55`・`lambda.tf:71`)とメタデータ文書(`openapi.yaml:31,34,59,62`)にechoされるだけである。したがって**カスタムドメインの先行固定は不要**で、カスタムドメイン移行は後日tfvars 1行の変更として独立に実施できる。
 
@@ -108,7 +108,7 @@ resource "aws_cognito_resource_server" "mcp" {
 
 このリソースを`edge-waf`に置くと `edge-waf → dcr → api-gateway → edge-waf` の循環ができる。**環境ルートへ引き上げ**、両モジュールに入力として渡す。
 
-ルートでのアドレスが`random_password.origin_verify`のまま変わらないため`moved`ブロックは不要で、これが重要である。誤ってルートから消すとTerraformはdestroyを計画し、再作成でシークレットがローテートされる。稼働中のCloudFrontとLambda Authorizerの間に**値の不一致窓**が開き、[19-weekly-verification-plan-week5.md §1.3](./19-weekly-verification-plan-week5.md)のバイパス対策が一時的に全リクエストを弾く。
+ルートでのアドレスが`random_password.origin_verify`のまま変わらないため`moved`ブロックは不要で、これが重要である。誤ってルートから消すとTerraformはdestroyを計画し、再作成でシークレットがローテートされる。稼働中のCloudFrontとLambda Authorizerの間に**値の不一致窓**が開き、[19-internal-weekly-verification-plan-week5.md §1.3](./19-internal-weekly-verification-plan-week5.md)のバイパス対策が一時的に全リクエストを弾く。
 
 もう1件、`aws_lambda_permission`2件(`lambda.tf:89-95`、`:176-182`)が`aws_apigatewayv2_api.main.execution_arn`を参照する一方、`apigateway.tf:80,97`がLambdaの`invoke_arn`を参照している。Terraform 0.13以降はモジュールの変数・出力を個別のグラフノードとして扱うため実際には解決するが、レビュー不能な相互参照になる。**両permissionを`api-gateway`へ移す**。APIが**与える**権限であり置き場所として正しく、移動後`dcr → api-gateway`が一方向になる。
 
@@ -205,7 +205,7 @@ playgroundのソースを全文検索した結果、`-pattern4-verify`が付い�
 | `alb_ingress_cidrs` | `alb.tf:9`(`10.0.0.0/16`直書き) | `[var.vpc_cidr]`にする |
 | `dynamodb_table_arns` | `ecs.tf:84` と `ecs.tf:88` | リスト化。playgroundのみ2要素(Terraform管理テーブルと、実際に読まれるAgentCore検証用テーブルの両方をIAMで許可している回避策) |
 | `enable_dcr` / `edge-waf.enabled` | `apigateway.tf:94-103` / `cloudfront_waf.tf`全体 | `primenumber`は当初`false`で旧世代と差分ゼロにし、世代マージを意図的な別変更として切り出す(§5 F1) |
-| `body_size_limit_bytes` / `body_inspection_limit` | `cloudfront_waf.tf:138` / `:72` | `validation`ブロックで連動させる。`cloudfront_waf.tf:66`に記録されたUTF-8日本語長文の偽陽性([19-weekly-verification-plan-week5.md §1.9 新規発見2](./19-weekly-verification-plan-week5.md))は、この2つが片方だけ動くと再発する |
+| `body_size_limit_bytes` / `body_inspection_limit` | `cloudfront_waf.tf:138` / `:72` | `validation`ブロックで連動させる。`cloudfront_waf.tf:66`に記録されたUTF-8日本語長文の偽陽性([19-internal-weekly-verification-plan-week5.md §1.9 新規発見2](./19-internal-weekly-verification-plan-week5.md))は、この2つが片方だけ動くと再発する |
 
 ### 3.3 ルート`outputs`は互換契約
 
@@ -325,7 +325,7 @@ playground の`ssm_plaintext_parameters`はプレースホルダ値であり実 
 
 コード作業では解消できない。[00-handoff.md §18.9](./00-handoff.md)から継続。
 
-- **A1 本番401バグの共有(数週間滞留中)**。`fix/production-audience-config-proposal`は`main`にマージ済みだが、**本番担当者への共有が未実施**。Week5でCognitoがRFC 8707の`resource`パラメータに対応済みと判明したため、「修正案」と「`resource`指定を前提にする案」の両論を提示するのが正確([19-weekly-verification-plan-week5.md §2.5](./19-weekly-verification-plan-week5.md))。なお§1.1のとおり、`terraform/apigateway.tf:91-95`には当時の失敗がコメントとして残っており、世代マージの際にこの知見を失わないこと。
+- **A1 本番401バグの共有(数週間滞留中)**。`fix/production-audience-config-proposal`は`main`にマージ済みだが、**本番担当者への共有が未実施**。Week5でCognitoがRFC 8707の`resource`パラメータに対応済みと判明したため、「修正案」と「`resource`指定を前提にする案」の両論を提示するのが正確([19-internal-weekly-verification-plan-week5.md §2.5](./19-internal-weekly-verification-plan-week5.md))。なお§1.1のとおり、`terraform/apigateway.tf:91-95`には当時の失敗がコメントとして残っており、世代マージの際にこの知見を失わないこと。
 - **A2 Claude Code / Claude.aiからの自己登録E2E**。ブラウザ操作が必要で未実施。DCR修正が実接続で効いているかは未確定のまま。
 - **フェーズ3(playground整理)の削除候補**。playgroundはtrocco・PetStore等と**共用**のため`quick-mcp-poc*`に限定する。**削除は必ず事前確認を取る**。
 - B1〜B5、C1〜C3([00-handoff.md §18.9](./00-handoff.md))。

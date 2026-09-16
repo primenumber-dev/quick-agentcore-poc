@@ -8,7 +8,7 @@
 state を直接読んで全 managed リソースを列挙し、割り当て表と突き合わせる。
 割り当て漏れがあればエラーで停止するので、モジュール構成を変えたら
 ASSIGNMENT を更新すること。生成結果は必ず terraform plan で検証する
-(受け入れ基準は docs/23-weekly-verification-plan-week6.md §4 を参照)。
+(受け入れ基準は docs/23-internal-weekly-verification-plan-week6.md §4 を参照)。
 """
 
 import json
@@ -181,7 +181,7 @@ def main():
     print("# モジュール配下へ移り path.module が変わるため sha1 トリガが動く)。")
     print("# aws_cloudfront_distribution.edge に -/+ が出たら即中断すること。")
     print("#")
-    print("# 詳細: docs/23-weekly-verification-plan-week6.md §4")
+    print("# 詳細: docs/23-internal-weekly-verification-plan-week6.md §4")
     print("#")
     print("# 据え置き(moved ブロックを書かない): %s" % ", ".join(ROOT_RESOURCES))
 

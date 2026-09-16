@@ -1,4 +1,4 @@
-"""ハーネスの結果JSONから docs/20-production-readiness-checklist.md の状態列を更新する。
+"""ハーネスの結果JSONから docs/20-internal-production-readiness-checklist.md の状態列を更新する。
 
 docs/20 の各行は固定ID(WAF-10、7591-01 等)を持つ。本スクリプトは
 scripts/dcr_conformance_tests.py / scripts/waf_attack_tests.py の --report 出力を読み、
@@ -22,7 +22,7 @@ import json
 import re
 import sys
 
-CHECKLIST = "docs/20-production-readiness-checklist.md"
+CHECKLIST = "docs/20-internal-production-readiness-checklist.md"
 
 WAF_MAP = {
     "WAF-01": ["A02r", "A01t", "A05w", "A01a"],

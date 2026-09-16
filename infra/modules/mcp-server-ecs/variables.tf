@@ -63,7 +63,7 @@ variable "ssm_path_prefix" {
 
 variable "ssm_kms_key_arn" {
   type        = string
-  description = "SSM SecureString の復号に使うKMSキーのARN。secrets モジュールの kms_key_arn 出力を渡す。移行元: ecs.tf:116 の aws_kms_key.ssm.arn。"
+  description = "SSM SecureString の復号に使うKMSキーのARN。parameters モジュールの kms_key_arn 出力を渡す。移行元: ecs.tf:116 の aws_kms_key.ssm.arn。"
 }
 
 variable "region" {

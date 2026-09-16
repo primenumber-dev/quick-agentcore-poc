@@ -17,7 +17,7 @@
 | 2 | 現状とのギャップ | 本リポジトリのSDK(`@modelcontextprotocol/sdk` v1.29.0)は`2025-11-25`が最新対応バージョンで、v2の1つ前。SDK側はv1系からv2系への**メジャーバージョンアップ**(パッケージ自体が`@modelcontextprotocol/server`等に分割される)が必要 |
 | 3 | 【最重要】クライアントバージョンによらず使えるか | **SDK側は「両対応」をデフォルト方針としている**。新SDKの`createMcpHandler(factory)`は`legacy: 'stateless'`がデフォルトで、旧世代(`initialize`ハンドシェイクを使うクライアント)と新世代(`_meta`で自己申告するクライアント)を**同一エンドポイントで同時に処理**する設計。ただし「バージョンを上げるだけで自動的にこうなる」わけではなく、新APIサーフェス(`createMcpHandler`)への移行が前提 |
 | 4 | v2の主な変更点 | `initialize`/`initialized`ハンドシェイクの廃止、**`Mcp-Session-Id`ヘッダーがプロトコルのコア仕様から除外**(SEP-2567)、Multi Round-Trip Requests(MRTR)によるelicitation/sampling置き換え、Tasksが実験的機能から正式Extensionへ降格、DCRの位置づけ後退(Client ID Metadata Documentsを推奨) |
-| 5 | AgentCore Runtimeへの影響 | AWS側は既に追随済み。[AgentCore RuntimeのMCPプロトコル契約文書](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp-protocol-contract.html)は2026-07-28に明示的に言及しており、AgentCore Gatewayも`supportedVersions`に含めている。**ただしRuntimeが付与する`Mcp-Session-Id`(microVMスティッキー用、[08番§3](./08-weekly-verification-plan.md)で扱った仕組み)はMCP仕様のバージョンとは独立したRuntime層の挙動**であり、v2でプロトコルコアからセッションIDが無くなっても、AgentCore側の要求は変わらない見込み |
+| 5 | AgentCore Runtimeへの影響 | AWS側は既に追随済み。[AgentCore RuntimeのMCPプロトコル契約文書](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp-protocol-contract.html)は2026-07-28に明示的に言及しており、AgentCore Gatewayも`supportedVersions`に含めている。**ただしRuntimeが付与する`Mcp-Session-Id`(microVMスティッキー用、[08番§3](./08-internal-weekly-verification-plan.md)で扱った仕組み)はMCP仕様のバージョンとは独立したRuntime層の挙動**であり、v2でプロトコルコアからセッションIDが無くなっても、AgentCore側の要求は変わらない見込み |
 | 6 | 今すぐ移行すべきか | **v2は2026-07-28に仕様と同時に既にGA済み**(本調査時点の「ベータ版」という認識は誤りだった、訂正済み)。移行自体はメジャーな書き換え(`McpServer`/`StreamableHTTPServerTransport`の手組み実装→`createMcpHandler`)を伴うため、GA待ちではなく**移行プロジェクトとしての計画着手が可能な段階**にある |
 
 ---
@@ -87,7 +87,7 @@ AWS側は既にv2に追随している。[AgentCore RuntimeのMCPプロトコル
 
 AgentCore Gateway(別コンポーネント)も`supportedVersions`に`2026-07-28`を含めている([AWS公式ブログ](https://aws.amazon.com/blogs/machine-learning/how-agentcore-gateway-supports-the-mcp-2026-07-28-spec/))。
 
-**重要な点**: AgentCore Runtimeがプラットフォーム側で付与する`Mcp-Session-Id`([08番§3](./08-weekly-verification-plan.md)で扱ったmicroVMスティッキーのための仕組み)は、**MCP仕様のバージョンとは独立したRuntime層の挙動**である。AWS公式ドキュメントは「Runtimeは常にクライアントに`Mcp-Session-Id`ヘッダーを返す」「ステートレスサーバーはプラットフォームが付与するセッションIDを拒否せず受け入れなければならない」としており、これはステートレス/ステートフルいずれのモードでも変わらない。MCP仕様のコアから`Mcp-Session-Id`が除外されても、**AgentCore側の要求(このヘッダーを受け入れること)は変わらない見込み**である。
+**重要な点**: AgentCore Runtimeがプラットフォーム側で付与する`Mcp-Session-Id`([08番§3](./08-internal-weekly-verification-plan.md)で扱ったmicroVMスティッキーのための仕組み)は、**MCP仕様のバージョンとは独立したRuntime層の挙動**である。AWS公式ドキュメントは「Runtimeは常にクライアントに`Mcp-Session-Id`ヘッダーを返す」「ステートレスサーバーはプラットフォームが付与するセッションIDを拒否せず受け入れなければならない」としており、これはステートレス/ステートフルいずれのモードでも変わらない。MCP仕様のコアから`Mcp-Session-Id`が除外されても、**AgentCore側の要求(このヘッダーを受け入れること)は変わらない見込み**である。
 
 **結論: AgentCore Runtimeホスティングへのリスクは低い**。AgentCore側の対応も、TypeScript SDK v2自体も、共に準備が整っている。
 

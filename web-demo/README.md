@@ -11,10 +11,10 @@ playgroundアカウント(883660531246)にLambda Function URLとしてデプロ�
 ## 機能
 
 1. **疎通確認(OAuth PKCE)**: Cognitoでログインし、AgentCore Runtime(CloudFront+WAF経由)へ`tools/list`・`tools/call`を送る、既存の疎通検証機能
-2. **応答時間デモ**([16-weekly-verification-report-week3.md §1](../docs/16-weekly-verification-report-week3.md)): セッションID再利用の有無で応答時間がどう変わるかを、ログイン不要のボタン1つで実測・左右比較表示
-3. **DCRデモ**([15-ecs-production-readiness-gaps.md §1](../docs/15-ecs-production-readiness-gaps.md)): pattern4環境で自己登録→未承認403→承認→200→失効→403の一連の流れを実演。実行後にテスト用リソースを自動クリーンアップ
-4. **WAFデモ**([15-ecs-production-readiness-gaps.md §4](../docs/15-ecs-production-readiness-gaps.md)): 正常リクエスト・XSSパターン・SQLiパターンをCloudFront+WAFv2経由で送り、通過/遮断を実測
-5. **MCPプロトコルv2 SDKデモ**([12-mcp-protocol-v2-upgrade-impact.md §7](../docs/12-mcp-protocol-v2-upgrade-impact.md)): 現行デプロイ(v1 SDK)と`feature/mcp-protocol-v2-spike`ブランチのイメージを動かす専用Runtime(v2 SDK)の両方に、従来形式(initializeハンドシェイクを使う旧世代クライアント相当)・新形式(_metaエンベロープを使う新世代クライアント相当)のリクエストを送り、v1は新形式を拒否し、v2は両方に対応することを実測比較
+2. **応答時間デモ**([16-internal-weekly-verification-report-week3.md §1](../docs/16-internal-weekly-verification-report-week3.md)): セッションID再利用の有無で応答時間がどう変わるかを、ログイン不要のボタン1つで実測・左右比較表示
+3. **DCRデモ**([15-internal-ecs-production-readiness-gaps.md §1](../docs/15-internal-ecs-production-readiness-gaps.md)): pattern4環境で自己登録→未承認403→承認→200→失効→403の一連の流れを実演。実行後にテスト用リソースを自動クリーンアップ
+4. **WAFデモ**([15-internal-ecs-production-readiness-gaps.md §4](../docs/15-internal-ecs-production-readiness-gaps.md)): 正常リクエスト・XSSパターン・SQLiパターンをCloudFront+WAFv2経由で送り、通過/遮断を実測
+5. **MCPプロトコルv2 SDKデモ**([12-internal-mcp-protocol-v2-upgrade-impact.md §7](../docs/12-internal-mcp-protocol-v2-upgrade-impact.md)): 現行デプロイ(v1 SDK)と`feature/mcp-protocol-v2-spike`ブランチのイメージを動かす専用Runtime(v2 SDK)の両方に、従来形式(initializeハンドシェイクを使う旧世代クライアント相当)・新形式(_metaエンベロープを使う新世代クライアント相当)のリクエストを送り、v1は新形式を拒否し、v2は両方に対応することを実測比較
 
 ## デプロイに必要な環境変数
 

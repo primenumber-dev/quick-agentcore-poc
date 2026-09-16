@@ -4,7 +4,7 @@
 # --allow-file-access-from-files が必須(無いとCORSでモジュール読み込みに失敗する)。
 #
 # 使い方:
-#   ./scripts/render-pdf.sh docs/07-vpc-waf-cost-verification-client.md
+#   ./scripts/render-pdf.sh docs/07-external-vpc-waf-cost-verification.md
 #
 # 前提:
 #   - pandoc, Google Chrome がインストールされていること

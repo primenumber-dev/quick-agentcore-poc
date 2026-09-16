@@ -73,4 +73,4 @@ AIアシスタントとの接続に使う通信規格(MCP)には最新版が存�
 - 最新プロトコルへの正式移行判断
 - 応答時間の改善についての追加調査
 
-詳細な技術情報は、エンジニア向けレポート([16-weekly-verification-report-week3.md](./16-weekly-verification-report-week3.md))を参照。
+詳細な技術情報は、エンジニア向けレポート([16-internal-weekly-verification-report-week3.md](./16-internal-weekly-verification-report-week3.md))を参照。

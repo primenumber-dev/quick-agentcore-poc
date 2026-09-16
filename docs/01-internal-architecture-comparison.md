@@ -90,7 +90,7 @@ sequenceDiagram
 | コールドスタート/レイテンシ | △ リクエスト都度のライフサイクル管理が入る(要実測) | ◎ 常時1タスク起動で安定 |
 | 認証の柔軟性・成熟度 | △ Cognito Hosted UI等をそのまま使うには追加設定が必要 | ◎ 本番グレードのOAuthフローが既に稼働 |
 | 既存資産の再利用性 | △ 認証まわりは作り直しが必要 | ◎ 既存Terraform資産をそのまま使える |
-| コスト特性 | ◎ 実行中のみ課金(詳細は[02-cost-simulation.md](./02-cost-simulation.md)) | △ 常時起動コストが発生 |
+| コスト特性 | ◎ 実行中のみ課金(詳細は[02-internal-cost-simulation.md](./02-internal-cost-simulation.md)) | △ 常時起動コストが発生 |
 | スケーラビリティ | ◎ AWSマネージド(挙動は要検証) | △ Auto Scaling設定が別途必要 |
 | VPC内部リソースへのアクセス | △ 今回はPUBLICモード。VPCモードは別途構成が必要 | ◎ 既にVPC内、内部リソース接続が容易 |
 | ベンダーロックイン | △ AgentCore Runtime固有のAPI依存 | ◎ 標準的なECS/Fargateで移行性が高い |

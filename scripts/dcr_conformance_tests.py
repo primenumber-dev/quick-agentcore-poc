@@ -3,7 +3,7 @@ MCP Authorization 仕様に対する準拠性テスト。
 
 Claude Code / Claude.ai の内部挙動に依存せず、標準に沿った独立クライアントとして
 pattern4(ECS + API Gateway)のDCR実装を検査する。各テストは
-docs/20-production-readiness-checklist.md の固定ID(7591-01 等)に対応し、結果を
+docs/20-internal-production-readiness-checklist.md の固定ID(7591-01 等)に対応し、結果を
 チェックリストへ転記できるJSONで出力する。
 
 使い方:

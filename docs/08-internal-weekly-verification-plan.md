@@ -14,7 +14,7 @@
 | 1 | 【最優先】x-cognito-subヘッダーのなりすまし懸念 | `server/src/index.ts`の`extractSub()`は`x-cognito-sub`ヘッダーを常にBearerトークンより優先する。ECS経路(`terraform/apigateway.tf`)はAPI Gatewayが`overwrite:`でこのヘッダーを上書き保護しているが、**AgentCore Runtime経路には同等の保護がない**。もしAgentCoreがカスタムヘッダーを素通しするなら、有効なJWTを持つ利用者が他テナントの`sub`を騙れる可能性がある(§1、未検証・要最優先確認) |
 | 2 | DCR実装の見積もり | 当初3-5人日と見積もっていたが、現在のJWT Authorizerが動的なclient_idに対応できない構造的制約が判明し、**Lambda Authorizerへの置き換えが必須**。改訂見積もりは7-9人日(§2) |
 | 3 | 応答時間チューニングの真因 | AWS公式ドキュメントにより、AgentCore RuntimeはステートレスMCPサーバーでも`Mcp-Session-Id`によるmicroVMスティッキーロイティングに対応済みと判明。**サーバーのステートフル化(大改修)は不要**で、検証スクリプトがこのヘッダーを再送していないことが「毎回コールドスタート」という実測結果の説明として十分。まず安価な検証(Phase 0)から着手する(§3) |
-| 4 | コストシミュレーター設計 | 既存の`docs/02-cost-simulation.md`の数値を逆算したところ、ALB LCU・CloudFront平均レスポンスサイズという2つの未記載パラメータ、DynamoDB/Logsコストの非対称計上、損益分岐点の簡略化式という3点が判明。インタラクティブシミュレーターはこれらを踏まえて設計する(§4) |
+| 4 | コストシミュレーター設計 | 既存の`docs/02-internal-cost-simulation.md`の数値を逆算したところ、ALB LCU・CloudFront平均レスポンスサイズという2つの未記載パラメータ、DynamoDB/Logsコストの非対称計上、損益分岐点の簡略化式という3点が判明。インタラクティブシミュレーターはこれらを踏まえて設計する(§4) |
 
 ---
 
@@ -68,7 +68,7 @@ request_parameters = {
 
 **残タスク(優先度中、今回は未実施)**: `extractSub()`の「署名検証なしでJWTペイロードをbase64デコードするだけ」という実装は残っている。AgentCore Custom JWT Authorizerが検証済みのAuthorizationヘッダーをそのまま転送する前提であれば実害は無いはずだが、防御的多層化として、Cognito JWKSに対する実署名検証(`jose`等、`iss`/`aud`/`exp`/`token_use`を検証)への強化を今後のタスクとして記録する。
 
-**詳細レポート**: 発見の経緯・ECS経路との構造比較図・攻撃シナリオ図・実機での確証手順・修正の技術的根拠は[09-cross-tenant-impersonation-finding.md](./09-cross-tenant-impersonation-finding.md)に図解付きでまとめた。
+**詳細レポート**: 発見の経緯・ECS経路との構造比較図・攻撃シナリオ図・実機での確証手順・修正の技術的根拠は[09-internal-cross-tenant-impersonation-finding.md](./09-internal-cross-tenant-impersonation-finding.md)に図解付きでまとめた。
 
 ---
 
@@ -76,7 +76,7 @@ request_parameters = {
 
 [00-handoff.md §11・§12.1](./00-handoff.md)で選択肢B(Cognitoの手前に立つ自作DCR/CIMDプロキシ)を採用する方針が決まっていた。今回、実装可能な粒度まで設計を詰めたところ、当初の3-5人日という見積もりには含まれていなかった構造的な制約が見つかった。
 
-**実装対象について**: 以下の設計・実装はAgentCore Runtime(パターン3)ではなく、`terraform-playground-pattern4`(ECS+API Gateway、パターン4)を対象に行う。AgentCore Runtimeには`/register`を追加できるAPI Gateway相当の層が存在せず、認可方式(`allowedClients`固定リスト)もLambda Authorizerに差し替え不可能なため、現時点の仕様ではDCRを実装できない。詳細は[10-dcr-implementation.md §0](./10-dcr-implementation.md)を参照。
+**実装対象について**: 以下の設計・実装はAgentCore Runtime(パターン3)ではなく、`terraform-playground-pattern4`(ECS+API Gateway、パターン4)を対象に行う。AgentCore Runtimeには`/register`を追加できるAPI Gateway相当の層が存在せず、認可方式(`allowedClients`固定リスト)もLambda Authorizerに差し替え不可能なため、現時点の仕様ではDCRを実装できない。詳細は[10-internal-dcr-implementation.md §0](./10-internal-dcr-implementation.md)を参照。
 
 ### 2.1 見積もりを変えた発見: JWT Authorizerは動的client_idに対応できない
 
@@ -181,18 +181,18 @@ MVPでは**完全オープン**(Initial Access Token等でゲートしない)方
 - 登録したclient_credentialsクライアントによるMCP呼び出しのエンドツーエンド成功(自動プロビジョニング含む、確認済み)
 - DynamoDBの失効フラグによる個別クライアントの即時アクセス遮断(確認済み)
 
-詳細な実装経緯・詰まりどころ(JWT Authorizerの構造的制約、`-target`部分適用でのIAM権限漏れ、Cognito Managed Login UIの制約)は[10-dcr-implementation.md](./10-dcr-implementation.md)に図解付きでまとめた。
+詳細な実装経緯・詰まりどころ(JWT Authorizerの構造的制約、`-target`部分適用でのIAM権限漏れ、Cognito Managed Login UIの制約)は[10-internal-dcr-implementation.md](./10-internal-dcr-implementation.md)に図解付きでまとめた。
 
 **残タスク**: タスク7(Claude Code/Claude.aiからの実際の自己登録によるE2E確認。Managed Login UI v2がブラウザ操作前提のため簡易スクリプトでは代替できず未実施)、タスク8(セキュリティレビュー、2026-09-02実施・完了)、登録数上限の実装、本番相当`terraform/`への移植(書き込み禁止のため実際のapplyはユーザー判断)。
 
 ### 2.9 【最優先・次回検証項目】AgentCore RuntimeでもCognitoのままDCRが成立するかもしれない安価な仮説(2026-09-02追記)
 
-Auth0移行の検討中([11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md))に、次の2点が新たに判明した。いずれも実機未検証だが、Auth0移行(月額$800〜)よりはるかに安く検証できるため、次回セッションで最優先に試すべき項目。
+Auth0移行の検討中([11-internal-cognito-to-auth0-migration-estimate.md](./11-internal-cognito-to-auth0-migration-estimate.md))に、次の2点が新たに判明した。いずれも実機未検証だが、Auth0移行(月額$800〜)よりはるかに安く検証できるため、次回セッションで最優先に試すべき項目。
 
 1. **AgentCore Runtimeの`allowedClients`を外し、`allowedScopes`だけで運用できるか**: `CustomJWTAuthorizerConfiguration`は`allowedClients`/`allowedAudience`/`allowedScopes`のいずれか1つを指定すればよい仕様。Cognitoトークンは`aud`を持たないが`scope`は持つため、`allowedScopes: ["mcp/invoke"]`のみで運用できれば、DCRで動的作成したクライアントもRuntime設定変更なしに即座に信頼される可能性がある。検証方法: playgroundのRuntimeで`allowedClients`を外し`allowedScopes`のみの設定に更新し、未登録のCognitoクライアントが発行した(`mcp/invoke`スコープ付きの)トークンで`/invocations`が通るか確認する
 2. **pattern4をAPI Gateway REST API(v1)+ネイティブCognitoオーソライザーに置き換えられないか**: REST APIの`COGNITO_USER_POOLS`型オーソライザーは「許可するclient ID」指定が任意で、空にすればプール内の任意のクライアントを信頼する。これが確認できれば、今回自作したLambda Authorizerが不要になる(ただし`/register`をVTLマッピングテンプレートで実装する設計は、Lambdaより保守性で劣るというトレードオフがある)
 
-詳細な経緯は[10-dcr-implementation.md §0.5](./10-dcr-implementation.md)を参照。
+詳細な経緯は[10-internal-dcr-implementation.md §0.5](./10-internal-dcr-implementation.md)を参照。
 
 ---
 
@@ -208,7 +208,7 @@ AWS公式ドキュメント([MCP protocol contract](https://docs.aws.amazon.com/
 
 ### 3.2 副次的な発見: 既存の速度比較は非対称だった可能性
 
-[07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)の「AgentCoreはECSの約20倍遅い」という比較は、ECS側は正しくセッションを扱う実装で計測し、AgentCore側は検証スクリプトの不備で毎回コールドスタートさせて計測した、という**非対称な比較だった可能性がある**。Phase 0の結果次第では、この比較自体に注記が必要になる。
+[07-internal-vpc-waf-cost-verification.md §2.4](./07-internal-vpc-waf-cost-verification.md)の「AgentCoreはECSの約20倍遅い」という比較は、ECS側は正しくセッションを扱う実装で計測し、AgentCore側は検証スクリプトの不備で毎回コールドスタートさせて計測した、という**非対称な比較だった可能性がある**。Phase 0の結果次第では、この比較自体に注記が必要になる。
 
 ### 3.3 実施手順
 
@@ -242,7 +242,7 @@ AWS公式ドキュメント([MCP protocol contract](https://docs.aws.amazon.com/
 
 ### 4.1 設計時に判明した既存試算の隠れた前提
 
-[02-cost-simulation.md](./02-cost-simulation.md)の既存試算の数値を逆算したところ、次の3点が判明した。
+[02-internal-cost-simulation.md](./02-internal-cost-simulation.md)の既存試算の数値を逆算したところ、次の3点が判明した。
 
 1. **ALB LCU($6.50/月)とCloudFront平均レスポンスサイズ(5KB)という2つの未記載パラメータ**がないと、掲載されている数値(パターン4の約$46、VPC+WAF時の$0.0000094/req等)を再現できない。
 2. DynamoDB・CloudWatch Logsのコストが**パターン4にしか計上されておらず**、「両パターン共通」という本文の記述と実際の試算が食い違っている。

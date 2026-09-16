@@ -17,7 +17,7 @@
 | 2 | API GatewayへのWAF直接アタッチ / REST API移行の採否 | **判断完了: 移行しない**。REST移行の動機4つのうち「全ルート保護」「真のクライアントIP」はCloudFront + WAFで達成済み、「テナント別制限」はWAFレートベースで代替。残る`WWW-Authenticate`付与はCloudFront Functionsでは実現できないことが確定したが(401ではviewer-response関数が起動しない)、MCP 2026-07-28ではwell-known提供との択一MUSTのため仕様違反ではない。必要ならLambda@Edge origin-response(1〜2日)で追加する(§1.10) |
 | 3 | DCRのRFC 7591準拠性 | 現状は「RFC 7591の形をしたLambda簡易実装」。RFC 7592未実装、`scopes_supported`に必須の`invoke`スコープが無い、RTローテーション未設定、audience未検証、`CLIENT#`欠落時に許可するAuthorizer、期限切れトークンが403(Claudeは401でしかリフレッシュしない)、DCRクライアントにManaged Loginブランディングが適用されない疑い、など相互運用性・セキュリティ双方に修正が必要。**Claude Code / Claude.aiからの自己登録E2Eは一度も検証されていない**(§2) |
 | 4 | 前提を覆す事実 | CognitoはRFC 8707(`resource`パラメータ)に対応済みで、認可コードフローのアクセストークンに`aud`が付く。「Cognitoトークンに`aud`が無いのでaudience検証不可」というdocs/10以来の前提は崩れ、MCP仕様MUSTのaudience検証が実装可能。本番のJWT Authorizer `audience`設定の扱いも再考が必要(§2.1 F1、§2.5) |
-| 5 | チェックリスト化 | WAF・DCR・運用を同一スキーマ(要件 / 根拠 / 検証方法 / 状態 / 証跡)で[20-production-readiness-checklist.md](./20-production-readiness-checklist.md)に固定IDで登録し、自動テストの結果IDと1対1で対応させる。terraform変更時・月次・MCP新版時に再評価する(§3) |
+| 5 | チェックリスト化 | WAF・DCR・運用を同一スキーマ(要件 / 根拠 / 検証方法 / 状態 / 証跡)で[20-internal-production-readiness-checklist.md](./20-internal-production-readiness-checklist.md)に固定IDで登録し、自動テストの結果IDと1対1で対応させる。terraform変更時・月次・MCP新版時に再評価する(§3) |
 | 6 | 今週の進め方 | 合計見積約18人日で1週間に収まらないため、「主案(d)の実機成立」「REST採否の判断」「DCRのinterop-breaking解消とE2E成立」を必達とし、恒久運用(ログ保全・監視)とRFC 7592は翌週へ送る(§5) |
 
 ---
@@ -26,7 +26,7 @@
 
 ### 0.1 WAF
 
-[18-weekly-verification-report-week4.md §2](./18-weekly-verification-report-week4.md)で実施済みなのは「一時Web ACL(`AWSManagedRulesCommonRuleSet` + `AWSManagedRulesSQLiRuleSet`)をinternal ALBにアタッチし、`tools/call`のJSON-RPCボディに埋めたXSS・SQLiが403になること」のみ。Web ACLは削除済みで、`terraform/`・`terraform-playground-pattern4/`ともWAFリソースは存在しない。
+[18-internal-weekly-verification-report-week4.md §2](./18-internal-weekly-verification-report-week4.md)で実施済みなのは「一時Web ACL(`AWSManagedRulesCommonRuleSet` + `AWSManagedRulesSQLiRuleSet`)をinternal ALBにアタッチし、`tools/call`のJSON-RPCボディに埋めたXSS・SQLiが403になること」のみ。Web ACLは削除済みで、`terraform/`・`terraform-playground-pattern4/`ともWAFリソースは存在しない。
 
 ```mermaid
 flowchart LR
@@ -39,11 +39,11 @@ flowchart LR
 
 **図の解説**: 現行pattern4の経路。ALBを通るのは`/mcp`だけであり、DCR登録・トークン・認可・メタデータの4経路はLambda、Cognito、別のREST APIへ直行する。ALBにWAFをアタッチしても、これら未認証で到達できる経路は一切保護されない。`/.well-known`用にREST API(v1)がすでに1本稼働している点は、REST API化案の下地になる。
 
-その他の現状: `default_route_settings`なし、API Gateway / ALBのアクセスログなし、`/register`のみburst 5 / rate 2のスロットル(全呼び出し元で共有、IP単位ではない)。`AWSManagedRulesKnownBadInputsRuleSet`・レートベースルール・ボット対策・監視 / アラーム・ログ保全([05-security-compliance-verification.md §5](./05-security-compliance-verification.md)が求めるS3 + Object Lock)はすべて未着手。
+その他の現状: `default_route_settings`なし、API Gateway / ALBのアクセスログなし、`/register`のみburst 5 / rate 2のスロットル(全呼び出し元で共有、IP単位ではない)。`AWSManagedRulesKnownBadInputsRuleSet`・レートベースルール・ボット対策・監視 / アラーム・ログ保全([05-internal-security-compliance-verification.md §5](./05-internal-security-compliance-verification.md)が求めるS3 + Object Lock)はすべて未着手。
 
 ### 0.2 DCR
 
-実装は`lambda/src/register.ts`・`lambda/src/authorizer.ts`・`terraform-playground-pattern4/openapi.yaml`に閉じており、本番`terraform/`は今もJWT Authorizerで`/register`ルートを持たない。[10-dcr-implementation.md](./10-dcr-implementation.md)で確認済みなのは`client_credentials`経路のみで、Claude Code / Claude.aiからの実際の自己登録は未検証。詳細な準拠性ギャップは§2.2以降に記載する。
+実装は`lambda/src/register.ts`・`lambda/src/authorizer.ts`・`terraform-playground-pattern4/openapi.yaml`に閉じており、本番`terraform/`は今もJWT Authorizerで`/register`ルートを持たない。[10-internal-dcr-implementation.md](./10-internal-dcr-implementation.md)で確認済みなのは`client_credentials`経路のみで、Claude Code / Claude.aiからの実際の自己登録は未検証。詳細な準拠性ギャップは§2.2以降に記載する。
 
 ---
 
@@ -60,7 +60,7 @@ flowchart LR
 | D5 | API GatewayのURLはDCRの`issuer`・各エンドポイントそのもの。REST移行(execute-api ID変更)もCloudFront前置(ドメイン変更)も、登録済みDCRクライアントを全無効化する | どの案でもカスタムドメイン(ACM)を先に導入しissuerを固定する(+0.5〜1日、本番では必須) |
 | D6 | REST APIのみ、Lambda Authorizerが返す`usageIdentifierKey`とUsage Planでクライアント単位のスロットリング / クォータをネイティブに実現できる([API Gateway: Output from an Amazon API Gateway Lambda authorizer](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-lambda-authorizer-output.html))。リソースポリシー・PRIVATEエンドポイント(閉域網)もREST限定 | 未設計だった「テナント別レート制限」「閉域網」はREST採用でしか解けない。CloudFront主案ではWAFレートベース(`Authorization`ヘッダ集約キー)で代替する |
 | D7 | 現行HTTP APIも既にレスポンスをバッファしており(SSEは非ストリーミング)、REST移行で悪化するのは統合タイムアウト30秒→29秒程度 | 「29秒超の`tools/call`が実運用に存在するか」「SSE本文の処理」を検証項目に事前登録する |
-| D8 | REST移行時、`authorizer.ts`はIAMポリシー形式出力への書き換えが必要。`integration.request.header.x-cognito-sub`マッピングがクライアント送信の同名ヘッダを上書きするかは要確認([09-cross-tenant-impersonation-finding.md](./09-cross-tenant-impersonation-finding.md)の修正の退行リスク)。`server/src/index.ts`の`extractSub()`にJWT未検証デコードのフォールバックが残っている | なりすましヘッダ送信テストを必須化する。フォールバック削除はDCRチェックリスト(AUTHZ-03)へ |
+| D8 | REST移行時、`authorizer.ts`はIAMポリシー形式出力への書き換えが必要。`integration.request.header.x-cognito-sub`マッピングがクライアント送信の同名ヘッダを上書きするかは要確認([09-internal-cross-tenant-impersonation-finding.md](./09-internal-cross-tenant-impersonation-finding.md)の修正の退行リスク)。`server/src/index.ts`の`extractSub()`にJWT未検証デコードのフォールバックが残っている | なりすましヘッダ送信テストを必須化する。フォールバック削除はDCRチェックリスト(AUTHZ-03)へ |
 | D9 | `/authorize`はリダイレクト後にブラウザがCognitoドメインへ直接通信するため、API Gateway前段のWAFでは守れない | Cognito User Pool自体へのWAF([Cognito: Associate an AWS WAF web ACL with a user pool](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-waf.html))をどの案でも補完として導入する |
 | D10 | `.well-known`用の別REST API(mock統合)は本体REST APIに統合できる | REST採用時はコンポーネントが減り、WAF・ログ・ドメインが単一ステージで完結する |
 
@@ -128,7 +128,7 @@ REST APIスパイク(時間制限1.5日)で判定すること: WAFをステー�
 ### 1.5 恒久設計の骨子
 
 - **ルール構成(優先度順)**: 管理IP許可 → 許可メソッド外Block → `POST /mcp`は`application/json`必須 → ボディ64KB超Block(CommonRuleSetの`SizeRestrictions_BODY`はcount) → レートベース(IP) → レートベース(`Authorization`キー、`/mcp`) → レートベース(`/register`・`/token`低閾値) → IPReputation → AnonymousIP(`HostingProviderIPList`は恒久Count) → KnownBadInputs → CommonRuleSet → SQLi → Linux / Unix → Geo(Count)。Bot Controlは不採用。Cognito User Pool用Web ACLはCommonRuleSet + KnownBadInputs + レートベース + IPReputation。
-- **ログ**: WAF → CloudWatch Logs `aws-waf-logs-*`(90日、ECS / Lambdaと揃える)+ Firehose → S3(Object Lock、保持期間はFISC要件を要確認)。`Authorization`は`redacted_fields`で秘匿。API Gatewayアクセスログ・ECS / Lambdaログも同じS3経路へ送り、[05-security-compliance-verification.md §5](./05-security-compliance-verification.md)の「ログの改ざん防止・長期保存は未構成」を解消する。
+- **ログ**: WAF → CloudWatch Logs `aws-waf-logs-*`(90日、ECS / Lambdaと揃える)+ Firehose → S3(Object Lock、保持期間はFISC要件を要確認)。`Authorization`は`redacted_fields`で秘匿。API Gatewayアクセスログ・ECS / Lambdaログも同じS3経路へ送り、[05-internal-security-compliance-verification.md §5](./05-internal-security-compliance-verification.md)の「ログの改ざん防止・長期保存は未構成」を解消する。
 - **監視**: `BlockedRequests` / `CountedRequests` / 比率急変 / API Gateway 4XX・5XXのアラーム、SNS通知。ダッシュボード(ルール別、上位`clientIp`、`terminatingRuleId`)。
 - **運用**: 全ルールCountで2週間観測 → 誤検知ゼロのルールから順にBlock(terraformの`locals.mode`切替) → ハーネス再実行。例外はラベルベース`scope_down` + 例外台帳(ルール / 理由 / 承認者 / 期限)。月次Countレビュー、四半期ハーネス再実行、MCP新版時にA23更新。本番は`terraform plan`承認制。
 - terraformは`terraform-playground-pattern4/`と`terraform/`で同一ファイル名・内容を保ち、差分は`locals`(閾値・モード)のみにする。
@@ -152,7 +152,7 @@ W1〜W3・W5前半を実施した。証跡は[2026-09-13-waf-alb-count.json](./e
 
 **構築したもの(playground)**: CloudFrontディストリビューション(オリジン=現行HTTP API、CachingDisabled、AllViewerExceptHostHeader、`X-Origin-Verify`秘密ヘッダ付与)、CLOUDFRONTスコープのWeb ACL(us-east-1、マネージド7グループ+カスタム3ルール+レートベース3ルール+Geo観測)、WAFログ(CloudWatch Logs、`authorization`は秘匿)。攻撃ハーネス`scripts/waf_attack_tests.py`(45パターン)とWAFログ突合`scripts/waf_log_correlate.py`。
 
-**D2(ALBアタッチ時のIP集約)を事実として確定**: ALBにCountモードのWeb ACLをアタッチして観測したところ、WAFログの`httpRequest.clientIp`は**すべてVPC Link ENIのプライベートIP(10.0.11.94)**であり、真のクライアントIPは`forwarded`ヘッダにしか存在しなかった。IPベースのレート制限・Geo・IPレピュテーションは全クライアントを同一IPとして扱うため機能しない。CloudFront構成では`clientIp`が検証端末の公開IPとなり、Geoラベル(`awswaf:clientip:geo:country:JP`)も正しく付与された。**[18-weekly-verification-report-week4.md §2](./18-weekly-verification-report-week4.md)の「ALBにアタッチすれば対応可能」という結論は、ボディ検査に限れば正しいが、IP系ルールを含む恒久設計としては不十分である。**
+**D2(ALBアタッチ時のIP集約)を事実として確定**: ALBにCountモードのWeb ACLをアタッチして観測したところ、WAFログの`httpRequest.clientIp`は**すべてVPC Link ENIのプライベートIP(10.0.11.94)**であり、真のクライアントIPは`forwarded`ヘッダにしか存在しなかった。IPベースのレート制限・Geo・IPレピュテーションは全クライアントを同一IPとして扱うため機能しない。CloudFront構成では`clientIp`が検証端末の公開IPとなり、Geoラベル(`awswaf:clientip:geo:country:JP`)も正しく付与された。**[18-internal-weekly-verification-report-week4.md §2](./18-internal-weekly-verification-report-week4.md)の「ALBにアタッチすれば対応可能」という結論は、ボディ検査に限れば正しいが、IP系ルールを含む恒久設計としては不十分である。**
 
 **全ルート保護(WAF-01、S1)**: `/register`に埋めたSQLi(A02r)は`SQLi_BODY`で、`/token`に埋めたXSS(A01t)は`CrossSiteScripting_BODY`でBLOCKされた。ALBアタッチ構成ではこれらの経路はALBを通らないため保護できない。
 
@@ -208,7 +208,7 @@ viewer-responseのCloudFront Functionを作成し、401応答にヘッダを付�
 
 #### `WWW-Authenticate`欠落の実害の程度
 
-MCP 2026-07-28では、保護リソースメタデータの提供は「`WWW-Authenticate` **または** well-known URI」の択一MUSTであり、現状のwell-known提供で**仕様違反ではない**([21-commercial-remote-mcp-operations-research.md §4.2](./21-commercial-remote-mcp-operations-research.md))。Anthropicもwell-knownプローブ(`/.well-known/oauth-protected-resource/<path>` → ルート)をフォールバックとして文書化しており、今週ルートPRMを追加済みなので両方のプローブに応答できる。
+MCP 2026-07-28では、保護リソースメタデータの提供は「`WWW-Authenticate` **または** well-known URI」の択一MUSTであり、現状のwell-known提供で**仕様違反ではない**([21-internal-commercial-remote-mcp-operations-research.md §4.2](./21-internal-commercial-remote-mcp-operations-research.md))。Anthropicもwell-knownプローブ(`/.well-known/oauth-protected-resource/<path>` → ルート)をフォールバックとして文書化しており、今週ルートPRMを追加済みなので両方のプローブに応答できる。
 
 一方で、Anthropicは`WWW-Authenticate`を「最も確実な経路」とし、`scope`パラメータでクライアントが要求するスコープを制御できる唯一の手段でもある。AgentCore Gatewayもこれを標準装備している(§2.2)。したがって**仕様違反ではないが、相互運用性の信頼度を上げるために実装すべき推奨項目**と位置づけ、チェックリストの`OPS-01`として残す。
 
@@ -223,13 +223,13 @@ MCP 2026-07-28では、保護リソースメタデータの提供は「`WWW-Auth
 | ID | 結果 | 判定 |
 |---|---|---|
 | S1 | 主案(d)でA01〜A13・A16〜A18・A22が全ルート(`/mcp` `/register` `/token` `/authorize` `/.well-known`)で403、WAFログに対応ラベルが記録される | WAF配置としてCloudFront前置を本番推奨 |
-| S2 | WAFログ`clientIp`が検証端末の公開IPと一致(CloudFront / REST)。ALBアタッチ時はVPC Link ENIのIPと一致 | D2を事実として確定し、[18-weekly-verification-report-week4.md §2.4](./18-weekly-verification-report-week4.md)に訂正注記 |
+| S2 | WAFログ`clientIp`が検証端末の公開IPと一致(CloudFront / REST)。ALBアタッチ時はVPC Link ENIのIPと一致 | D2を事実として確定し、[18-internal-weekly-verification-report-week4.md §2.4](./18-internal-weekly-verification-report-week4.md)に訂正注記 |
 | S3 | A25正常系コーパス全件200(Blockモード)。誤検知は例外化で解消可能 | ルール構成を恒久化 |
 | S4 | A24でサーバーがAuthorizer由来のsubで認可判定する(ECSログ) | REST移行はなりすまし修正を退行させない(RESTスパイクの判定項目) |
 | S5 | 実ECSログの`tools/call`最大所要時間が29秒未満、SSE化応答をClaude Codeが処理する | REST採用可否の判定項目 |
 | S6 | Usage Planで特定DCRクライアントのみ429になる | テナント別レート制限をREST方式で実現できることの確認(RESTスパイク) |
 | S7 | カスタムドメイン経由でClaude CodeのDCR登録 → 認可 → `tools/call`が成立する | issuer固定方針(D5)の妥当性確認 |
-| S8 | WAFログがS3(Object Lock)に到達し、削除操作が拒否される(翌週) | [05-security-compliance-verification.md §5](./05-security-compliance-verification.md)の「改ざん防止未構成」を解消 |
+| S8 | WAFログがS3(Object Lock)に到達し、削除操作が拒否される(翌週) | [05-internal-security-compliance-verification.md §5](./05-internal-security-compliance-verification.md)の「改ざん防止未構成」を解消 |
 | S9 | `BlockedRequests`アラームがハーネス実行で発報する(翌週) | 監視設計の実効性 |
 | S10 | CloudFrontを経由しないexecute-api直アクセスが全ルートで401 / 403になる | バイパス対策の成立 |
 | S11 | Cloud Map変形でecspressoデプロイ中に5xx / 接続失敗が発生しない | 発生すればALB維持またはNLBへ |
@@ -247,7 +247,7 @@ AWS WAF(保護対象リソース、マネージドルール一覧、レートベ
 
 | # | 事実 | 影響 |
 |---|---|---|
-| F1 | CognitoはRFC 8707に対応済み。`/oauth2/authorize`の`resource`パラメータでアクセストークンに`aud`が付く(認可コードフローのみ、`client_credentials`は不可)([Cognito: Authorize endpoint](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html)) | 「Cognitoトークンに`aud`が無いのでaudience検証不可」という[10-dcr-implementation.md](./10-dcr-implementation.md)以来の前提が崩れる。MCP仕様MUSTのaudience検証を満たせる。本番のJWT Authorizer `audience`設定の扱いも再考(§2.5) |
+| F1 | CognitoはRFC 8707に対応済み。`/oauth2/authorize`の`resource`パラメータでアクセストークンに`aud`が付く(認可コードフローのみ、`client_credentials`は不可)([Cognito: Authorize endpoint](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html)) | 「Cognitoトークンに`aud`が無いのでaudience検証不可」という[10-internal-dcr-implementation.md](./10-internal-dcr-implementation.md)以来の前提が崩れる。MCP仕様MUSTのaudience検証を満たせる。本番のJWT Authorizer `audience`設定の扱いも再考(§2.5) |
 | F2 | MCP 2026-07-28でDCRは「非推奨、後方互換のためMAY」、CIMD(Client ID Metadata Documents)が「SHOULD」。クライアントの優先順位は事前登録 > CIMD > DCR([MCP: Client Registration](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)) | 現行(CIMD非広告)ではClaudeはDCRにフォールバックするため今後も使われる。長期投資判断に影響(§2.4-e) |
 | F3 | Claude Codeは自前のCIMDを持ち、ASが`client_id_metadata_document_supported: true`のときのみCIMDを使う。純粋な`client_credentials`(M2M)はClaude非対応([Anthropic: Authentication for connectors](https://claude.com/docs/connectors/building/authentication)) | これまでテスト済みの唯一の経路(`client_credentials`)はClaudeの経路ではない。未検証の認可コード経路こそが商用経路 |
 | F4 | Claudeの要求スコープは (1) 401の`WWW-Authenticate`の`scope`、(2) PRM(RFC 9728)の`scopes_supported`の順 | 本環境は双方無し。AS metadataの`openid email profile`が使われ`invoke`欠落で403になる可能性。E2Eの最重要観察点 |
@@ -262,7 +262,7 @@ AWS WAF(保護対象リソース、マネージドルール一覧、レートベ
 
 ### 2.2 現状実装の準拠性サマリー
 
-チェック項目の全行は[20-production-readiness-checklist.md §3](./20-production-readiness-checklist.md)に固定IDで登録した。仕様別の要点は次の通り。
+チェック項目の全行は[20-internal-production-readiness-checklist.md §3](./20-internal-production-readiness-checklist.md)に固定IDで登録した。仕様別の要点は次の通り。
 
 | 仕様 | 主要チェック項目と現状 |
 |---|---|
@@ -283,7 +283,7 @@ AWS WAF(保護対象リソース、マネージドルール一覧、レートベ
 
 **a. メタデータ・発見経路・ステータスコード**
 
-- issuer戦略: API Gatewayファサードをissuerとし、トークン`iss`との逸脱を文書化した上で`jwks_uri`にCognito JWKSを追加する(A案)。Cognito issuerを直接広告する案はCognito metadataに`registration_endpoint`が無くDCR不成立で不採用。カスタムドメイン(§1 D5)はA案と併用し本番必須。ファサードでトークンを再発行する案はスコープ外とし、[11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md)と並べて将来選択肢として記録する。RFC 9207リスクはconformance scriptで「Cognito認可レスポンスに`iss`が含まれるか」を監視する。
+- issuer戦略: API Gatewayファサードをissuerとし、トークン`iss`との逸脱を文書化した上で`jwks_uri`にCognito JWKSを追加する(A案)。Cognito issuerを直接広告する案はCognito metadataに`registration_endpoint`が無くDCR不成立で不採用。カスタムドメイン(§1 D5)はA案と併用し本番必須。ファサードでトークンを再発行する案はスコープ外とし、[11-internal-cognito-to-auth0-migration-estimate.md](./11-internal-cognito-to-auth0-migration-estimate.md)と並べて将来選択肢として記録する。RFC 9207リスクはconformance scriptで「Cognito認可レスポンスに`iss`が含まれるか」を監視する。
 - `scopes_supported`をAS metadata・PRM双方に`["openid", "<rs>/invoke"]`で追加。`openapi.yaml`に`RESOURCE_SERVER_IDENTIFIER`テンプレート変数を追加し`apigateway.tf`の`templatefile`へ渡す。
 - 401化: HTTP APIのまま`identity_sources`を外し、Lambdaから`{"errorMessage":"Unauthorized"}`を返して401にする手法を試す(`enable_simple_responses`との併用可否は要確認)。ヘッダ付与はHTTP APIでは不可のため、`WWW-Authenticate`はCloudFront Functions(§1 S12)またはREST移行で扱う。
 - audience検証: `authorizer.ts`で`aud`が存在すれば`RESOURCE_SERVER_IDENTIFIER`と一致必須、無ければ`client_credentials`トークンとみなし`client_id` + `CLIENT#`で従来通り(`aws-jwt-verify`の`customJwtCheck`利用可否は要確認)。
@@ -304,7 +304,7 @@ AWS WAF(保護対象リソース、マネージドルール一覧、レートベ
 | アクセスログ | `aws_apigatewayv2_stage.main`に`access_log_settings`(sourceIp、routeKey、status、authorizer.error)、90日 | 0.25 |
 | 未使用クライアント掃除 | 週次バッチの設計のみ(今週) | 0.5 |
 
-**e. CIMDストレッチ**: 今週は着手しない。`/authorize`に加え`/token`もLambda化してURL形式の`client_id`をCognito client_idへ写像する必要があり、[08-weekly-verification-plan.md §2.5](./08-weekly-verification-plan.md)の「+2〜3日」は+3〜4日に改訂する。DCR経路のE2E成立とClaudeの接続あたり登録数の実測を見てから判断する。商用ディレクトリ公開時は`oauth_anthropic_creds`(DCR / CIMD不要、クライアント増殖なし)が本命候補としてチェックリストに「方式選択」行(CL-07)を設けた。
+**e. CIMDストレッチ**: 今週は着手しない。`/authorize`に加え`/token`もLambda化してURL形式の`client_id`をCognito client_idへ写像する必要があり、[08-internal-weekly-verification-plan.md §2.5](./08-internal-weekly-verification-plan.md)の「+2〜3日」は+3〜4日に改訂する。DCR経路のE2E成立とClaudeの接続あたり登録数の実測を見てから判断する。商用ディレクトリ公開時は`oauth_anthropic_creds`(DCR / CIMD不要、クライアント増殖なし)が本命候補としてチェックリストに「方式選択」行(CL-07)を設けた。
 
 ### 2.5 本番`terraform/`移植の判断材料(§1のHTTP / REST判断と同じ表で決める)
 
@@ -357,7 +357,7 @@ sequenceDiagram
 
 | # | タスク | 主な変更ファイル | 人日 |
 |---|---|---|---|
-| D1 | チェックリスト初版(実施済み、[20-production-readiness-checklist.md](./20-production-readiness-checklist.md)) | `docs/20-production-readiness-checklist.md` | 0.5 |
+| D1 | チェックリスト初版(実施済み、[20-internal-production-readiness-checklist.md](./20-internal-production-readiness-checklist.md)) | `docs/20-internal-production-readiness-checklist.md` | 0.5 |
 | D2 | conformance script | `scripts/dcr_conformance_tests.py` | 1.5 |
 | D3 | 素の状態でE2E(Claude Code・Claude.ai)+ script、失敗証跡化 | `docs/evidence/` | 0.5 |
 | D4 | メタデータ修正(`scopes_supported`双方、`jwks_uri`、PRM補完、ルートPRM、`openid-configuration`ミラー) | `terraform-playground-pattern4/openapi.yaml`、`apigateway.tf` | 0.5 |
@@ -417,7 +417,7 @@ sequenceDiagram
 
 ## 3. 本番運用チェックリストの体系化
 
-[20-production-readiness-checklist.md](./20-production-readiness-checklist.md)を新設した。WAF(`WAF-NN`)・DCR(仕様番号 + 連番)・Authorizer / 運用(`AUTHZ-NN`、`OPS-NN`)を同一スキーマ(ID / 要件 / 根拠 / 検証方法 / 重要度 / 状態 / 最終実施 / 証跡)で並べ、自動テストの結果IDと1対1で対応させる。再評価のトリガーはterraform関連ファイル変更時・月次・四半期・MCP新版・Anthropicコネクタ仕様変更。例外は同ファイルの例外台帳に記録し、不合格・例外は[00-handoff.md](./00-handoff.md)にも転記する。
+[20-internal-production-readiness-checklist.md](./20-internal-production-readiness-checklist.md)を新設した。WAF(`WAF-NN`)・DCR(仕様番号 + 連番)・Authorizer / 運用(`AUTHZ-NN`、`OPS-NN`)を同一スキーマ(ID / 要件 / 根拠 / 検証方法 / 重要度 / 状態 / 最終実施 / 証跡)で並べ、自動テストの結果IDと1対1で対応させる。再評価のトリガーはterraform関連ファイル変更時・月次・四半期・MCP新版・Anthropicコネクタ仕様変更。例外は同ファイルの例外台帳に記録し、不合格・例外は[00-handoff.md](./00-handoff.md)にも転記する。
 
 ---
 
@@ -427,15 +427,15 @@ sequenceDiagram
 
 | 調査対象 | 見る観点 | 本プロジェクトへの持ち帰り |
 |---|---|---|
-| AgentCore Gateway「Inbound authorization」「Gateway security」 | Custom JWT authorizer設定(discoveryUrl / allowedClients / allowedScopes)、Gatewayが返すPRM / `WWW-Authenticate`の形、レート制限・クォータ、監査ログの粒度 | AWS自身がマネージドMCP入口で「何を必須にしているか」を、§2チェックリストの重要度判定の裏付けにする。[12-mcp-protocol-v2-upgrade-impact.md](./12-mcp-protocol-v2-upgrade-impact.md)にあるとおりGatewayはMCP 2026-07-28対応済みで、CIMD等への対応状況も確認 |
+| AgentCore Gateway「Inbound authorization」「Gateway security」 | Custom JWT authorizer設定(discoveryUrl / allowedClients / allowedScopes)、Gatewayが返すPRM / `WWW-Authenticate`の形、レート制限・クォータ、監査ログの粒度 | AWS自身がマネージドMCP入口で「何を必須にしているか」を、§2チェックリストの重要度判定の裏付けにする。[12-internal-mcp-protocol-v2-upgrade-impact.md](./12-internal-mcp-protocol-v2-upgrade-impact.md)にあるとおりGatewayはMCP 2026-07-28対応済みで、CIMD等への対応状況も確認 |
 | AgentCore Identity | OAuth 2.0クライアント / トークン保管、DCRの扱い、テナント別資格情報管理 | DCRクライアント台帳(`CLIENT#`)の設計比較 |
 | AWS Solutions「Guidance for Deploying MCP Servers on AWS」 | CloudFront + WAF + ALB + ECS Fargate + Cognitoの参照構成、WAFルール、ログ | §1主案(d)とほぼ同構成。ルール構成・ログ設計の一次参考 |
 | AWS Blog「Open Protocols for Agent Interoperability Part 2: Authentication on MCP」 | AWSのMCP認可に関する見解、Cognitoでの実装例 | §2.4-a issuer戦略・resource binding(F1)の裏付け |
 | AWS Prescriptive Guidance / Well-Architected Generative AI Lens(エージェントセキュリティ) | 多層防御、監査、テナント分離の推奨 | チェックリスト`OPS-NN`行の根拠 |
 | MCP仕様Security Best Practices、Anthropicコネクタ仕様(lazy auth、troubleshooting、egress IP) | confused deputy、token passthrough、セッションハイジャック対策、Anthropic egress IPの扱い | §1 A20 / A24、MCP-11の根拠、WAF許可リスト設計 |
-| 金融庁「金融分野におけるサイバーセキュリティに関するガイドライン(2024/10)」、FISC安全対策基準(AWSのFISCリファレンス) | WAF・ログ保全・アクセス制御の統制項番 | チェックリスト「根拠」列の項番を埋める([05-security-compliance-verification.md](./05-security-compliance-verification.md)で粗かった紐付けを精緻化) |
+| 金融庁「金融分野におけるサイバーセキュリティに関するガイドライン(2024/10)」、FISC安全対策基準(AWSのFISCリファレンス) | WAF・ログ保全・アクセス制御の統制項番 | チェックリスト「根拠」列の項番を埋める([05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)で粗かった紐付けを精緻化) |
 
-成果物: `docs/21-commercial-remote-mcp-operations-research.md`(比較表 + 現状との差分表 + チェックリストへ追加する行のリスト)。工数1.5日(机上、AWS書き込みなし)。
+成果物: `docs/21-internal-commercial-remote-mcp-operations-research.md`(比較表 + 現状との差分表 + チェックリストへ追加する行のリスト)。工数1.5日(机上、AWS書き込みなし)。
 
 ---
 

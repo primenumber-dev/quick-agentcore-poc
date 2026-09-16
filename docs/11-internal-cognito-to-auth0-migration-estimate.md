@@ -1,7 +1,7 @@
 # Cognito→Auth0移行の見積もり(DCR対応・AgentCore Runtimeホスティング維持のための検討)
 
 > この章で分かること
-> [10-dcr-implementation.md §0](./10-dcr-implementation.md)で判明した「AgentCore RuntimeでDCRが構造的に無理なのはCognitoが`aud`クレームを発行しない仕様のせいであり、DCR対応IdP(Auth0等)に乗り換えれば`allowedAudience`固定運用でRuntimeホスティングのままDCRが成立する可能性がある」という仮説について、実際に切り替える場合のコスト・アーキテクチャ変更・移行リスクを机上で見積もる。
+> [10-internal-dcr-implementation.md §0](./10-internal-dcr-implementation.md)で判明した「AgentCore RuntimeでDCRが構造的に無理なのはCognitoが`aud`クレームを発行しない仕様のせいであり、DCR対応IdP(Auth0等)に乗り換えれば`allowedAudience`固定運用でRuntimeホスティングのままDCRが成立する可能性がある」という仮説について、実際に切り替える場合のコスト・アーキテクチャ変更・移行リスクを机上で見積もる。
 
 作成日: 2026-08-31 | 検証方法: 机上調査(Web検索によるAuth0公式ドキュメント・料金・移行ガイドの確認。実機検証は未実施)
 
@@ -86,7 +86,7 @@ B2B Professionalプランは**エンタープライズSSO接続を5件まで**�
 
 ### 3.3 既存のコストシミュレーターへの影響
 
-このコストは[コストシミュレーター(Artifact)](https://claude.ai/code/artifact/8f9d8cfc-aec8-4eb2-8970-6e3e1947f8c3)や[02-cost-simulation.md](./02-cost-simulation.md)には未反映(いずれもCognitoを前提とした試算)。DCRを本格採用する場合は、月額$800〜のAuth0サブスクリプションを固定費に追加する形でモデルを更新する必要がある。
+このコストは[コストシミュレーター(Artifact)](https://claude.ai/code/artifact/8f9d8cfc-aec8-4eb2-8970-6e3e1947f8c3)や[02-internal-cost-simulation.md](./02-internal-cost-simulation.md)には未反映(いずれもCognitoを前提とした試算)。DCRを本格採用する場合は、月額$800〜のAuth0サブスクリプションを固定費に追加する形でモデルを更新する必要がある。
 
 ---
 
@@ -137,7 +137,7 @@ sequenceDiagram
 
 ## 5. エンジニアリング外の検討事項(要 法務・コンプライアンス確認)
 
-- **データレジデンシー**: Auth0(Okta社)のテナントリージョンは主に米国・EU・豪州。日本国内リージョンの提供有無・提供予定は本調査では未確認。FISC安全対策基準を意識する金融機関向けサービスとして、認証情報(パスワードハッシュ、メールアドレス等のPII)を国外SaaSに保持することの可否は、[05-security-compliance-verification.md](./05-security-compliance-verification.md)の文脈で改めて評価が必要
+- **データレジデンシー**: Auth0(Okta社)のテナントリージョンは主に米国・EU・豪州。日本国内リージョンの提供有無・提供予定は本調査では未確認。FISC安全対策基準を意識する金融機関向けサービスとして、認証情報(パスワードハッシュ、メールアドレス等のPII)を国外SaaSに保持することの可否は、[05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)の文脈で改めて評価が必要
 - **契約・DPA**: Okta/Auth0とのデータ処理契約(DPA)、SOC2/ISO27001等の認証取得状況の確認
 - **ベンダーロックイン**: Cognito(AWSアカウント内で完結)からAuth0(サードパーティSaaS)への移行は、認証基盤を自社AWSアカウントの管理境界の外に置くという、アーキテクチャ上のトレードオフを伴う
 
@@ -151,9 +151,9 @@ sequenceDiagram
 2. **データレジデンシー・コンプライアンス上の懸念がクリアできるか**(§5、法務確認が必要)
 3. **本番41ユーザーの移行リスクを許容できるか**(§4.4)
 
-これらがクリアできない場合の代替案は、[08-weekly-verification-plan.md §2.5](./08-weekly-verification-plan.md)で触れた「選択肢A: `oauth_anthropic_creds`」(個別コネクタとして展開し、DCR自体を不要にする)、または現状のCognito+自前DCR実装(今回`terraform-playground-pattern4`で構築したもの)をECS+API Gateway経路限定で採用し、AgentCore Runtimeは非DCRの静的クライアント運用に留める、という切り分けである。
+これらがクリアできない場合の代替案は、[08-internal-weekly-verification-plan.md §2.5](./08-internal-weekly-verification-plan.md)で触れた「選択肢A: `oauth_anthropic_creds`」(個別コネクタとして展開し、DCR自体を不要にする)、または現状のCognito+自前DCR実装(今回`terraform-playground-pattern4`で構築したもの)をECS+API Gateway経路限定で採用し、AgentCore Runtimeは非DCRの静的クライアント運用に留める、という切り分けである。
 
-**【2026-09-02追記・次回優先確認】より安価な代替仮説**: 本ドキュメントの検討中に、Auth0移行より遥かに安く済む可能性のある仮説が新たに見つかった。AgentCore Runtimeの認可設定は`allowedClients`を完全に外し、Cognitoトークンが持つ`scope`クレームのみ(`allowedScopes`)で運用できる可能性がある。これが機能すれば、Cognitoを維持したままDCRがpattern3(AgentCore Runtime)でも成立し、本ドキュメントの月額$800〜という追加コスト自体が不要になる。**Auth0移行の実施判断は、この仮説をplaygroundで実機検証してから行うことを強く推奨する**(詳細は[10-dcr-implementation.md §0.5](./10-dcr-implementation.md))。
+**【2026-09-02追記・次回優先確認】より安価な代替仮説**: 本ドキュメントの検討中に、Auth0移行より遥かに安く済む可能性のある仮説が新たに見つかった。AgentCore Runtimeの認可設定は`allowedClients`を完全に外し、Cognitoトークンが持つ`scope`クレームのみ(`allowedScopes`)で運用できる可能性がある。これが機能すれば、Cognitoを維持したままDCRがpattern3(AgentCore Runtime)でも成立し、本ドキュメントの月額$800〜という追加コスト自体が不要になる。**Auth0移行の実施判断は、この仮説をplaygroundで実機検証してから行うことを強く推奨する**(詳細は[10-internal-dcr-implementation.md §0.5](./10-internal-dcr-implementation.md))。
 
 Sources:
 - [Configure inbound JWT authorizer](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html)

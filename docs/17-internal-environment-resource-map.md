@@ -91,7 +91,7 @@
 各リソースの詳細な検証経緯・実装判断は以下を参照。
 
 - 全体の引き継ぎ状況: [00-handoff.md](./00-handoff.md)(セッションをまたいだ最新の状況はこのファイルの末尾セクションを参照)
-- MCPプロトコルv2 SDKの実機検証結果: [12-mcp-protocol-v2-upgrade-impact.md §7](./12-mcp-protocol-v2-upgrade-impact.md)
+- MCPプロトコルv2 SDKの実機検証結果: [12-internal-mcp-protocol-v2-upgrade-impact.md §7](./12-internal-mcp-protocol-v2-upgrade-impact.md)
 - 応答時間チューニング・ECS本番化課題・今週の週次レポートは、本ブランチ(`feature/web-demo-verification-panels`)には未マージの`latency-tuning/session-id-reuse`ブランチにドキュメント(15番・16番)として存在する。mainマージ後にリンクを追記する
 - web-demoアプリ自体の詳細(機能一覧・環境変数・デプロイ手順): [web-demo/README.md](../web-demo/README.md)
 

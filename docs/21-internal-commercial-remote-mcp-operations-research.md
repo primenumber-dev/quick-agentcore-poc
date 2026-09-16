@@ -1,11 +1,11 @@
 # 商用リモートMCPサーバーの本番運用に向けた調査(AgentCore Gateway等の参考事例を含む)
 
 > この章で分かること
-> 金融機関向けに外販するリモートMCPサーバーを本番運用するにあたり、AWSがマネージドサービス(AgentCore Gateway)や参照アーキテクチャ(MCP Servers on AWS Guidance)で「MCPの入口」に何を必須としているか、MCP仕様(2026-07-28)とAnthropicコネクタ仕様が運用者に何を求めているかを公式資料から整理する。その上で本プロジェクトのECS + API Gateway構成との差分を洗い出し、[20-production-readiness-checklist.md](./20-production-readiness-checklist.md)へ追加すべき運用要件(`OPS-NN`)を提案する。
+> 金融機関向けに外販するリモートMCPサーバーを本番運用するにあたり、AWSがマネージドサービス(AgentCore Gateway)や参照アーキテクチャ(MCP Servers on AWS Guidance)で「MCPの入口」に何を必須としているか、MCP仕様(2026-07-28)とAnthropicコネクタ仕様が運用者に何を求めているかを公式資料から整理する。その上で本プロジェクトのECS + API Gateway構成との差分を洗い出し、[20-internal-production-readiness-checklist.md](./20-internal-production-readiness-checklist.md)へ追加すべき運用要件(`OPS-NN`)を提案する。
 
 作成日: 2026-09-13 | 実施方法: 机上調査(AWS公式ドキュメント、MCP仕様、Anthropicコネクタ仕様、AWSのFISC公開資料。AWSへの書き込みなし)
 
-**本調査の位置づけ**: AgentCore Gateway / Identity等のAWS AIサービスは、DCR・WAF・運用設計のベストプラクティスの**参考事例としてのみ**参照する。AgentCore Runtimeを含むホスティング方式の再検討ではない。本番アーキテクチャはECS + API Gatewayで確定している([19-weekly-verification-plan-week5.md](./19-weekly-verification-plan-week5.md)、[00-handoff.md §16.1](./00-handoff.md))。
+**本調査の位置づけ**: AgentCore Gateway / Identity等のAWS AIサービスは、DCR・WAF・運用設計のベストプラクティスの**参考事例としてのみ**参照する。AgentCore Runtimeを含むホスティング方式の再検討ではない。本番アーキテクチャはECS + API Gatewayで確定している([19-internal-weekly-verification-plan-week5.md](./19-internal-weekly-verification-plan-week5.md)、[00-handoff.md §16.1](./00-handoff.md))。
 
 ---
 
@@ -61,11 +61,11 @@
 - **403 Forbidden**(トークン有効だがスコープ不足): `WWW-Authenticate`に`error="insufficient_scope"`、`scope`、`resource_metadata`を含む。
 - `resource_metadata`は`/.well-known/oauth-protected-resource`のOAuth Protected Resource Metadata([RFC 9728](https://www.rfc-editor.org/rfc/rfc9728))を指す。
 
-本プロジェクトの現状は、401は返せるようになった(週5、`DENY_MODE=throw`)が`WWW-Authenticate`を付与できず、スコープ不足も401で返している。HTTP API(v2)のLambda Authorizerではヘッダ付与も401 / 403の使い分けもできないため、[19-weekly-verification-plan-week5.md §1.3](./19-weekly-verification-plan-week5.md)のCloudFront Functions(S12)またはREST API移行(Gateway Responses)が解決経路になる。AWSのマネージド入口が「標準装備」にしている以上、商用サービスとしても揃えるべき項目と判断する(§6 OPS-01 / OPS-02)。
+本プロジェクトの現状は、401は返せるようになった(週5、`DENY_MODE=throw`)が`WWW-Authenticate`を付与できず、スコープ不足も401で返している。HTTP API(v2)のLambda Authorizerではヘッダ付与も401 / 403の使い分けもできないため、[19-internal-weekly-verification-plan-week5.md §1.3](./19-internal-weekly-verification-plan-week5.md)のCloudFront Functions(S12)またはREST API移行(Gateway Responses)が解決経路になる。AWSのマネージド入口が「標準装備」にしている以上、商用サービスとしても揃えるべき項目と判断する(§6 OPS-01 / OPS-02)。
 
 ### 2.3 MCP 2026-07-28への対応で入口に求められること
 
-[How AgentCore Gateway supports the MCP 2026-07-28 spec](https://aws.amazon.com/blogs/machine-learning/how-agentcore-gateway-supports-the-mcp-2026-07-28-spec/)では、Gatewayが複数プロトコル版を同時に受け付け、クライアントは`MCP-Protocol-Version`ヘッダで版を選ぶ。未対応版は`HTTP 400`とJSON-RPCコード`-32022`で拒否し、`Mcp-Method` / `Mcp-Name`ヘッダとボディの不一致は`-32020`で拒否する。認可は「プロトコル版に依存せず不変」と明記されている。本プロジェクトのv2 SDK検証([12-mcp-protocol-v2-upgrade-impact.md](./12-mcp-protocol-v2-upgrade-impact.md))とも整合し、WAFのカスタムルールで`MCP-Protocol-Version`の許可版数を持つ場合(A23)は新版リリース時の更新手順が必要になる。
+[How AgentCore Gateway supports the MCP 2026-07-28 spec](https://aws.amazon.com/blogs/machine-learning/how-agentcore-gateway-supports-the-mcp-2026-07-28-spec/)では、Gatewayが複数プロトコル版を同時に受け付け、クライアントは`MCP-Protocol-Version`ヘッダで版を選ぶ。未対応版は`HTTP 400`とJSON-RPCコード`-32022`で拒否し、`Mcp-Method` / `Mcp-Name`ヘッダとボディの不一致は`-32020`で拒否する。認可は「プロトコル版に依存せず不変」と明記されている。本プロジェクトのv2 SDK検証([12-internal-mcp-protocol-v2-upgrade-impact.md](./12-internal-mcp-protocol-v2-upgrade-impact.md))とも整合し、WAFのカスタムルールで`MCP-Protocol-Version`の許可版数を持つ場合(A23)は新版リリース時の更新手順が必要になる。
 
 ### 2.4 監査ログ
 
@@ -85,13 +85,13 @@ JWT認可を使うとJWTの一部クレーム(Subject)がCloudTrailに記録さ�
 4. WAFは「一般的なWeb攻撃の防御と、DDoS対策としての**レート制限**」を含むと明記。
 5. ログはCloudWatch Logsに集約し保持期間を設定。設定はParameter Store、秘密情報はSecrets Manager。
 
-本プロジェクトの主案(d)「CloudFront + WAF → HTTP API → VPC Link → ALB → ECS」はこれと同型であり、週5の選択([19-weekly-verification-plan-week5.md §1.3](./19-weekly-verification-plan-week5.md))はAWSの参照構成に沿っている。
+本プロジェクトの主案(d)「CloudFront + WAF → HTTP API → VPC Link → ALB → ECS」はこれと同型であり、週5の選択([19-internal-weekly-verification-plan-week5.md §1.3](./19-internal-weekly-verification-plan-week5.md))はAWSの参照構成に沿っている。
 
 ### 3.2 差分と持ち帰り
 
 | 観点 | 参照実装 | 本プロジェクト | 持ち帰り |
 |---|---|---|---|
-| 認可サーバー | 独自(MAS)がCognitoトークンを自前トークンに交換。issuerを自ドメインに揃えられる | API Gatewayファサード(メタデータ)+ Cognito発行トークン。issuer不一致を文書化で許容 | issuer完全一致が必要になった場合の実装例として参照(D案、[19番 §2.4-a](./19-weekly-verification-plan-week5.md)) |
+| 認可サーバー | 独自(MAS)がCognitoトークンを自前トークンに交換。issuerを自ドメインに揃えられる | API Gatewayファサード(メタデータ)+ Cognito発行トークン。issuer不一致を文書化で許容 | issuer完全一致が必要になった場合の実装例として参照(D案、[19番 §2.4-a](./19-internal-weekly-verification-plan-week5.md)) |
 | DCR | 記載なし(要確認) | Lambdaで実装 | 参照実装のDCR有無はGitHubで要確認 |
 | オリジン保護 | 公開資料に明記なし(要確認) | `X-Origin-Verify`秘密ヘッダ(観測モード) | 秘密ヘッダのSecrets Manager管理・ローテーションを恒久設計へ(OPS-04) |
 | WAFルール | 「一般的な攻撃」+「レート制限」 | マネージド7グループ + カスタム(メソッド、64KB超、JSON-RPCバッチ、レート×3) | 参照実装より細粒度。誤検知運用(Count → Block)が必要 |
@@ -140,9 +140,9 @@ JWT認可を使うとJWTの一部クレーム(Subject)がCloudTrailに記録さ�
 
 ## 5. 金融機関向け統制との対応(FISC / 金融庁ガイドライン)
 
-[AWSのFISCコンプライアンスページ](https://aws.amazon.com/compliance/fisc/)は、FISC安全対策基準・解説書**第14版**に対応する日本語の参照資料と「リスクとコンプライアンス」ホワイトペーパーを提供し、統制・運用・設備・監査の4観点のうち顧客側の実装責任範囲を責任共有モデルで切り分けるよう求めている。条文番号レベルでの対応表は同参照資料(PDF)の精読が必要で、本調査では未実施(要確認)。[05-security-compliance-verification.md](./05-security-compliance-verification.md)で触れた金融庁「金融分野におけるサイバーセキュリティに関するガイドライン」(2024年10月)との二重の目線も、条文の紐付けは同様に要確認とする。
+[AWSのFISCコンプライアンスページ](https://aws.amazon.com/compliance/fisc/)は、FISC安全対策基準・解説書**第14版**に対応する日本語の参照資料と「リスクとコンプライアンス」ホワイトペーパーを提供し、統制・運用・設備・監査の4観点のうち顧客側の実装責任範囲を責任共有モデルで切り分けるよう求めている。条文番号レベルでの対応表は同参照資料(PDF)の精読が必要で、本調査では未実施(要確認)。[05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)で触れた金融庁「金融分野におけるサイバーセキュリティに関するガイドライン」(2024年10月)との二重の目線も、条文の紐付けは同様に要確認とする。
 
-本プロジェクトの範囲で顧客側統制に該当するものは、(1)ネットワーク層の攻撃防御(WAF)、(2)アクセス制御(OAuth / 認可 / テナント承認)、(3)ログの取得・保全・改ざん防止(WAFログ・API Gatewayアクセスログ・Lambda / ECSログのS3 Object Lock)、(4)変更管理(terraform plan承認制、Count → Blockの段階運用)の4つであり、[20-production-readiness-checklist.md](./20-production-readiness-checklist.md)の「根拠」列に第14版の項番を埋める作業を翌週以降のタスクとする。
+本プロジェクトの範囲で顧客側統制に該当するものは、(1)ネットワーク層の攻撃防御(WAF)、(2)アクセス制御(OAuth / 認可 / テナント承認)、(3)ログの取得・保全・改ざん防止(WAFログ・API Gatewayアクセスログ・Lambda / ECSログのS3 Object Lock)、(4)変更管理(terraform plan承認制、Count → Blockの段階運用)の4つであり、[20-internal-production-readiness-checklist.md](./20-internal-production-readiness-checklist.md)の「根拠」列に第14版の項番を埋める作業を翌週以降のタスクとする。
 
 ---
 
@@ -157,7 +157,7 @@ JWT認可を使うとJWTの一部クレーム(Subject)がCloudTrailに記録さ�
 | OPS-05 | Anthropic egress `160.79.104.0/21`をMCPサーバーおよびIdP前段のWAF許可リストに含め、Geo / IPレピュテーション / HostingProviderで遮断しない | §4.3 | Countモードのラベル観測、許可リストのterraform | 必須 |
 | OPS-06 | DCRで増える登録クライアント数を監視し、上限・掃除・方式選択(CIMD / `oauth_anthropic_creds`)の判断基準を持つ | §4.3 | `COUNTER#dcr`のアラーム、月次レビュー | 必須 |
 | OPS-07 | discovery / registration / tokenの応答を10秒以内(目標3秒以内)に保つ。前段WAF / API Gatewayが応答を保留しないこと | §4.3 | CloudWatch Duration、`dcr_conformance_tests.py --id CL-04` | 必須 |
-| OPS-08 | 公開URL(issuer、`resource`、redirect登録先)をカスタムドメインで固定し、経路変更で登録済みクライアントを無効化しない | §3.2、[19番 D5](./19-weekly-verification-plan-week5.md) | カスタムドメイン経由のE2E(S7) | 必須 |
+| OPS-08 | 公開URL(issuer、`resource`、redirect登録先)をカスタムドメインで固定し、経路変更で登録済みクライアントを無効化しない | §3.2、[19番 D5](./19-internal-weekly-verification-plan-week5.md) | カスタムドメイン経由のE2E(S7) | 必須 |
 | OPS-09 | WAFは全ルールCountで観測し、誤検知ゼロを確認したルールから段階的にBlockへ切り替える。例外は台帳に記録する | §3.2 | terraform `locals.waf_mode`と例外台帳 | 必須 |
 | OPS-10 | MCPプロトコル新版リリース時に、WAFの版数許可リスト(A23)とサーバーの`supportedVersions`相当を同時に更新する手順を持つ | §2.3 | 手順書レビュー | 推奨 |
 
@@ -166,7 +166,7 @@ JWT認可を使うとJWTの一部クレーム(Subject)がCloudTrailに記録さ�
 ## 7. 次のアクション
 
 1. OPS-01 / OPS-02の実現経路を決める: CloudFront Functionsで401に`WWW-Authenticate`を付与できるか(S12)、できなければREST API移行のGateway Responsesを採用理由に加える。
-2. OPS-05のためにCognito User Pool WAFの許可リストにAnthropic egressを入れた上で導入する(補完WAF、[19番 §1.3](./19-weekly-verification-plan-week5.md))。
+2. OPS-05のためにCognito User Pool WAFの許可リストにAnthropic egressを入れた上で導入する(補完WAF、[19番 §1.3](./19-internal-weekly-verification-plan-week5.md))。
 3. OPS-06の方式選択(CL-07)を、Claude Code / Claude.aiからのE2Eで「1接続あたり何件のクライアントが作られるか」を実測した上で判断する。
 4. §5のFISC第14版参照資料を精読し、チェックリストの「根拠」列に項番を記入する。
 5. 参照実装のGitHubリポジトリでDCR実装の有無とオリジン保護の実装(秘密ヘッダかOACか)を確認する(要確認2件)。

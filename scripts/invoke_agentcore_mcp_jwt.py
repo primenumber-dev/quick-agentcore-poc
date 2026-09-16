@@ -153,12 +153,12 @@ def call_mcp(access_token, method, params, spoof_sub=None, runtime_arn=None, ses
         "Accept": "application/json, text/event-stream",
     }
     if spoof_sub:
-        # security probe (docs/08-weekly-verification-plan.md §1): checks whether
+        # security probe (docs/08-internal-weekly-verification-plan.md §1): checks whether
         # AgentCore Runtime passes this header through uninspected, the way ECS's
         # API Gateway does *not* (it overwrites it with the JWT-verified sub).
         headers["x-cognito-sub"] = spoof_sub
     if session_id:
-        # session-id-reuse hypothesis (docs/08-weekly-verification-plan.md §3):
+        # session-id-reuse hypothesis (docs/08-internal-weekly-verification-plan.md §3):
         # AgentCore Runtime may route requests carrying the same Mcp-Session-Id
         # to the same warm microVM, skipping the ~3.9s container boot cost.
         headers["Mcp-Session-Id"] = session_id

@@ -2,7 +2,7 @@
 
 quick-mcp-poc PoCの4つのホスティング環境(ECS/AgentCore Runtime × MCP SDK v1/v2)に対して、
 initialize・tools/list・tools/call・エラーハンドリング・MCPプロトコルv2形式(_metaエンベロープ)
-対応状況を横断的に検証する。docs/16-weekly-verification-report-week3.md・
+対応状況を横断的に検証する。docs/16-internal-weekly-verification-report-week3.md・
 docs/17-environment-resource-map.mdの検証内容を、再現可能な自動テストとして固定化したもの。
 
 使い方:

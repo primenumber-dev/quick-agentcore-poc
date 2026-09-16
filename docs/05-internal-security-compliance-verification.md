@@ -1,7 +1,7 @@
 # セキュリティ・コンプライアンス比較検証: 金融グレード有償リモートMCPサービスとして
 
 > **この章で分かること**
-> quick-mcp-poc を「金融機関向けに課金制で外販するリモートMCPサービス」と position した場合に、パターン3(AgentCore Runtime単体)とパターン4(API Gateway + ECS)のどちらがセキュリティ・コンプライアンス面で有利かを、実機確認とAWS公式情報の調査に基づいて整理する。[01-architecture-comparison.md](./01-architecture-comparison.md)の一般的なプロコン比較を、金融機関向け要件(マルチテナント、閉域網、監査証跡、コンプライアンス認定)に絞って深掘りする位置づけ。
+> quick-mcp-poc を「金融機関向けに課金制で外販するリモートMCPサービス」と position した場合に、パターン3(AgentCore Runtime単体)とパターン4(API Gateway + ECS)のどちらがセキュリティ・コンプライアンス面で有利かを、実機確認とAWS公式情報の調査に基づいて整理する。[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)の一般的なプロコン比較を、金融機関向け要件(マルチテナント、閉域網、監査証跡、コンプライアンス認定)に絞って深掘りする位置づけ。
 
 検証日: 2026-08-17 | 調査方法: 机上調査中心 + playgroundアカウントでの一部実機確認(スキーマ・terraformコードレビュー)
 
@@ -25,7 +25,7 @@
 
 ## 1. 前提: なぜこの検証が必要か
 
-一般的なエンタープライズ向けリモートMCPサーバーであれば[01-architecture-comparison.md](./01-architecture-comparison.md)のプロコン比較(構築の手間・コスト・スケーラビリティ)で十分意思決定できる。しかし今回想定する顧客は金融機関であり、次の3点で難易度が上がる。
+一般的なエンタープライズ向けリモートMCPサーバーであれば[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)のプロコン比較(構築の手間・コスト・スケーラビリティ)で十分意思決定できる。しかし今回想定する顧客は金融機関であり、次の3点で難易度が上がる。
 
 ```mermaid
 flowchart LR
@@ -87,7 +87,7 @@ flowchart LR
 
 現行terraform(`apigateway.tf`)では、API Gatewayの`aws_apigatewayv2_authorizer`(JWT型)がCognitoのissuer/audienceを検証し、検証済み`sub`を`x-cognito-sub`ヘッダーとしてECS側に注入する設計。**認証はAPI Gateway層(アプリコード到達前)で完結**しており、信頼モデルはAgentCoreのCustom JWT Authorizerと同等。
 
-ただし現行構成は**単一テナント(quick社)専用のCognito User Pool + DynamoDBテーブル**であり、マルチテナントSaaS化するには作り直しが必要(パターン3のGapと同様、[01-architecture-comparison.md 4.3](./01-architecture-comparison.md#43-本番採用時の注意)参照)。
+ただし現行構成は**単一テナント(quick社)専用のCognito User Pool + DynamoDBテーブル**であり、マルチテナントSaaS化するには作り直しが必要(パターン3のGapと同様、[01-internal-architecture-comparison.md 4.3](./01-internal-architecture-comparison.md#43-本番採用時の注意)参照)。
 
 ### 3.4 評価サマリー
 

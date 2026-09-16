@@ -4,7 +4,7 @@
 
 **空なのは作業喪失ではなく、未着手である。**
 
-`terraform/` と `terraform-playground-pattern4/` の全 `.tf` を検索した結果、**AgentCore 関連のリソース定義は 1 件も存在しなかった**。ヒットしたのは次の 3 件のコメントと、プロファイル名 `quick-agentcore-poc-playground` の部分一致だけである([docs/23-weekly-verification-plan-week6.md §2.1](../../../docs/23-weekly-verification-plan-week6.md))。
+`terraform/` と `terraform-playground-pattern4/` の全 `.tf` を検索した結果、**AgentCore 関連のリソース定義は 1 件も存在しなかった**。ヒットしたのは次の 3 件のコメントと、プロファイル名 `quick-agentcore-poc-playground` の部分一致だけである([docs/23-internal-weekly-verification-plan-week6.md §2.1](../../../docs/23-internal-weekly-verification-plan-week6.md))。
 
 | 該当 | 内容 |
 |---|---|

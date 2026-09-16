@@ -46,7 +46,7 @@ quick-mcp-<variant>-<major>.<minor>-<YYYYMMDD>
 
 Week1〜2 で AgentCore Runtime を検証したが、リソースは AWS CLI で作成されており **Terraform 化されていない**ため、現時点でタグ付けできるコード状態が存在しない。フェーズ2で `infra/modules/mcp-server-agentcore/` を作成した時点で `quick-mcp-agentcore-1.0-<日付>` を発番する。
 
-検証結果そのものは [03-agentcore-runtime-verification.md](../03-agentcore-runtime-verification.md) と [07-vpc-waf-cost-verification.md](../07-vpc-waf-cost-verification.md) に残っている。
+検証結果そのものは [03-internal-agentcore-runtime-verification.md](../03-internal-agentcore-runtime-verification.md) と [07-internal-vpc-waf-cost-verification.md](../07-internal-vpc-waf-cost-verification.md) に残っている。
 
 ---
 
@@ -60,7 +60,7 @@ Week1〜2 で AgentCore Runtime を検証したが、リソースは AWS CLI で
 | 1.3 | `WWW-Authenticate` 未対応(HTTP API の制約)、RFC 7592 未実装、Claude からの自己登録 E2E が未実施 |
 | 1.4 | Terraform が特定アカウント前提のままで納品不可。ECS サービスが Terraform 管理外(ecspresso 所有)。CI/CD なし |
 
-現在の詳細な充足状況は [20-production-readiness-checklist.md](../20-production-readiness-checklist.md) を参照。
+現在の詳細な充足状況は [20-internal-production-readiness-checklist.md](../20-internal-production-readiness-checklist.md) を参照。
 
 ---
 

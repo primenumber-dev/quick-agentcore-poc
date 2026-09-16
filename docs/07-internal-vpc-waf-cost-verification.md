@@ -1,7 +1,7 @@
 # AgentCore Runtime追加検証: VPCモード・WAF代替構成・コスト再検討・DCR机上調査
 
 > この章で分かること
-> 「VPC・ALB・NATインスタンス・API Gatewayが新方式では不要になる一方、AgentCore RuntimeはVPCに配置できないのでは」という問いに対し、実機でAgentCore RuntimeをVPCモードに切り替えて検証した結果、およびWAF導入可否・コスト再検討・DCR(動的クライアント登録)机上調査をまとめる。[03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md)の基本疎通検証、[05-security-compliance-verification.md](./05-security-compliance-verification.md)の机上調査を踏まえ、今回は**実機での裏付け**を中心に掘り下げる。
+> 「VPC・ALB・NATインスタンス・API Gatewayが新方式では不要になる一方、AgentCore RuntimeはVPCに配置できないのでは」という問いに対し、実機でAgentCore RuntimeをVPCモードに切り替えて検証した結果、およびWAF導入可否・コスト再検討・DCR(動的クライアント登録)机上調査をまとめる。[03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md)の基本疎通検証、[05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)の机上調査を踏まえ、今回は**実機での裏付け**を中心に掘り下げる。
 
 検証日: 2026-08-21 | 検証方法: playgroundアカウントでの実機構築・実際のHTTPS呼び出しによるエンドツーエンド確認
 
@@ -28,13 +28,13 @@
 
 > 「VPC」「負荷分散装置(ALB)」「中継サーバー(NATインスタンス)」「API Gateway」という4つのインフラ要素が、新方式では不要になる。逆に、VPCに配置することができないので、VPCにDBやAppが置かれている場合は通信方法を考える必要があるということでしょうか。
 
-この質問は、[06-agentcore-oauth-claude-code-verification.md](./06-agentcore-oauth-claude-code-verification.md)で示した「4要素が不要になる」という結論の裏面を突いており、AgentCore Runtimeが`PUBLIC`モードでしか検証されていなかった当時点では、正確に回答できない状態だった。これを機に、[05-security-compliance-verification.md](./05-security-compliance-verification.md)で机上調査にとどまっていたVPCモードへの実機切り替えと、あわせて今週計画していたWAF導入可否・コスト再検討・DCR机上調査・汎用MCPクライアント疎通・コールドスタート測定を実施した。
+この質問は、[06-internal-agentcore-oauth-claude-code-verification.md](./06-internal-agentcore-oauth-claude-code-verification.md)で示した「4要素が不要になる」という結論の裏面を突いており、AgentCore Runtimeが`PUBLIC`モードでしか検証されていなかった当時点では、正確に回答できない状態だった。これを機に、[05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)で机上調査にとどまっていたVPCモードへの実機切り替えと、あわせて今週計画していたWAF導入可否・コスト再検討・DCR机上調査・汎用MCPクライアント疎通・コールドスタート測定を実施した。
 
 ## 2. 汎用MCPクライアントからの疎通検証・コールドスタート測定
 
 ### 2.1 汎用クライアントの実装
 
-これまでの疎通確認は、boto3 + SigV4署名を使うスクリプト([03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md))、またはClaude Code/Claude.aiという特定のMCPクライアント実装([06-agentcore-oauth-claude-code-verification.md](./06-agentcore-oauth-claude-code-verification.md))を通じたものだった。Runtimeが現在Custom JWT Authorizer方式(IAM認証とは排他)であるため、**boto3のSigV4ベースのAPIはもはや使用できない**。
+これまでの疎通確認は、boto3 + SigV4署名を使うスクリプト([03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md))、またはClaude Code/Claude.aiという特定のMCPクライアント実装([06-internal-agentcore-oauth-claude-code-verification.md](./06-internal-agentcore-oauth-claude-code-verification.md))を通じたものだった。Runtimeが現在Custom JWT Authorizer方式(IAM認証とは排他)であるため、**boto3のSigV4ベースのAPIはもはや使用できない**。
 
 そこで、OAuth 2.0の認可コード + PKCEフローのみでBearerトークンを取得し、素のHTTPSで`invocations`エンドポイントを呼ぶ汎用クライアントスクリプト(`scripts/invoke_agentcore_mcp_jwt.py`)を新規作成した。
 
@@ -85,7 +85,7 @@ CloudWatch Logs(`/aws/bedrock-agentcore/runtimes/quickMcpPocVerification-Aoo0d23
 
 **アイドル時間によらずレイテンシが一定だった理由がここで説明できる**: そもそも毎回コンテナが新規起動しており、「ウォームな状態」自体が存在しないため、アイドル時間の長さに関わらず常に同じ約3.9秒のコンテナ起動コストが乗る。§2.2で「MCPサーバー実装がリクエストごとに新しいインスタンスを生成している可能性が高い(推測)」としていた点は、コンテナレベルでも同様の現象が起きていることを実機で確認できた。
 
-**コスト面への含意**: コンテナ起動処理はネットワークI/O待機ではなくCPUバウンドな処理(Node.jsランタイムの起動・モジュール読み込み等)である可能性が高く、[02-cost-simulation.md](./02-cost-simulation.md)で述べた「壁時計6秒のうちどれだけがI/O待機(無課金)か」という論点に対しては、**この3.9秒の大部分はアクティブCPU時間として課金対象になっている可能性が高い**ことを示唆する。ただし本Runtimeは複数の検証者が共有するplaygroundアカウント内にあり、AWS Cost Explorer・CloudWatchの請求メトリクスは他の検証(Claude Code等のMCPクライアントによる定期的なバックグラウンド接続を含む)の影響を受けて大きく変動するため、**本Runtime単体の1リクエストあたり実費用を実測から正確に切り出すことはできなかった**。[02-cost-simulation.md](./02-cost-simulation.md)の試算は実測ではなく単価からの逆算に基づく参考値であることを、あらためて明記する。
+**コスト面への含意**: コンテナ起動処理はネットワークI/O待機ではなくCPUバウンドな処理(Node.jsランタイムの起動・モジュール読み込み等)である可能性が高く、[02-internal-cost-simulation.md](./02-internal-cost-simulation.md)で述べた「壁時計6秒のうちどれだけがI/O待機(無課金)か」という論点に対しては、**この3.9秒の大部分はアクティブCPU時間として課金対象になっている可能性が高い**ことを示唆する。ただし本Runtimeは複数の検証者が共有するplaygroundアカウント内にあり、AWS Cost Explorer・CloudWatchの請求メトリクスは他の検証(Claude Code等のMCPクライアントによる定期的なバックグラウンド接続を含む)の影響を受けて大きく変動するため、**本Runtime単体の1リクエストあたり実費用を実測から正確に切り出すことはできなかった**。[02-internal-cost-simulation.md](./02-internal-cost-simulation.md)の試算は実測ではなく単価からの逆算に基づく参考値であることを、あらためて明記する。
 
 ### 2.3 疎通検証Webアプリのホスティング(2026-08-25追加)
 
@@ -124,7 +124,7 @@ flowchart LR
 
 §2.2で「AgentCore Runtimeにはコールドスタートが観測されない」ことを確認したが、これは「既存構成(常時起動)と同等以上に速い」ことを意味しない。ECSはdesiredCount=1の常時起動構成であり、Lambda的な意味でのコールドスタートは原理的に発生しないため、両者を同じ基準(コールドスタートの有無)で比較するのは適切ではない。そこで、定常状態の応答時間そのものを実測して比較した。
 
-比較対象の構成は、既存の[01-architecture-comparison.md](./01-architecture-comparison.md)にあるパターン4の構成図と同一である(playgroundにそのまま複製したため)。
+比較対象の構成は、既存の[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)にあるパターン4の構成図と同一である(playgroundにそのまま複製したため)。
 
 ![API Gateway + ECS構成図(playgroundへの複製元と同一構成)](./images/pattern4-architecture.png)
 
@@ -141,7 +141,7 @@ jwt_configuration {
 
 `audience`にCognito resource serverの識別子(URL文字列)を指定しているが、Cognitoが実際に発行するトークンの`aud`(ID Token)または`client_id`(Access Token)は常にApp Client IDであり、このURL文字列とは一致しない。そのため、この設定ではどのような正当なトークンを使っても認可が通らない。playground環境で`audience`を`aws_cognito_user_pool_client.mcp.id`(App Client ID)に修正したところ、直ちに200 OKで成功するようになった。
 
-重要な留保: 本番相当アカウント(`professional_services_quick_poc`)への書き込みは禁止のため、本番環境で実際に同じ現象が起きているかは未確認である。ただし、terraformコードは本番相当アカウントのものをそのまま複製したものであり、ロジックは同一のため、**本番環境でも同様にOAuthログインが機能していない可能性が高い**。[04-ecs-apigateway-verification.md](./04-ecs-apigateway-verification.md)で「完全なエンドツーエンドの疎通確認は実施していない」と明記されていた背景には、この潜在的な不具合が関係している可能性がある。本番環境での実際の動作確認と、必要であれば`terraform/apigateway.tf`の修正を、別途優先度の高いタスクとして扱うことを推奨する。
+重要な留保: 本番相当アカウント(`professional_services_quick_poc`)への書き込みは禁止のため、本番環境で実際に同じ現象が起きているかは未確認である。ただし、terraformコードは本番相当アカウントのものをそのまま複製したものであり、ロジックは同一のため、**本番環境でも同様にOAuthログインが機能していない可能性が高い**。[04-internal-ecs-apigateway-verification.md](./04-internal-ecs-apigateway-verification.md)で「完全なエンドツーエンドの疎通確認は実施していない」と明記されていた背景には、この潜在的な不具合が関係している可能性がある。本番環境での実際の動作確認と、必要であれば`terraform/apigateway.tf`の修正を、別途優先度の高いタスクとして扱うことを推奨する。
 
 応答時間の実測比較: 修正版のplayground環境で、`tools/list`を5回連続実行し応答時間を計測した。
 
@@ -222,7 +222,7 @@ AgentCore Runtimeの`invocations`エンドポイントは、ALBやAPI Gatewayの
 
 ## 5. コスト再検討
 
-[02-cost-simulation.md](./02-cost-simulation.md)は「1リクエストあたりのアクティブCPU時間を保守的に1秒と仮定」していた。今回の壁時計レイテンシ実測(約6秒、§2.2)を受けて再検討したが、**単純に6秒へ置き換えるのは不適切**と判断した。
+[02-internal-cost-simulation.md](./02-internal-cost-simulation.md)は「1リクエストあたりのアクティブCPU時間を保守的に1秒と仮定」していた。今回の壁時計レイテンシ実測(約6秒、§2.2)を受けて再検討したが、**単純に6秒へ置き換えるのは不適切**と判断した。
 
 - AgentCore Runtimeの課金は「アクティブCPU使用時間」のみで、外部API/DynamoDB/Cognito JWKS取得などの**I/O待機時間は無課金**とされている。壁時計レイテンシ6秒の内訳(CPUバウンド処理 vs I/O待機)を分解できていないため、実際の課金対象時間は6秒より大幅に小さい可能性がある
 - AgentCore Runtimeの実際のvCPU/メモリ割り当て量も、API上で確認できる項目が見当たらず未確認
@@ -233,7 +233,7 @@ AgentCore Runtimeの`invocations`エンドポイントは、ALBやAPI Gatewayの
 
 ### 5.1 1ヶ月コスト試算: 閉域網対応+WAF込みの本番展開想定(2026-08-25追加)
 
-VPCモード(§3)・WAF(§4)をどちらも導入する、金融グレードの本番展開に近い構成同士で1ヶ月のコストを試算した(詳細な単価根拠は[02-cost-simulation.md §「VPCモード・WAFを含めた1ヶ月コスト試算」](./02-cost-simulation.md)を参照)。
+VPCモード(§3)・WAF(§4)をどちらも導入する、金融グレードの本番展開に近い構成同士で1ヶ月のコストを試算した(詳細な単価根拠は[02-internal-cost-simulation.md §「VPCモード・WAFを含めた1ヶ月コスト試算」](./02-internal-cost-simulation.md)を参照)。
 
 | 月間リクエスト数 | AgentCore Runtime(VPCモード+WAF/CloudFront) | ECS+API Gateway(WAFのみ追加) |
 |---|---|---|
@@ -377,12 +377,12 @@ DCR/CIMD対応が必要になるかどうかは、外販サービスの提供形
 
 社内ドキュメント
 - [00-handoff.md](./00-handoff.md) — 本検証の詳細な作業ログ、playgroundの作成済みリソース一覧
-- [02-cost-simulation.md](./02-cost-simulation.md) — コストシミュレーションの前提・試算
-- [03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md) — 汎用MCPクライアント疎通・コールドスタート測定の詳細
-- [04-ecs-apigateway-verification.md](./04-ecs-apigateway-verification.md) — パターン4(ECS+API Gateway)の稼働確認ログ、エンドツーエンド疎通が未実施だった経緯
-- [05-security-compliance-verification.md](./05-security-compliance-verification.md) — VPCモード・WAF検証の詳細、セキュリティ・コンプライアンス比較検証
+- [02-internal-cost-simulation.md](./02-internal-cost-simulation.md) — コストシミュレーションの前提・試算
+- [03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md) — 汎用MCPクライアント疎通・コールドスタート測定の詳細
+- [04-internal-ecs-apigateway-verification.md](./04-internal-ecs-apigateway-verification.md) — パターン4(ECS+API Gateway)の稼働確認ログ、エンドツーエンド疎通が未実施だった経緯
+- [05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md) — VPCモード・WAF検証の詳細、セキュリティ・コンプライアンス比較検証
 - [docs/terraform-examples/agentcore-vpc-mode/main.tf](./terraform-examples/agentcore-vpc-mode/main.tf) — VPCモード設定のTerraformリファレンス実装
-- [06-agentcore-oauth-claude-code-verification.md](./06-agentcore-oauth-claude-code-verification.md) — Claude Code経由のOAuth接続検証
+- [06-internal-agentcore-oauth-claude-code-verification.md](./06-internal-agentcore-oauth-claude-code-verification.md) — Claude Code経由のOAuth接続検証
 
 外部ドキュメント
 - [Authentication for connectors](https://claude.com/docs/connectors/building/authentication) — DCR/CIMD/`oauth_anthropic_creds`/Custom connectorの仕様

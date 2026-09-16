@@ -12,8 +12,8 @@
 | # | 項目 | 結論 |
 |---|---|---|
 | 1 | 応答時間チューニング(セッションID再利用) | **効果あり、ただし持続時間に上限がある**。`Mcp-Session-Id`を再送すると約6秒→約0.5〜0.6秒(約10倍)に短縮される。ただしこの効果は30秒後には持続しているが、5分後には失われる(実機で新しいコンテナへの切り替わりを確認)。設定上の`idleRuntimeSessionTimeout`(15分)とは無関係に、より短い時間でコンテナが再利用されなくなる |
-| 2 | ECS(WAF・DCR)本番化課題 | DCRの自己登録〜失効フローを実演。あわせてAgentCore Runtime側`allowedScopes`単独運用・ECS側REST APIネイティブオーソライザーという2つの安価なDCR代替仮説を実機で確認、いずれも成立。WAFはSQLi特化ルールが未導入という新規課題を発見。詳細は[15-ecs-production-readiness-gaps.md](./15-ecs-production-readiness-gaps.md) |
-| 3 | MCPプロトコルv2への載せ替え | スパイクブランチ(`feature/mcp-protocol-v2-spike`)で実装・ローカル動作確認まで完了。既存6ツールは無修正で動作、認可ゲートも維持。本番`main`への反映は今回未実施(意図的にスパイク止まり)。詳細は[12-mcp-protocol-v2-upgrade-impact.md §7](./12-mcp-protocol-v2-upgrade-impact.md) |
+| 2 | ECS(WAF・DCR)本番化課題 | DCRの自己登録〜失効フローを実演。あわせてAgentCore Runtime側`allowedScopes`単独運用・ECS側REST APIネイティブオーソライザーという2つの安価なDCR代替仮説を実機で確認、いずれも成立。WAFはSQLi特化ルールが未導入という新規課題を発見。詳細は[15-internal-ecs-production-readiness-gaps.md](./15-internal-ecs-production-readiness-gaps.md) |
+| 3 | MCPプロトコルv2への載せ替え | スパイクブランチ(`feature/mcp-protocol-v2-spike`)で実装・ローカル動作確認まで完了。既存6ツールは無修正で動作、認可ゲートも維持。本番`main`への反映は今回未実施(意図的にスパイク止まり)。詳細は[12-internal-mcp-protocol-v2-upgrade-impact.md §7](./12-internal-mcp-protocol-v2-upgrade-impact.md) |
 | 4 | 来週へのアクションプラン | 本番`audience`バグの共有・適用判断、DCR本番移植の要否判断、AgentCore Runtime側`allowedScopes`単独運用への切り替え判断、v2移行の本格着手判断の4点がユーザー確認待ち(詳細は§4) |
 
 ---
@@ -22,7 +22,7 @@
 
 ### 背景
 
-[07-vpc-waf-cost-verification.md §2.2.1](./07-vpc-waf-cost-verification.md)で、AgentCore Runtimeへのリクエストは毎回新しいコンテナが起動し、起動コストが約6秒のうち大半を占めることが判明していた。[08-weekly-verification-plan.md §3](./08-weekly-verification-plan.md)で、AgentCore Runtimeがレスポンスヘッダーに付与する`Mcp-Session-Id`を次回リクエストで再送すれば、同じmicroVM(コンテナ)にルーティングされ起動コストを回避できるのではないか、という仮説が立てられていたが未検証のまま残っていた。
+[07-internal-vpc-waf-cost-verification.md §2.2.1](./07-internal-vpc-waf-cost-verification.md)で、AgentCore Runtimeへのリクエストは毎回新しいコンテナが起動し、起動コストが約6秒のうち大半を占めることが判明していた。[08-internal-weekly-verification-plan.md §3](./08-internal-weekly-verification-plan.md)で、AgentCore Runtimeがレスポンスヘッダーに付与する`Mcp-Session-Id`を次回リクエストで再送すれば、同じmicroVM(コンテナ)にルーティングされ起動コストを回避できるのではないか、という仮説が立てられていたが未検証のまま残っていた。
 
 ### 実施内容
 
@@ -61,12 +61,12 @@ flowchart LR
 
 セッションID再利用は、**短い間隔での連続呼び出し(数十秒以内)には非常に有効**(約10倍の高速化、6秒→0.5〜0.6秒)だが、**数分以上間隔が空くケースには効果が無い**。これは実際のMCPクライアントの利用パターン(ツール呼び出しの間隔)次第で実利用上の効果が変わることを意味する。連続してツールを呼び出すユースケースでは大きな改善が見込めるが、「久しぶりに使う」「1回だけ呼ぶ」といったパターンでは今回の対策の恩恵を受けられない。
 
-なお、treatment群の最速値(約0.5〜0.6秒)であっても、[07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)で計測したECS+API Gateway構成(約0.2〜0.3秒)にはまだ及ばない。この差は、アプリケーションコード自体の起動オーバーヘッド(Node.jsプロセスの初期化、ツール登録処理など)によるものと推測されるが、今回はその内訳の切り分けまでは実施していない。
+なお、treatment群の最速値(約0.5〜0.6秒)であっても、[07-internal-vpc-waf-cost-verification.md §2.4](./07-internal-vpc-waf-cost-verification.md)で計測したECS+API Gateway構成(約0.2〜0.3秒)にはまだ及ばない。この差は、アプリケーションコード自体の起動オーバーヘッド(Node.jsプロセスの初期化、ツール登録処理など)によるものと推測されるが、今回はその内訳の切り分けまでは実施していない。
 
 ### 未実施・来週以降の課題
 
 - コンテナ保持時間の境界(30秒〜5分の間)をより細かい計測点で絞り込む
-- [08-weekly-verification-plan.md §3.5](./08-weekly-verification-plan.md)で申し送られていたウォームプール(10台)の実測との不整合、同時多重リクエストでの検証
+- [08-internal-weekly-verification-plan.md §3.5](./08-internal-weekly-verification-plan.md)で申し送られていたウォームプール(10台)の実測との不整合、同時多重リクエストでの検証
 - コードデプロイモード(2〜3秒目安)との比較
 - treatment群の0.5〜0.6秒とECSの0.2〜0.3秒の差の内訳分析(Node.js起動時間、DynamoDB呼び出し時間等)
 
@@ -74,7 +74,7 @@ flowchart LR
 
 ## 2. ECS(WAF・DCR)本番化に向けた課題点整理
 
-DCRの自己登録〜承認〜失効までの一連のフローを既存のplayground環境で実演し、あわせてAgentCore Runtime側の`allowedScopes`単独運用・ECS側のREST APIネイティブ`COGNITO_USER_POOLS`オーソライザーという2つの安価なDCR代替仮説を実機で初めて検証した。WAF代替構成についても再検証し、SQLインジェクション特化のルールセットが導入されていないという新規の課題を発見した。詳細な実施内容・実機ログ・図解は[15-ecs-production-readiness-gaps.md](./15-ecs-production-readiness-gaps.md)にまとめた。
+DCRの自己登録〜承認〜失効までの一連のフローを既存のplayground環境で実演し、あわせてAgentCore Runtime側の`allowedScopes`単独運用・ECS側のREST APIネイティブ`COGNITO_USER_POOLS`オーソライザーという2つの安価なDCR代替仮説を実機で初めて検証した。WAF代替構成についても再検証し、SQLインジェクション特化のルールセットが導入されていないという新規の課題を発見した。詳細な実施内容・実機ログ・図解は[15-internal-ecs-production-readiness-gaps.md](./15-internal-ecs-production-readiness-gaps.md)にまとめた。
 
 要点のみ再掲する。
 
@@ -95,7 +95,7 @@ DCRの自己登録〜承認〜失効までの一連のフローを既存のplayg
 - 既存の認可ゲート(Cognito sub抽出+DynamoDB認可チェック)もそのまま流用できた
 - 旧世代クライアント(`initialize`ハンドシェイク)・新世代クライアント(`_meta`エンベロープ)の両方が同一エンドポイントで正しく処理されることを、新規作成したスモークテストスクリプト(`scripts/smoke_test_mcp_v2.sh`)で確認した
 
-詳細な変更点・検証手順・新世代クライアントに必要な具体的ヘッダー/フィールドの発見事項は[12-mcp-protocol-v2-upgrade-impact.md §7](./12-mcp-protocol-v2-upgrade-impact.md)にまとめた。
+詳細な変更点・検証手順・新世代クライアントに必要な具体的ヘッダー/フィールドの発見事項は[12-internal-mcp-protocol-v2-upgrade-impact.md §7](./12-internal-mcp-protocol-v2-upgrade-impact.md)にまとめた。
 
 ---
 
@@ -104,9 +104,9 @@ DCRの自己登録〜承認〜失効までの一連のフローを既存のplayg
 | # | アクション | 担当・確認事項 |
 |---|---|---|
 | 1 | 本番`terraform/apigateway.tf`の`audience`バグ修正パッチ(`fix/production-audience-config-proposal`ブランチ)を本番担当者に共有し、適用可否を判断してもらう | 最優先。正当なトークンでも常に401になる実害があるため |
-| 2 | DCR実装の本番`terraform/`への移植要否を判断する | [15-ecs-production-readiness-gaps.md §5](./15-ecs-production-readiness-gaps.md)の課題1参照 |
+| 2 | DCR実装の本番`terraform/`への移植要否を判断する | [15-internal-ecs-production-readiness-gaps.md §5](./15-internal-ecs-production-readiness-gaps.md)の課題1参照 |
 | 3 | AgentCore Runtime側`allowedScopes`単独運用への切り替えを、既存のデモ用Runtime(`quickMcpPocVerification`)に適用するかどうかを判断する | Auth0移行より低コストな代替経路として有力。ただし個別クライアント失効の仕組みが別途必要 |
-| 4 | MCPプロトコルv2移行を本番`main`へ反映するか、Step1新規開発でv2から書き始めるかを判断する | [12-mcp-protocol-v2-upgrade-impact.md §7.4](./12-mcp-protocol-v2-upgrade-impact.md) |
+| 4 | MCPプロトコルv2移行を本番`main`へ反映するか、Step1新規開発でv2から書き始めるかを判断する | [12-internal-mcp-protocol-v2-upgrade-impact.md §7.4](./12-internal-mcp-protocol-v2-upgrade-impact.md) |
 | 5 | 応答時間チューニングの続き(コンテナ保持時間の境界特定、ウォームプール実測、コードデプロイモード比較) | §1の「未実施・来週以降の課題」参照 |
 
 ---

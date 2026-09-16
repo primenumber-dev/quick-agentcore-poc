@@ -23,3 +23,6 @@ dist/
 # Python
 __pycache__/
 *.pyc
+
+# 生成物(PDFはローカル保存のみ。scripts/render-pdf.sh で再生成する)
+*.pdf

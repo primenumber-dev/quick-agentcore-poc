@@ -265,11 +265,11 @@ Claude(Anthropic社)の公式ドキュメントを調査したところ、認証
 ## 出典・参考資料
 
 **社内ドキュメント**
-- [01-architecture-comparison.md](./01-architecture-comparison.md) — 新方式・現行方式の一般比較
-- [02-cost-simulation.md](./02-cost-simulation.md) — コストシミュレーションの前提・試算
-- [04-ecs-apigateway-verification.md](./04-ecs-apigateway-verification.md) — 現行方式の稼働確認ログ
-- [05-security-compliance-verification.md](./05-security-compliance-verification.md) — セキュリティ・コンプライアンス比較検証
-- [06-agentcore-oauth-claude-code-verification-client.md](./06-agentcore-oauth-claude-code-verification-client.md) — Claudeからの接続検証
+- [01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md) — 新方式・現行方式の一般比較
+- [02-internal-cost-simulation.md](./02-internal-cost-simulation.md) — コストシミュレーションの前提・試算
+- [04-internal-ecs-apigateway-verification.md](./04-internal-ecs-apigateway-verification.md) — 現行方式の稼働確認ログ
+- [05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md) — セキュリティ・コンプライアンス比較検証
+- [06-external-agentcore-oauth-claude-code-verification.md](./06-external-agentcore-oauth-claude-code-verification.md) — Claudeからの接続検証
 
 **外部ドキュメント**
 - [Authentication for connectors](https://claude.com/docs/connectors/building/authentication) — Anthropic社によるDCR/CIMD/接続方式の公式仕様

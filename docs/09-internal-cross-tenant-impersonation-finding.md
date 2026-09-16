@@ -95,7 +95,7 @@ function extractSub(req: express.Request): string | undefined {
 
 ## 2. 発見の経緯
 
-②の応答時間チューニング([08-weekly-verification-plan.md §3](./08-weekly-verification-plan.md))を設計するためにサーバーコードを調査していた際、`extractSub()`の実装を読んで「AgentCore経路にはECS経路のような保護が無いのでは」という疑問が生じた。この時点では未検証の懸念だったが、影響範囲(マルチテナント環境でのクロステナント認可)の重大性から、他の検証項目より優先して即座に実機確認することにした。
+②の応答時間チューニング([08-internal-weekly-verification-plan.md §3](./08-internal-weekly-verification-plan.md))を設計するためにサーバーコードを調査していた際、`extractSub()`の実装を読んで「AgentCore経路にはECS経路のような保護が無いのでは」という疑問が生じた。この時点では未検証の懸念だったが、影響範囲(マルチテナント環境でのクロステナント認可)の重大性から、他の検証項目より優先して即座に実機確認することにした。
 
 ---
 
@@ -214,7 +214,7 @@ const payload = JSON.parse(Buffer.from(auth.split(".")[1], "base64url").toString
 return payload.sub;
 ```
 
-AgentCore Custom JWT Authorizerが前段でJWTの署名・発行者・クライアントを検証済みであることを前提にすれば、コンテナに届く`Authorization`ヘッダーは信頼してよいはずだが、**「前段のコンポーネントが正しく検証している」という前提に、アプリ自身の検証なしで全面的に依存している**状態である。多層防御の観点では、Cognito JWKSに対する実署名検証(`jose`ライブラリ等で`iss`/`aud`/`exp`/`token_use`を検証)に強化することが望ましい。[08-weekly-verification-plan.md §1.4](./08-weekly-verification-plan.md)に今後のタスクとして記録済みで、優先度は中(直接の悪用経路は今回の修正で閉じているため)。
+AgentCore Custom JWT Authorizerが前段でJWTの署名・発行者・クライアントを検証済みであることを前提にすれば、コンテナに届く`Authorization`ヘッダーは信頼してよいはずだが、**「前段のコンポーネントが正しく検証している」という前提に、アプリ自身の検証なしで全面的に依存している**状態である。多層防御の観点では、Cognito JWKSに対する実署名検証(`jose`ライブラリ等で`iss`/`aud`/`exp`/`token_use`を検証)に強化することが望ましい。[08-internal-weekly-verification-plan.md §1.4](./08-internal-weekly-verification-plan.md)に今後のタスクとして記録済みで、優先度は中(直接の悪用経路は今回の修正で閉じているため)。
 
 ---
 
@@ -223,4 +223,4 @@ AgentCore Custom JWT Authorizerが前段でJWTの署名・発行者・クライ�
 - **「同じアプリコードを複数の経路で動かす」場合、各経路の認可アーキテクチャの前提を個別に洗い出す必要がある**。ECS経路の`overwrite:`のような「暗黙の保護」は、コードを読むだけでは気づきにくく、経路ごとに動作確認するまで見えない。
 - **「動く」ことの確認だけでは、認可ロジックの脆弱性は発見できない**。今回のように、`tools/list`が常に同じ結果を返す実装だと、なりすまし成功=200という単純な確認では不十分で、「失敗するはずのケースが失敗するか」という否定的なテスト(試行B)を組み合わせる必要がある。
 - **設定ミスの修正コストと、コードの修正コストは大きく異なる**。今回はアプリの既存フォールバック設計のおかげで、根本原因(過剰な`requestHeaderAllowlist`)を設定変更1回で閉じられた。裏を返せば、こうした「サーバーレス基盤側の許可リスト」は、アプリ側の設計判断と両方を意識して管理しないと、片方だけを見て安全と誤認しやすい。
-- マルチテナントSaaSとして外販するにあたっては、[05-security-compliance-verification.md](./05-security-compliance-verification.md)で扱った「マルチテナント分離」の机上調査に加えて、**今回のような実機でのなりすまし試行(ペネトレーションテスト的な検証)を認可まわりの変更のたびに実施する**運用が必要になる。
+- マルチテナントSaaSとして外販するにあたっては、[05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)で扱った「マルチテナント分離」の机上調査に加えて、**今回のような実機でのなりすまし試行(ペネトレーションテスト的な検証)を認可まわりの変更のたびに実施する**運用が必要になる。

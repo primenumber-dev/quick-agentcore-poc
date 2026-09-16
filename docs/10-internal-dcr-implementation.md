@@ -3,7 +3,7 @@
 > この章で分かること
 > Cognitoの手前にLambda Authorizer + DCR(`POST /register`)プロキシを構築し、`terraform-playground-pattern4`で実機動作確認まで完了させた記録。なぜJWT型Authorizerのままでは実現できなかったのか、実装のどこでIAM権限の抜け漏れにつまずいたか、実際にどこまで動作を確認できたかを、図と実行ログを交えてまとめる。
 
-実施日: 2026-08-31 | 検証環境: `terraform-playground-pattern4`(playgroundアカウント、883660531246) | 関連: [08-weekly-verification-plan.md §2](./08-weekly-verification-plan.md)
+実施日: 2026-08-31 | 検証環境: `terraform-playground-pattern4`(playgroundアカウント、883660531246) | 関連: [08-internal-weekly-verification-plan.md §2](./08-internal-weekly-verification-plan.md)
 
 ---
 
@@ -66,7 +66,7 @@ AgentCore Runtime向けにDCRを実現するなら、Runtimeの手前に別のAP
 
 AgentCore RuntimeでDCRを実現するには、上記の前段プロキシ構成に加えて、この「登録のたびにRuntimeバージョンが上がる」問題自体への対策(例えばバッチでの`allowedClients`更新、あるいはAWSの機能追加を待つ)が別途必要になる。今回はこの追加検討をスコープ外とし、DCRが技術的に成立するpattern4で先に実装・検証を行った。
 
-その後の調査で、この制約の根本原因は実はAgentCore Runtime自体ではなく、**Cognitoのアクセストークンに`aud`クレームが無い**という仕様にあることが判明した。AgentCore Runtimeの認可設定は`allowedClients`(client_id照合、動的登録に非対応)だけでなく`allowedAudience`(aud照合)も選べるため、DCR対応かつ`aud`を正しく発行するIdP(例: Auth0)に乗り換えれば、`allowedAudience`を固定1件のまま運用でき、**AgentCore Runtimeホスティングを維持したままDCRが成立する可能性が高い**。この代替経路のコスト・移行リスクの見積もりは[11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md)にまとめた。
+その後の調査で、この制約の根本原因は実はAgentCore Runtime自体ではなく、**Cognitoのアクセストークンに`aud`クレームが無い**という仕様にあることが判明した。AgentCore Runtimeの認可設定は`allowedClients`(client_id照合、動的登録に非対応)だけでなく`allowedAudience`(aud照合)も選べるため、DCR対応かつ`aud`を正しく発行するIdP(例: Auth0)に乗り換えれば、`allowedAudience`を固定1件のまま運用でき、**AgentCore Runtimeホスティングを維持したままDCRが成立する可能性が高い**。この代替経路のコスト・移行リスクの見積もりは[11-internal-cognito-to-auth0-migration-estimate.md](./11-internal-cognito-to-auth0-migration-estimate.md)にまとめた。
 
 ### 0.5 【未検証・次回申し送り】Cognitoのままでも`allowedScopes`単独運用で解決する可能性(2026-09-02追記)
 
@@ -153,7 +153,7 @@ sequenceDiagram
 | Cognito Resource Server | `mcp`リソースサーバーに`invoke`スコープを新規追加(`terraform-playground-pattern4/cognito.tf`) |
 | API Gateway | `POST /register`ルート追加(認証不要、レート制限: burst 5/rate 2)、`ANY /{proxy+}`のAuthorizerをJWT→Lambdaに切替 |
 
-付与スコープ・登録ポリシー(完全オープン、redirect_uriアローリスト)の詳細設計根拠は[08-weekly-verification-plan.md §2](./08-weekly-verification-plan.md)を参照。
+付与スコープ・登録ポリシー(完全オープン、redirect_uriアローリスト)の詳細設計根拠は[08-internal-weekly-verification-plan.md §2](./08-internal-weekly-verification-plan.md)を参照。
 
 ---
 

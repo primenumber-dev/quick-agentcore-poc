@@ -7,7 +7,7 @@
 
 > **注意**: 本シミュレーションは公開されている料金表(2026年8月時点、`ap-northeast-1`)を基にした概算であり、正式な予算確定前には[AWS Pricing Calculator](https://calculator.aws)等での再検証を推奨する。特にAgentCore Runtimeは比較的新しいサービスで料金改定の可能性がある。
 >
-> 関連: [01-architecture-comparison.md](./01-architecture-comparison.md)で示した構成図・プロコンの数値的な裏付けにあたる章。
+> 関連: [01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)で示した構成図・プロコンの数値的な裏付けにあたる章。
 
 ## 前提となる料金
 
@@ -91,7 +91,7 @@
 
 ## レイテンシ実測(2026-08-21実施)によるアクティブCPU時間の再検討
 
-[03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md)で、リクエストの**壁時計時間(クライアントからみた応答時間)** を実測したところ、アイドル時間0秒〜16分の範囲で一貫して約6秒だった(コールドスタートによる有意差は無し)。
+[03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md)で、リクエストの**壁時計時間(クライアントからみた応答時間)** を実測したところ、アイドル時間0秒〜16分の範囲で一貫して約6秒だった(コールドスタートによる有意差は無し)。
 
 ただし、この6秒を単純に「1リクエストのアクティブCPU時間」として上記シミュレーションの`1秒`の代わりに使うのは**不適切**。理由:
 
@@ -107,7 +107,7 @@
 3. **Cognitoの料金は考慮していない**(現状の利用規模では無料枠内に収まる可能性が高いが未検証)。
 4. **可用性要件(マルチAZ、冗長化)を厳密に揃えていない**。パターン4は既にマルチAZ構成、パターン3(AgentCore Runtime)の可用性特性は別途確認が必要。
 5. **モデル推論コスト(Bedrock LLM呼び出し)は両パターンに共通のため比較対象外**としている。
-6. **VPCモード(閉域網対応)にする場合、追加の固定費が発生する**(2026-08-21実施のVPCモード実機検証[05-security-compliance-verification.md §4.1.1](./05-security-compliance-verification.md)で判明)。S3・DynamoDBのGatewayエンドポイントは無料だが、コンテナイメージpullに必要なECR用Interfaceエンドポイント(API/DKRの2種)は**エンドポイントごと・AZごとに時間課金**が発生する(2エンドポイント×2AZ=4ENI相当)。閉域網訴求時のコスト試算にはこの固定費を追加する必要がある。
+6. **VPCモード(閉域網対応)にする場合、追加の固定費が発生する**(2026-08-21実施のVPCモード実機検証[05-internal-security-compliance-verification.md §4.1.1](./05-internal-security-compliance-verification.md)で判明)。S3・DynamoDBのGatewayエンドポイントは無料だが、コンテナイメージpullに必要なECR用Interfaceエンドポイント(API/DKRの2種)は**エンドポイントごと・AZごとに時間課金**が発生する(2エンドポイント×2AZ=4ENI相当)。閉域網訴求時のコスト試算にはこの固定費を追加する必要がある。
 
 ## VPCモード・WAFを含めた1ヶ月コスト試算(2026-08-25追加)
 
@@ -122,7 +122,7 @@
 | WAFv2(リクエスト従量) | 約$0.60 / 100万リクエスト | 両パターン共通(WAF導入時) |
 | CloudFront(パターン3のWAF代替構成に必須) | 約$0.75/100万リクエスト(リクエスト分)+ 約$0.11/GB(データ転送分) | パターン3をWAF対応にする場合のみ |
 
-パターン3(AgentCore Runtime)はWAFを直接アタッチできないため、CloudFront経由の代替構成([05-security-compliance-verification.md §4.5](./05-security-compliance-verification.md)参照)が前提となり、CloudFrontの費用も追加で乗る。パターン4(API Gateway + ECS)は既にVPC内にあり、WAFはAPI Gatewayへの直接アタッチを想定するためCloudFrontは不要。
+パターン3(AgentCore Runtime)はWAFを直接アタッチできないため、CloudFront経由の代替構成([05-internal-security-compliance-verification.md §4.5](./05-internal-security-compliance-verification.md)参照)が前提となり、CloudFrontの費用も追加で乗る。パターン4(API Gateway + ECS)は既にVPC内にあり、WAFはAPI Gatewayへの直接アタッチを想定するためCloudFrontは不要。
 
 ### 試算結果(月額、閉域網+WAFを両方導入した場合)
 

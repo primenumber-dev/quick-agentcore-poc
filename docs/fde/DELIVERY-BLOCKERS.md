@@ -1,7 +1,7 @@
 # 納品ブロッカー台帳
 
 > この章で分かること
-> QUICK様のAWS環境へTerraformを納品するにあたり、現状のコードでは達成できない事項を固定IDで管理する台帳。各ブロッカーの根拠(file:line)、影響、対処方針、現在の状態を記録し、解消するまで追跡する。[20-production-readiness-checklist.md](../20-production-readiness-checklist.md)が「本番運用として安全か」を問うのに対し、本台帳は「**別のAWSアカウントで動かせるか**」だけを問う。
+> QUICK様のAWS環境へTerraformを納品するにあたり、現状のコードでは達成できない事項を固定IDで管理する台帳。各ブロッカーの根拠(file:line)、影響、対処方針、現在の状態を記録し、解消するまで追跡する。[20-internal-production-readiness-checklist.md](../20-internal-production-readiness-checklist.md)が「本番運用として安全か」を問うのに対し、本台帳は「**別のAWSアカウントで動かせるか**」だけを問う。
 
 作成日: 2026-09-15 | 対象: primenumber内部資料(FDE成果物) | 初出: [00-handoff.md §18.4](../00-handoff.md)
 
@@ -38,7 +38,7 @@
 
 **重要度**: 高 | **状態**: **構造的に解消**(2026-09-15)。世代マージの適用は別途
 
-`terraform/`(11ファイル、925行)にはWAF・CloudFront・DCR Lambda・Lambda Authorizerが**一切無い**。Week4〜5の成果([18](../18-weekly-verification-report-week4.md)・[22](../22-weekly-verification-report-week5.md))はすべて`terraform-playground-pattern4/`(13ファイル、1642行)にのみ存在する。
+`terraform/`(11ファイル、925行)にはWAF・CloudFront・DCR Lambda・Lambda Authorizerが**一切無い**。Week4〜5の成果([18](../18-internal-weekly-verification-report-week4.md)・[22](../22-internal-weekly-verification-report-week5.md))はすべて`terraform-playground-pattern4/`(13ファイル、1642行)にのみ存在する。
 
 | 差分 | `terraform/` | `terraform-playground-pattern4/` |
 |---|---|---|
@@ -99,7 +99,7 @@
 | リソース名プレフィックス | 約40行の`quick-mcp-poc` |
 | 外部ドメイン | `ssm.tf:26` / `terraform/ssm.tf:23`(`qr1.devmarket.myquick.net`) |
 
-**対処(2026-09-15 実施)**: `infra/modules/`(8モジュール) + `infra/environments/{playground,primenumber,quick}`へ再構成し、環境差分を`terraform.tfvars`と`backend.hcl`に集約した。3環境とも`terraform validate`が通っている。詳細は[23-weekly-verification-plan-week6.md §3](../23-weekly-verification-plan-week6.md)。
+**対処(2026-09-15 実施)**: `infra/modules/`(8モジュール) + `infra/environments/{playground,primenumber,quick}`へ再構成し、環境差分を`terraform.tfvars`と`backend.hcl`に集約した。3環境とも`terraform validate`が通っている。詳細は[23-internal-weekly-verification-plan-week6.md §3](../23-internal-weekly-verification-plan-week6.md)。
 
 アカウント ID・AWS プロファイル名・リージョン・AMI フィルタ・バケット名はすべて変数化され、`.tf`から直書きが消えた。
 
@@ -155,7 +155,7 @@
 const TABLE_NAME = process.env.TABLE_NAME ?? "quick-mcp-poc-users";
 ```
 
-Week5の[19-weekly-verification-plan-week5.md §2.1 F12](../19-weekly-verification-plan-week5.md)の対応が入っている。残るリージョン直書き(`server/src/db.ts:10`、`cli/src/db.ts:13`)は`DYNAMODB_ENDPOINT_URL`分岐内のLocalStack専用箇所で無害。
+Week5の[19-internal-weekly-verification-plan-week5.md §2.1 F12](../19-internal-weekly-verification-plan-week5.md)の対応が入っている。残るリージョン直書き(`server/src/db.ts:10`、`cli/src/db.ts:13`)は`DYNAMODB_ENDPOINT_URL`分岐内のLocalStack専用箇所で無害。
 
 **残作業**:
 
@@ -182,7 +182,7 @@ playgroundが`-pattern4-verify`を名乗っているのは、**`quick-mcp-poc-au
 
 **対処(2026-09-15 実施)**: `cognito_domain_prefix`を環境変数化し、`auth`モジュールの入力にした。`quick`環境の`terraform.tfvars.example`には`CHANGEME-未使用のドメインプレフィックス`を置き、既に使用済みの2値を注記してある。
 
-**関連**: カスタムドメイン(ACM)を導入すればこの制約から外れ、同時に`ENFORCE_ORIGIN_VERIFY`(`lambda.tf:79`)を`true`にできる([19-weekly-verification-plan-week5.md §1.1 D5](../19-weekly-verification-plan-week5.md))。
+**関連**: カスタムドメイン(ACM)を導入すればこの制約から外れ、同時に`ENFORCE_ORIGIN_VERIFY`(`lambda.tf:79`)を`true`にできる([19-internal-weekly-verification-plan-week5.md §1.1 D5](../19-internal-weekly-verification-plan-week5.md))。
 
 ---
 
@@ -210,7 +210,7 @@ playgroundが`-pattern4-verify`を名乗っているのは、**`quick-mcp-poc-au
 | テストユーザー | Cognito |
 | DynamoDBテーブル本体 | `quick-mcp-poc-users`。`lambda.tf:5-6`が「意図的にTerraform管理外」と明記。本番は41ユーザーの実データがあり作り直せない |
 
-棚卸しは[17-environment-resource-map.md](../17-environment-resource-map.md)を参照。
+棚卸しは[17-internal-environment-resource-map.md](../17-internal-environment-resource-map.md)を参照。
 
 **対処**: フェーズ3(AWS環境の整理とバージョニング)で扱う。playgroundはtrocco・PetStore等と**共用**のため、対象を`quick-mcp-poc*`に限定する。**削除は必ず事前確認を取る**。
 
@@ -220,5 +220,5 @@ playgroundが`-pattern4-verify`を名乗っているのは、**`quick-mcp-poc-au
 
 1. 状態が変わったら本台帳を更新し、根拠(コミット・検証結果)を書く。
 2. 新たなブロッカーを見つけたらIDを追番で発行する。既存IDの意味は変えない。
-3. 「本番運用として安全か」に属する事項は本台帳ではなく[20-production-readiness-checklist.md](../20-production-readiness-checklist.md)へ登録する。
+3. 「本番運用として安全か」に属する事項は本台帳ではなく[20-internal-production-readiness-checklist.md](../20-internal-production-readiness-checklist.md)へ登録する。
 4. 納品時は、QUICK様環境で解消済みのIDを記録する。

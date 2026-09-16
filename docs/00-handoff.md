@@ -1,23 +1,23 @@
-# セッション引き継ぎメモ(2026-09-15時点)
+# セッション引き継ぎメモ(2026-09-16時点)
 
 > **この章で分かること**
 > 前回セッションで何をどこまでやったか、次に何をすべきか、そして再開する上で最初につまずきそうな点(PATH、SSOトークン、サンドボックス制限)を先回りしてまとめる。次回セッションはまずこのファイルを読んでから作業を再開すること。
 >
-> **最新の状況(2026-09-15時点)は末尾の「19. フェーズ2の着手前調査と作業計画の作成」を先に読むこと。** それより前の記述は過去時点の状態を含む(誤りではないが、一部は後続セクションで更新・訂正されている)。特に §18.4 の納品ブロッカー一覧は §19.2 で3件を訂正しており、以降は [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md) を正とする。
+> **最新の状況(2026-09-16時点)は末尾の「20. docs命名のinternal/external化と納品ヒアリング準備」を先に読むこと。** それより前の記述は過去時点の状態を含む(誤りではないが、一部は後続セクションで更新・訂正されている)。特に §18.4 の納品ブロッカー一覧は §19.2 で3件を訂正しており、以降は [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md) を正とする。**さらに、§19以前の本文中に残る`docs/NN-xxx.md`形式のリンクの一部は§20のリネームで`internal-`/`external-`が挿入されている(リンク自体は追随済みで切れていないが、ファイル名の見た目が変わっている点に注意)。**
 
 ## 1. 状況サマリー
 
 来週水曜のクライアント報告に向けて、quick-mcp-poc MCPサーバーを (3) AgentCore Runtime単体、(4) API Gateway + ECS(既存構成) の2パターンでホストし、比較検証している。
 
-**追加スコープ(2026-08-17に合意)**: このサービスは単発PoCではなく、**金融機関向けに課金制で外販するリモートMCPサービス**として展開する狙いがある。そのため通常のエンタープライズ向けリモートMCPより難易度が高く、マルチテナント分離・ネットワーク閉域性(PrivateLink)・監査ログ・コンプライアンス認定(FISC安全対策基準等)を重点的に比較検証する追加タスクを実施した → [05-security-compliance-verification.md](./05-security-compliance-verification.md)
+**追加スコープ(2026-08-17に合意)**: このサービスは単発PoCではなく、**金融機関向けに課金制で外販するリモートMCPサービス**として展開する狙いがある。そのため通常のエンタープライズ向けリモートMCPより難易度が高く、マルチテナント分離・ネットワーク閉域性(PrivateLink)・監査ログ・コンプライアンス認定(FISC安全対策基準等)を重点的に比較検証する追加タスクを実施した → [05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)
 
 **現時点で完了しているもの**(すべて`docs/`配下に成果物あり):
 
-- [x] パターン3(AgentCore Runtime)のデプロイ・疎通検証 → [03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md)
-- [x] パターン4(API Gateway + ECS)の稼働確認(既存本番相当環境、新規デプロイ不要だった) → [04-ecs-apigateway-verification.md](./04-ecs-apigateway-verification.md)
-- [x] 両パターンの構成図(AWS公式アイコン)・Mermaidシーケンス図・プロコン比較 → [01-architecture-comparison.md](./01-architecture-comparison.md)
-- [x] コストシミュレーション(月額試算・損益分岐点) → [02-cost-simulation.md](./02-cost-simulation.md)
-- [x] 金融グレード外販サービスとしてのセキュリティ・コンプライアンス比較検証(マルチテナント分離・閉域網・監査ログ・コンプライアンス認定・FISC対応) → [05-security-compliance-verification.md](./05-security-compliance-verification.md)。机上調査中心+一部実機確認(playgroundのRuntime設定スキーマ、terraformコードレビュー)で実施。**重要な発見: 現状構成はAgentCore・ECSどちらもPrivateLink/VPCエンドポイント未対応であり「閉域網」を訴求するには追加実装が必要**。ユーザーの指示により、この検証は現状判明している範囲で完了とし、実機でのPrivateLink疎通検証等は次回以降のフォローアップ扱い
+- [x] パターン3(AgentCore Runtime)のデプロイ・疎通検証 → [03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md)
+- [x] パターン4(API Gateway + ECS)の稼働確認(既存本番相当環境、新規デプロイ不要だった) → [04-internal-ecs-apigateway-verification.md](./04-internal-ecs-apigateway-verification.md)
+- [x] 両パターンの構成図(AWS公式アイコン)・Mermaidシーケンス図・プロコン比較 → [01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)
+- [x] コストシミュレーション(月額試算・損益分岐点) → [02-internal-cost-simulation.md](./02-internal-cost-simulation.md)
+- [x] 金融グレード外販サービスとしてのセキュリティ・コンプライアンス比較検証(マルチテナント分離・閉域網・監査ログ・コンプライアンス認定・FISC対応) → [05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)。机上調査中心+一部実機確認(playgroundのRuntime設定スキーマ、terraformコードレビュー)で実施。**重要な発見: 現状構成はAgentCore・ECSどちらもPrivateLink/VPCエンドポイント未対応であり「閉域網」を訴求するには追加実装が必要**。ユーザーの指示により、この検証は現状判明している範囲で完了とし、実機でのPrivateLink疎通検証等は次回以降のフォローアップ扱い
   - 「字ばかりで頭に入らない、オライリー本のように図表を多用してほしい」とのフィードバックを受け、TL;DR、AWS構成図2種(`docs/images/pattern3-vpc-privatelink-target.png`, `docs/images/pattern4-vpc-endpoint-target.png`、いずれも未検証の構想図)、Mermaid図(テナント分離フロー、コンプライアンスgantt、パッチ責任分界点、FISC構造)を追加する全面改訂を実施
   - その後「絵文字禁止・出典に本文中インラインリンクを・査読と修正はサブエージェント分離で」というフィードバックを受け、**査読専用エージェント(Explore、編集不可)→修正専用エージェント(general-purpose)の2段階構成**で対応。査読エージェントは1回目mermaid-cliインストールで600秒スタックし失敗、制約を明確化して再実行し成功。発見した問題: `subgraph AgentCore Runtime`のクォート漏れ(Mermaid構文エラーで図が描画不能)、エッジラベル内`\n`(Mermaid非対応)、ganttのtitle行のコロン(パース破損リスク)、quadrantChartのGitHub描画崩れ懸念、絵文字36箇所以上、本文中の出典インラインリンク不足17箇所。修正エージェントが全て適用し、絵文字ゼロ・subgraph修正・quadrantChart削除・出典リンク追加を確認済み(自分でも`grep`と全文読み直しで再確認済み)
   - **学び**: サブエージェントにMermaid検証をさせる際は「一時ファイル作成もダメ」と厳格に指示すると`mmdc`インストールで無限に粘って失敗することがある。「$TMPDIRへの一時ファイル作成は可、対象ファイルの編集のみ禁止」のように制約を具体的に切り分けると成功する
@@ -25,30 +25,30 @@
 **未着手・今後の課題**(ユーザーへの確認が必要な場合あり):
 
 - [ ] パターン1・2(AgentCore Gateway経由)の検証 — 今回スコープ外として合意済み。着手するかはユーザー確認が必要
-- [x] **パターン3のレイテンシ実測(コールドスタートの影響)**(2026-08-21実施)。詳細は[03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md)。**意外な発見: アイドル0秒〜16分(セッションタイムアウト超過後)まで一貫して約6秒で、コールドスタートによる有意な差は観測できなかった**。約6秒はAWS側のコンテナ起動待ちではなく、MCPサーバー実装がリクエストごとに新しいセッションを生成する設計による可能性が高い(推測、コード側の詳細プロファイリングは未実施)
+- [x] **パターン3のレイテンシ実測(コールドスタートの影響)**(2026-08-21実施)。詳細は[03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md)。**意外な発見: アイドル0秒〜16分(セッションタイムアウト超過後)まで一貫して約6秒で、コールドスタートによる有意な差は観測できなかった**。約6秒はAWS側のコンテナ起動待ちではなく、MCPサーバー実装がリクエストごとに新しいセッションを生成する設計による可能性が高い(推測、コード側の詳細プロファイリングは未実施)
 - [ ] パターン3のスケーラビリティ実測(同時リクエスト負荷試験)
 - [x] パターン3の本番グレード認証(Custom JWT Authorizer導入)の検証 → 下記の通り完了
-- [x] **Claude Code経由でのOAuthリモートMCP接続検証**(2026-08-18実施)。ECS+API Gatewayとの詳細比較・構成図・シーケンス図・認証フロー差分・接続手順・6つのハマりどころを整理した独立ドキュメント → [06-agentcore-oauth-claude-code-verification.md](./06-agentcore-oauth-claude-code-verification.md)。作業ログの詳細は本ファイル末尾「9. Claude.ai連携のためのCustom JWT Authorizer設定」を参照
+- [x] **Claude Code経由でのOAuthリモートMCP接続検証**(2026-08-18実施)。ECS+API Gatewayとの詳細比較・構成図・シーケンス図・認証フロー差分・接続手順・6つのハマりどころを整理した独立ドキュメント → [06-internal-agentcore-oauth-claude-code-verification.md](./06-internal-agentcore-oauth-claude-code-verification.md)。作業ログの詳細は本ファイル末尾「9. Claude.ai連携のためのCustom JWT Authorizer設定」を参照
 - [x] **Claude.ai Web版での疎通確認**(2026-08-20、ユーザーが実機で確認済み)。Runtime version 6での`allowedScopes`追加(§9末尾の追記参照)が功を奏した。Claude Desktopでの疎通はまだ未確認
-- [x] **クライアント(QUICK様)向けレポートの作成・査読・PDF化**(2026-08-19〜20実施)。詳細は本ファイル「10. クライアント向けレポートの作成とPDF化」を参照 → [06-agentcore-oauth-claude-code-verification-client.md](./06-agentcore-oauth-claude-code-verification-client.md) / 同PDF
-- [x] **汎用MCPクライアント(boto3/Claude Code/Claude.aiに非依存)からの疎通検証**(2026-08-21実施)。詳細は[03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md)。Cognito認可コード+PKCEフローのみで`invocations`エンドポイントを直接HTTPS呼び出しし、MCPプロトコル層・JWT認証・DynamoDB認可チェックまで正常動作することを確認
-- [x] **コスト再検討(実測レイテンシを踏まえた見直し)**(2026-08-21実施)→ [02-cost-simulation.md](./02-cost-simulation.md)。壁時計レイテンシ(約6秒)とAgentCore課金対象の「アクティブCPU時間」は別物である旨を明記し、既存の保守的な試算(1リクエスト=1秒)は変更せず維持。正確な値はAWS Cost Explorerでの実測を推奨。VPCモード(閉域網対応)にする場合のECR Interfaceエンドポイント追加コストも明記
-- [x] **WAF導入可否の実機検証**(2026-08-21実施)→ [05-security-compliance-verification.md §4.5](./05-security-compliance-verification.md)。AgentCore Runtime自体への直接アタッチは不可だが、CloudFront+WAFv2の代替構成をplaygroundに実機構築し、正常リクエストの通過・悪意あるパターンの403ブロックの両方を確認
-- [x] **本日の検証内容をまとめたレポート作成**(2026-08-21実施、06番と同フォーマット)→ エンジニア向け[07-vpc-waf-cost-verification.md](./07-vpc-waf-cost-verification.md) / クライアント向け[07-vpc-waf-cost-verification-client.md](./07-vpc-waf-cost-verification-client.md)。査読専用エージェント(Explore、編集不可)→修正専用エージェント(general-purpose)の2段階レビューで、Mermaid構文(`\n`→`<br/>`未変換、`<JWT>`のHTMLタグ誤認識リスク)、太字の乱用、表記ゆれ(壁時計レイテンシ/Interfaceエンドポイント)、クライアント向け版の文体不統一(敬体/常体混在)・「実機」という不自然な表現を修正済み
+- [x] **クライアント(QUICK様)向けレポートの作成・査読・PDF化**(2026-08-19〜20実施)。詳細は本ファイル「10. クライアント向けレポートの作成とPDF化」を参照 → [06-external-agentcore-oauth-claude-code-verification.md](./06-external-agentcore-oauth-claude-code-verification.md) / 同PDF
+- [x] **汎用MCPクライアント(boto3/Claude Code/Claude.aiに非依存)からの疎通検証**(2026-08-21実施)。詳細は[03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md)。Cognito認可コード+PKCEフローのみで`invocations`エンドポイントを直接HTTPS呼び出しし、MCPプロトコル層・JWT認証・DynamoDB認可チェックまで正常動作することを確認
+- [x] **コスト再検討(実測レイテンシを踏まえた見直し)**(2026-08-21実施)→ [02-internal-cost-simulation.md](./02-internal-cost-simulation.md)。壁時計レイテンシ(約6秒)とAgentCore課金対象の「アクティブCPU時間」は別物である旨を明記し、既存の保守的な試算(1リクエスト=1秒)は変更せず維持。正確な値はAWS Cost Explorerでの実測を推奨。VPCモード(閉域網対応)にする場合のECR Interfaceエンドポイント追加コストも明記
+- [x] **WAF導入可否の実機検証**(2026-08-21実施)→ [05-internal-security-compliance-verification.md §4.5](./05-internal-security-compliance-verification.md)。AgentCore Runtime自体への直接アタッチは不可だが、CloudFront+WAFv2の代替構成をplaygroundに実機構築し、正常リクエストの通過・悪意あるパターンの403ブロックの両方を確認
+- [x] **本日の検証内容をまとめたレポート作成**(2026-08-21実施、06番と同フォーマット)→ エンジニア向け[07-internal-vpc-waf-cost-verification.md](./07-internal-vpc-waf-cost-verification.md) / クライアント向け[07-external-vpc-waf-cost-verification.md](./07-external-vpc-waf-cost-verification.md)。査読専用エージェント(Explore、編集不可)→修正専用エージェント(general-purpose)の2段階レビューで、Mermaid構文(`\n`→`<br/>`未変換、`<JWT>`のHTMLタグ誤認識リスク)、太字の乱用、表記ゆれ(壁時計レイテンシ/Interfaceエンドポイント)、クライアント向け版の文体不統一(敬体/常体混在)・「実機」という不自然な表現を修正済み
 - [x] **追加検証5項目の実施**(2026-08-25実施): (1)疎通検証Webアプリ(Lambda Function URL、`quick-mcp-poc-web-demo`)、(2)ECS+API Gatewayをplaygroundに複製し応答時間を実測(約0.2〜0.3秒、AgentCore Runtimeの約6秒より約20倍速い)→**本番相当terraformのJWT Authorizer`audience`設定に、正当なトークンでも常に401になる不具合を発見・修正案を実機確認**(要本番共有、最優先課題)、(3)VPCモードのTerraformコード例(`docs/terraform-examples/agentcore-vpc-mode/main.tf`)、(4)VPCモード+WAF込みの1ヶ月コスト試算(損益分岐点が約610万→約77万リクエスト/月に低下)、(5)DCR移行の手順・コスト試算。両レポートの文章も「クライアント担当者(kekekenta氏)から」等の人物名を削除し「問いに対する検証」という位置づけに統一
 - [x] **AWSインフラ図の追加**(awsdac、2026-08-25実施): `docs/images/agentcore-vpc-mode-verified.png`(VPCモード実機構成)、`docs/images/agentcore-waf-cloudfront.png`(WAF/CloudFront構成)、`docs/images/agentcore-webdemo-architecture.png`(疎通検証Webアプリ構成)を新規作成し両レポートに埋め込み。既存の`pattern4-architecture.png`もECS比較セクションで再利用
-- [x] **PDF化パイプラインをリポジトリに永続化**([scripts/render-pdf.sh](../scripts/render-pdf.sh))。前回セッションではscratchpad依存で消えていたが、今回`npm install mermaid`のESMバンドル(`mermaid.esm.min.mjs`)をfile://経由でChromeに読み込ませる方式で再構築し、スクリプト化した。**注意点**: Chromeで`file://`オリジンからESモジュールをimportするには`--allow-file-access-from-files`フラグが必須(無いとCORSエラーで失敗する、無言でmermaidが生テキスト表示になるだけで気づきにくい)。クライアント向け版のPDFを[docs/07-vpc-waf-cost-verification-client.pdf](./07-vpc-waf-cost-verification-client.pdf)として保存済み(pdftoppmで複数ページを目視確認済み)
+- [x] **PDF化パイプラインをリポジトリに永続化**([scripts/render-pdf.sh](../scripts/render-pdf.sh))。前回セッションではscratchpad依存で消えていたが、今回`npm install mermaid`のESMバンドル(`mermaid.esm.min.mjs`)をfile://経由でChromeに読み込ませる方式で再構築し、スクリプト化した。**注意点**: Chromeで`file://`オリジンからESモジュールをimportするには`--allow-file-access-from-files`フラグが必須(無いとCORSエラーで失敗する、無言でmermaidが生テキスト表示になるだけで気づきにくい)。クライアント向け版のPDFを[docs/07-external-vpc-waf-cost-verification.pdf](./07-external-vpc-waf-cost-verification.pdf)として保存済み(pdftoppmで複数ページを目視確認済み)
 - [x] **検証リソースへのリンク集を両レポートに追加**。エンジニア向けはAWSコンソールの深リンク一式、クライアント向けは疎通検証Webアプリの公開URLのみ(クライアントはplaygroundアカウントにログインできないため)
 - [x] **「次週の検証アクションプラン」章を両レポートの最後に追加**(本番audienceバグの共有を最優先、PrivateLink実機検証・WAF運用体制・コスト実測・DCR判断が続く)
 
 ### 追加調査(2026-08-26実施)
 
 - [x] **`client_credentials`グラント(人手を介さないM2M接続)の実機検証**。新規Cognito App Client(`quick-mcp-poc-m2m-test`、client_id: `7gtknlcn9imrhihetq3aauojaj`、confidential、`allowed_oauth_flows=client_credentials`、scope=`mcp/invoke`)を作成し、Runtimeの`allowedClients`に追加(version 9)。**認可レイヤー(Custom JWT Authorizer)は問題なく通過するが、アプリ層(DynamoDB認可チェック)は`sub`=クライアントID自体に対応するレコードが無いため403になる**ことを確認。DynamoDBに`USER#7gtknlcn9imrhihetq3aauojaj`のレコードを追加(サービスアカウント扱い)したところ解消し、正常動作を確認済み。本番展開時はこの「サービスアカウント登録」運用が必要になる
-- [x] **6秒の内訳を実機で特定**。CloudWatch Logs(`/aws/bedrock-agentcore/runtimes/quickMcpPocVerification-Aoo0d23yyj-DEFAULT`)を調査し、**リクエストごとに新しいコンテナが起動している**ことを確認(1ストリーム=1回の起動ログのみ)。ストリーム作成〜起動完了ログまでの間隔は約30サンプルで3.78〜4.07秒(平均約3.9秒)と非常に安定。6秒のうち約65%はこのコンテナ起動コストと推定([07-vpc-waf-cost-verification.md §2.2.1](./07-vpc-waf-cost-verification.md)参照)
+- [x] **6秒の内訳を実機で特定**。CloudWatch Logs(`/aws/bedrock-agentcore/runtimes/quickMcpPocVerification-Aoo0d23yyj-DEFAULT`)を調査し、**リクエストごとに新しいコンテナが起動している**ことを確認(1ストリーム=1回の起動ログのみ)。ストリーム作成〜起動完了ログまでの間隔は約30サンプルで3.78〜4.07秒(平均約3.9秒)と非常に安定。6秒のうち約65%はこのコンテナ起動コストと推定([07-internal-vpc-waf-cost-verification.md §2.2.1](./07-internal-vpc-waf-cost-verification.md)参照)
 - [x] **VPCモード切り替え後、CloudWatch Logsへのログ配信が完全停止していることを発見**(2026-08-21 08:37の切り替え以降、新規ログストリームが0件)。`com.amazonaws.<region>.logs`のVPCエンドポイントを作成していないためと推定。**未対応**、次のフォローアップ課題
 - [x] **AWS Cost Explorerでの実コスト確認を試みたが、playgroundアカウント全体(他の検証者のAgentCoreエージェント含む)の合算しか取得できず、本Runtime単体を分離できないと判明**。代わりにCloudWatchメトリクス(`AWS/Bedrock-AgentCore`名前空間、dimensionに`Resource=<RuntimeのARN>`を指定)で本Runtime単体の`CPUUsed-vCPUHours`/`MemoryUsed-GBHours`/`Invocations`/`Duration`が取得できることを確認。ただし2026-08-17〜26の期間で総呼び出し回数が**6,414回**(想定より大幅に多い。Claude Code等のMCPクライアントによるバックグラウンドの定期接続が疑われるが未確定)、Duration最大値が130.6秒という外れ値もあり、**この実測値は今回レポートには反映せず**、契約情報として保留(ユーザー判断)。単価自体(vCPU $0.0895/時間、メモリ$0.00945/時間)は確定値と一致することを確認済み
-- [x] `docs/02-cost-simulation.md`に「内訳の算出根拠(サービス別)」を追加。既存試算が「0.25vCPU/0.5GBを1秒間」という仮定(Fargateと同サイズ)に基づくことを逆算で確認し、サービスごとの単価根拠を明記
-- [x] **AgentCore RuntimeのVPCモード切り替えの実機検証**(2026-08-21実施)。詳細は[05-security-compliance-verification.md §4.1.1](./05-security-compliance-verification.md)。**インバウンド(`invocations`エンドポイント)への影響なし、アウトバウンド(DynamoDB Gateway経由のVPC内リソースアクセス)は正常動作**を確認。クライアント(kekekenta氏)からの「AgentCore RuntimeはVPCに配置できないのでは」という質問への回答の裏付けが取れた
+- [x] `docs/02-internal-cost-simulation.md`に「内訳の算出根拠(サービス別)」を追加。既存試算が「0.25vCPU/0.5GBを1秒間」という仮定(Fargateと同サイズ)に基づくことを逆算で確認し、サービスごとの単価根拠を明記
+- [x] **AgentCore RuntimeのVPCモード切り替えの実機検証**(2026-08-21実施)。詳細は[05-internal-security-compliance-verification.md §4.1.1](./05-internal-security-compliance-verification.md)。**インバウンド(`invocations`エンドポイント)への影響なし、アウトバウンド(DynamoDB Gateway経由のVPC内リソースアクセス)は正常動作**を確認。クライアント(kekekenta氏)からの「AgentCore RuntimeはVPCに配置できないのでは」という質問への回答の裏付けが取れた
 - [ ] `com.amazonaws.<region>.bedrock-agentcore`のPrivateLinkインターフェースエンドポイント経由でのインバウンド呼び出し自体の実機検証(VPC内部からの完全閉域アクセス。上記で作成済みのVPCを使って次に実施可能)
 - [ ] `InvokeAgentRuntime`(データプレーン)がCloudTrailデータイベントとして記録されるかの実機確認
 - [ ] ログの改ざん防止・長期保存(S3 Object Lock等)の実装検証
@@ -87,9 +87,9 @@ aws sso login --profile quick-agentcore-poc-playground    # 検証用アカウ�
 | IAM実行ロール | `arn:aws:iam::883660531246:role/quick-mcp-poc-agentcore-execution-role` |
 | ECRリポジトリ | `883660531246.dkr.ecr.ap-northeast-1.amazonaws.com/quick-mcp-poc-agentcore-verification:verification-1` |
 | DynamoDBテーブル | `quick-mcp-poc-users`(テストユーザー1件: `USER#agentcore-verification-user`) |
-| AgentCore Runtime | `arn:aws:bedrock-agentcore:ap-northeast-1:883660531246:runtime/quickMcpPocVerification-Aoo0d23yyj`(version 10、`networkMode: VPC`、ステータス: READY。2026-08-31に`requestHeaderAllowlist`からの`x-cognito-sub`除去でversion 10に更新、[08番§1](./08-weekly-verification-plan.md)参照) |
+| AgentCore Runtime | `arn:aws:bedrock-agentcore:ap-northeast-1:883660531246:runtime/quickMcpPocVerification-Aoo0d23yyj`(version 10、`networkMode: VPC`、ステータス: READY。2026-08-31に`requestHeaderAllowlist`からの`x-cognito-sub`除去でversion 10に更新、[08番§1](./08-internal-weekly-verification-plan.md)参照) |
 | 検証用VPC | `quick-mcp-poc-verification-vpc`(`vpc-0df861e536fad4aab`, `10.99.0.0/24`)。2026-08-21、VPCモード検証のために新規作成。private subnet ×2(`subnet-0c56f317a1a50a6f4`, `subnet-004618218ccfed812`)、SG(`sg-04798ee8dda54dfc3`、自己参照443許可)、route table(`rtb-05c946adb3e34e90b`) |
-| VPCエンドポイント | S3 Gateway・DynamoDB Gateway・ECR API Interface・ECR DKR Interface(いずれも上記VPCに作成。詳細は[05-security-compliance-verification.md §4.1.1](./05-security-compliance-verification.md)参照) |
+| VPCエンドポイント | S3 Gateway・DynamoDB Gateway・ECR API Interface・ECR DKR Interface(いずれも上記VPCに作成。詳細は[05-internal-security-compliance-verification.md §4.1.1](./05-internal-security-compliance-verification.md)参照) |
 | WAF検証用CloudFront + WAFv2 | Distribution `E3IBSB361TGZEQ`(`d22imwd0soxmb2.cloudfront.net`、オリジン=`bedrock-agentcore.ap-northeast-1.amazonaws.com`)+ Web ACL `quick-mcp-poc-verification-webacl`(us-east-1、`AWSManagedRulesCommonRuleSet`)。2026-08-21、WAF代替構成検証のために新規作成。詳細は05番ドキュメント参照 |
 
 **2026-08-21、ユーザー判断により、上記VPC/CloudFront/WAF検証リソースは削除せず残置(PrivateLink実機検証等の次のフォローアップで再利用する方針)。Runtimeも`networkMode: VPC`(version 8、後述の疎通検証Webアプリ用client_id追加で8に更新)のまま維持することとした**(PUBLICへの切り戻しは行わない)。時間課金が発生するリソース(ECR Interfaceエンドポイント×2、CloudFront、WAFv2)が稼働し続けている点は認識しておくこと。
@@ -111,13 +111,13 @@ aws sso login --profile quick-agentcore-poc-playground    # 検証用アカウ�
 | DCR Authorizer Lambda | `quick-mcp-poc-dcr-authorizer`(同上)。`terraform-playground-pattern4`のJWT型Authorizerを置き換え済み |
 | `POST /register`ルート | `https://2a5r57wfoa.execute-api.ap-northeast-1.amazonaws.com/register` |
 
-詳細は[10-dcr-implementation.md](./10-dcr-implementation.md)参照。**注意**: この変更により`terraform-playground-pattern4`の認可方式はJWT型AuthorizerからLambda Authorizerに変わっている。次回セッションでこの環境を触る際は、`aws_apigatewayv2_authorizer.cognito`はもう存在しない前提で作業すること。
+詳細は[10-internal-dcr-implementation.md](./10-internal-dcr-implementation.md)参照。**注意**: この変更により`terraform-playground-pattern4`の認可方式はJWT型AuthorizerからLambda Authorizerに変わっている。次回セッションでこの環境を触る際は、`aws_apigatewayv2_authorizer.cognito`はもう存在しない前提で作業すること。
 
-**重要な発見**: playground複製環境で実機検証したところ、本番相当`terraform/apigateway.tf`のJWT Authorizer`audience`設定(`aws_cognito_resource_server.mcp.identifier`を指定)は、Cognitoが実際に発行するトークンの`aud`/`client_id`(App Client ID)と一致せず、**正当な認証済みトークンでも常に401になる**ことが判明した。`audience`を`aws_cognito_user_pool_client.mcp.id`に変更したところ解消した。本番環境自体は書き込み禁止のため未確認だが、同一ロジックのため本番でも同様の可能性が高い。詳細は[07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)参照。**本番担当者への早期共有を推奨**。
+**重要な発見**: playground複製環境で実機検証したところ、本番相当`terraform/apigateway.tf`のJWT Authorizer`audience`設定(`aws_cognito_resource_server.mcp.identifier`を指定)は、Cognitoが実際に発行するトークンの`aud`/`client_id`(App Client ID)と一致せず、**正当な認証済みトークンでも常に401になる**ことが判明した。`audience`を`aws_cognito_user_pool_client.mcp.id`に変更したところ解消した。本番環境自体は書き込み禁止のため未確認だが、同一ロジックのため本番でも同様の可能性が高い。詳細は[07-internal-vpc-waf-cost-verification.md §2.4](./07-internal-vpc-waf-cost-verification.md)参照。**本番担当者への早期共有を推奨**。
 
 **後片付けについて**: 上記のplayground複製一式(ECS/ALB/NAT×2/API Gateway/Cognito/DynamoDB/KMS等、59リソース)は継続的に時間課金が発生する(ECS Fargate常時起動、ALB、NATインスタンス×2等で月額約$46相当、02-cost-simulation.md参照)。**2026-08-25、ユーザー判断により「しばらく残す」こととした**(追加の確認・再検証に使う可能性があるため)。削除する場合は`cd terraform-playground-pattern4 && aws ecs delete-service --cluster quick-mcp-poc-cluster --service app --force --profile quick-agentcore-poc-playground --region ap-northeast-1 && terraform destroy`の順で実施すること。
 
-IAMポリシーの元ファイルは `docs/agentcore-iam/*.json` に保存済み。本番アカウント(620369151795)への適用時は、アカウントIDとECRリポジトリ名を置換する必要がある(詳細は各JSONファイル、および[01-architecture-comparison.md](./01-architecture-comparison.md)参照)。
+IAMポリシーの元ファイルは `docs/agentcore-iam/*.json` に保存済み。本番アカウント(620369151795)への適用時は、アカウントIDとECRリポジトリ名を置換する必要がある(詳細は各JSONファイル、および[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)参照)。
 
 疎通確認スクリプト:
 - `scripts/invoke_agentcore_mcp.py` / `scripts/invoke_agentcore_no_auth.py`: boto3+SigV4(IAM認証)方式。**Runtimeが現在Custom JWT Authorizer方式のため使用不可**(参考用に残置)
@@ -249,7 +249,7 @@ authorizer-configuration: customJWTAuthorizer.discoveryUrl + allowedClients + al
 ```
 (`allowedAudience`は含めない、`requestHeaderAllowlist`に`Authorization`を含める、という既存のポイントは変更なし)
 
-詳細な仮説・根拠・切り分け手順は[06-agentcore-oauth-claude-code-verification.md § 7](./06-agentcore-oauth-claude-code-verification.md)に記載。
+詳細な仮説・根拠・切り分け手順は[06-internal-agentcore-oauth-claude-code-verification.md § 7](./06-internal-agentcore-oauth-claude-code-verification.md)に記載。
 
 **次にやるべきこと**(2026-08-20時点で更新):
 - [x] ~~Web/Desktopのテスターに、version 6の状態で再度接続を試してもらう~~ → **2026-08-20、Claude.ai Web版での疎通をユーザーが確認済み**。version 6の`allowedScopes`追加が仮説通り原因であったことが裏付けられた(詳細な再現手順・エラー文言の記録は今回は取得していない。必要であれば次回テスターに改めて確認)
@@ -260,17 +260,17 @@ authorizer-configuration: customJWTAuthorizer.discoveryUrl + allowedClients + al
 
 ### 背景
 
-06番ドキュメント(`06-agentcore-oauth-claude-code-verification.md`)はエンジニア向け(再現・引き継ぎ用)に書かれていたため、QUICK様への説明に使うにはそのままでは不適切という判断から、読者をクライアントに絞った別版を作成する指示を受けた。
+06番ドキュメント(`06-internal-agentcore-oauth-claude-code-verification.md`)はエンジニア向け(再現・引き継ぎ用)に書かれていたため、QUICK様への説明に使うにはそのままでは不適切という判断から、読者をクライアントに絞った別版を作成する指示を受けた。
 
 ### 実施内容
 
-1. **クライアント向け版を新規作成**: `docs/06-agentcore-oauth-claude-code-verification-client.md`。エンジニア向けの元ファイルは引き継ぎ・再現用としてそのまま残し、上書きはしていない。用語解説(MCP/OAuth/JWT/Cognito/スコープ等)を追加し、「ハマった6つの問題」のような内輪向けの言い回しを対外報告らしい表現に調整。`docs/README.md`のドキュメント一覧には**まだ追記していない**(次回セッションでの対応候補)。
+1. **クライアント向け版を新規作成**: `docs/06-external-agentcore-oauth-claude-code-verification.md`。エンジニア向けの元ファイルは引き継ぎ・再現用としてそのまま残し、上書きはしていない。用語解説(MCP/OAuth/JWT/Cognito/スコープ等)を追加し、「ハマった6つの問題」のような内輪向けの言い回しを対外報告らしい表現に調整。`docs/README.md`のドキュメント一覧には**まだ追記していない**(次回セッションでの対応候補)。
 2. **PDF化パイプライン**: pandoc(`-f gfm -t html5 --standalone`)→ Python後処理(mermaidブロックの`<code>`タグ除去、画像相対パスを`file://`絶対パスに変換、`mermaid.initialize`スクリプト注入)→ ヘッドレスChrome(`--headless=new --print-to-pdf`)、という既存パイプラインを流用。**このパイプラインの中間ファイル(`header.html`・後処理スクリプト)はセッション専用のスクラッチパッド(`/private/tmp/claude-501/.../scratchpad/pdf/`)に置いており、次回セッションでは消えている。** 再現する場合は本セクションの記述を元に組み直すこと(pandocコマンド・後処理内容は上記の通り。ヘッダー用CSSは日本語フォント指定+テーブル/コードブロックの見た目調整のみで特別な工夫はない)。
 3. **クライアントから「AI生成だとバレる」との指摘**: 1回目のPDFで、`**「実際にAIクライアントから安全に接続できるか」**`のように太字記号がそのまま文字として表示される箇所があった。原因はCommonMarkの仕様で、`**`の直後/直前が全角カッコ「」などの記号だと太字として解釈されない(flanking rule)ため。この指摘を受けて査読・修正プロセスをサブエージェント化して実施:
    - **査読専用サブエージェント**(編集不可、`general-purpose`)に全文を読ませ、同種の太字崩れが他に3箇所残っていること、mermaid図の丸数字(④⑤⑥⑦)と本文表の番号(1〜4)の不一致、"実機"という浮いた専門用語(サーバーレス構成なのに"実機"は不自然)、用語の表記ゆれ(検証専用の環境/インスタンス/プール/認証基盤が混在)、太字の乱用(25箇所、平均10行に1回)などを洗い出させた
    - **修正専用サブエージェント**(別プロセス、`general-purpose`)に、指摘ごとの具体的な直し方(削除/言い換え/統一する用語)を指示して反映させた
    - 自分でも実際にpandoc変換したHTMLを正規表現でスキャンし、「太字が`<strong>`化されず`**`のまま残っていないか」を全数チェック(0件)。mermaidブロック内の崩れやすい記号(`<...>`のような角カッコ)も再スキャンし問題なしを確認
-4. PDF再生成、1ページ目を画像で目視確認して完了 → `docs/06-agentcore-oauth-claude-code-verification-client.pdf`(13ページ)
+4. PDF再生成、1ページ目を画像で目視確認して完了 → `docs/06-external-agentcore-oauth-claude-code-verification.pdf`(13ページ)
 
 ### 学び(次回以降のPDF作成・査読作業に活用)
 
@@ -281,7 +281,7 @@ authorizer-configuration: customJWTAuthorizer.discoveryUrl + allowedClients + al
 
 ### 未着手・次回への申し送り
 
-- [x] `docs/README.md`のドキュメント一覧・読み方フローチャートに、クライアント向け版(`06-agentcore-oauth-claude-code-verification-client.md`)への言及を追加する(2026-08-21実施。あわせて新規作成した07番ドキュメント一式も追記)
+- [x] `docs/README.md`のドキュメント一覧・読み方フローチャートに、クライアント向け版(`06-external-agentcore-oauth-claude-code-verification.md`)への言及を追加する(2026-08-21実施。あわせて新規作成した07番ドキュメント一式も追記)
 - [ ] **【次回最優先】今週の追加検証3点(2026-08-31合意、詳細は「12. 今週の追加検証計画」参照)**: (1) DCR実装(選択肢B、カスタムDCR/CIMDプロキシを実際に構築)、(2) 応答時間の深掘り・チューニング(まず「セッションID使い回しで起動コストを回避できないか」という未検証の仮説から試す)、(3) インタラクティブなコストシミュレーター(Artifact)の作成。**スコープ合意のみで実作業は未着手**
 - [ ] クライアント向けPDFは1ページ目のみ目視確認済み。全ページ(特にmermaid図のページ)の見た目は未確認のため、ユーザー側での最終確認を待っている状態
 - [ ] PDF化パイプラインをスクラッチパッド任せにせず、リポジトリ内(例: `scripts/render-pdf.sh`等)に永続化しておくと、次回以降のPDF再生成が楽になる(今回はユーザーから明示的な指示が無かったため未実施)
@@ -316,13 +316,13 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 > このセクションはスコープ合意のみで終わったセッションの記録。次回セッションはここから着手する。
 
-**追記(2026-08-31・同日、プランニング実施)**: 本セクションで合意した3項目について、実装前の設計・見積もり検証を実施した。結論を[08-weekly-verification-plan.md](./08-weekly-verification-plan.md)にまとめた。要点:
+**追記(2026-08-31・同日、プランニング実施)**: 本セクションで合意した3項目について、実装前の設計・見積もり検証を実施した。結論を[08-internal-weekly-verification-plan.md](./08-internal-weekly-verification-plan.md)にまとめた。要点:
 
-- **【重大・確認済み・修正済み】クロステナントなりすまし脆弱性を発見し即日修正(2026-08-31)**: AgentCore Runtimeの`requestHeaderConfiguration.requestHeaderAllowlist`に`x-cognito-sub`が含まれており、クライアントが送った値がそのままコンテナに転送されていた(ECS経路のような`overwrite:`保護がAgentCore経路には無かった)。実際に、正当なJWTを持ちながら`x-cognito-sub`ヘッダーで他テナントのsubを騙り、そのテナントとして認可される(成功レスポンスを得る)ことを実機で確認した。**対応**: `requestHeaderAllowlist`を`["Authorization"]`のみに変更(Runtime version 9→10、`update-agent-runtime`のみでコード変更・再デプロイ不要)。修正後、同じ手法でのなりすましが失敗する(Bearerトークンの`sub`に正しくフォールバックする)ことを再検証済み。詳細な経緯・図解は[09-cross-tenant-impersonation-finding.md](./09-cross-tenant-impersonation-finding.md)、要約は[08-weekly-verification-plan.md §1](./08-weekly-verification-plan.md)
+- **【重大・確認済み・修正済み】クロステナントなりすまし脆弱性を発見し即日修正(2026-08-31)**: AgentCore Runtimeの`requestHeaderConfiguration.requestHeaderAllowlist`に`x-cognito-sub`が含まれており、クライアントが送った値がそのままコンテナに転送されていた(ECS経路のような`overwrite:`保護がAgentCore経路には無かった)。実際に、正当なJWTを持ちながら`x-cognito-sub`ヘッダーで他テナントのsubを騙り、そのテナントとして認可される(成功レスポンスを得る)ことを実機で確認した。**対応**: `requestHeaderAllowlist`を`["Authorization"]`のみに変更(Runtime version 9→10、`update-agent-runtime`のみでコード変更・再デプロイ不要)。修正後、同じ手法でのなりすましが失敗する(Bearerトークンの`sub`に正しくフォールバックする)ことを再検証済み。詳細な経緯・図解は[09-internal-cross-tenant-impersonation-finding.md](./09-internal-cross-tenant-impersonation-finding.md)、要約は[08-internal-weekly-verification-plan.md §1](./08-internal-weekly-verification-plan.md)
 - **12.1 DCR実装の見積もり改訂**: 3-5人日→**7-9人日**。現在のJWT Authorizerは`audience`に固定値しか設定できず、DCRで動的に増えるclient_idに対応するには**Lambda Authorizerへの置き換えが必須**と判明(当初見積もりに未反映)。ユーザー確認の上、この見積もりを受け入れて選択肢Bを継続する方針(詳細は08番§2)
-- **12.2 応答時間チューニングのスコープ変更**: AWS公式ドキュメントにより、ステートレスMCPサーバーのままでも`Mcp-Session-Id`によるmicroVMスティッキーロイティングが機能することが判明。**サーバーのステートフル化(大改修)は不要**で、検証スクリプト(`scripts/invoke_agentcore_mcp_jwt.py`)がこのヘッダーを再送していないことが既存の実測結果の説明として十分。大改修(Phase 2)は今回のスコープから外し、Phase 0(スクリプト修正+計測ログ)のみ実施する方針(詳細は08番§3)。あわせて、既存の「AgentCoreはECSの約20倍遅い」という比較([07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md))が非対称な計測だった可能性を記録
-- **12.3 コストシミュレーター**: **実装・公開済み(2026-08-31)**。既存の`02-cost-simulation.md`の数値を逆算する過程で、ALB LCU・CloudFront平均レスポンスサイズという2つの未記載パラメータ、DynamoDB/Logsコストの非対称計上、損益分岐点の簡略化式という3点を新規発見。インタラクティブなArtifactとして実装し、既存ドキュメントの14個の掲載数値を許容誤差$0.5以内で再現することを確認済み(詳細は08番§4.5)
-- **12.1 DCR実装(2026-08-31実施)**: タスク1〜6(Lambda Authorizer実装・Register Lambda実装・discoveryメタデータ・乱用対策の一部・CLI管理コマンド)を`terraform-playground-pattern4`に実装し、実機で(a)既存静的クライアントの回帰確認、(b)DCR新規登録→client_credentialsでのMCP呼び出し成功、(c)DynamoDB失効フラグによる即時アクセス遮断、の3点を確認済み。詳細・詰まりどころは[10-dcr-implementation.md](./10-dcr-implementation.md)。残タスク: Claude Code/Claude.aiからの実際の自己登録によるE2E確認(Cognito Managed Login UI v2がブラウザ操作前提のため簡易スクリプトでは代替できず)、セキュリティレビュー、本番相当`terraform/`への移植(書き込み禁止のためapply自体はユーザー判断)
+- **12.2 応答時間チューニングのスコープ変更**: AWS公式ドキュメントにより、ステートレスMCPサーバーのままでも`Mcp-Session-Id`によるmicroVMスティッキーロイティングが機能することが判明。**サーバーのステートフル化(大改修)は不要**で、検証スクリプト(`scripts/invoke_agentcore_mcp_jwt.py`)がこのヘッダーを再送していないことが既存の実測結果の説明として十分。大改修(Phase 2)は今回のスコープから外し、Phase 0(スクリプト修正+計測ログ)のみ実施する方針(詳細は08番§3)。あわせて、既存の「AgentCoreはECSの約20倍遅い」という比較([07-internal-vpc-waf-cost-verification.md §2.4](./07-internal-vpc-waf-cost-verification.md))が非対称な計測だった可能性を記録
+- **12.3 コストシミュレーター**: **実装・公開済み(2026-08-31)**。既存の`02-internal-cost-simulation.md`の数値を逆算する過程で、ALB LCU・CloudFront平均レスポンスサイズという2つの未記載パラメータ、DynamoDB/Logsコストの非対称計上、損益分岐点の簡略化式という3点を新規発見。インタラクティブなArtifactとして実装し、既存ドキュメントの14個の掲載数値を許容誤差$0.5以内で再現することを確認済み(詳細は08番§4.5)
+- **12.1 DCR実装(2026-08-31実施)**: タスク1〜6(Lambda Authorizer実装・Register Lambda実装・discoveryメタデータ・乱用対策の一部・CLI管理コマンド)を`terraform-playground-pattern4`に実装し、実機で(a)既存静的クライアントの回帰確認、(b)DCR新規登録→client_credentialsでのMCP呼び出し成功、(c)DynamoDB失効フラグによる即時アクセス遮断、の3点を確認済み。詳細・詰まりどころは[10-internal-dcr-implementation.md](./10-internal-dcr-implementation.md)。残タスク: Claude Code/Claude.aiからの実際の自己登録によるE2E確認(Cognito Managed Login UI v2がブラウザ操作前提のため簡易スクリプトでは代替できず)、セキュリティレビュー、本番相当`terraform/`への移植(書き込み禁止のためapply自体はユーザー判断)
 - 12.2(応答時間チューニングPhase 0、約3人日)は**未着手**。次回セッションは08番ドキュメントの「§5 実施順序」の残タスクから着手する
 
 ユーザーから今週の検証項目として次の3点が提示され、スコープを確認した。**実際の作業は未着手**(SSOトークン確認の直後にセッションを次回に持ち越すことになったため)。
@@ -335,18 +335,18 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 ### 12.2 応答時間の深掘り検証・チューニング
 
-- 背景: [07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)で、ECS+API Gateway(約0.2〜0.3秒)がAgentCore Runtime(約6秒)より約20倍速いという結果が出ており、ユーザーは「現状ECSの方が有利に見えるので、AgentCore Runtime側をチューニングまたはアーキテクチャ最適化して同等以上の速度を目指せないか」を検証したいとのこと
+- 背景: [07-internal-vpc-waf-cost-verification.md §2.4](./07-internal-vpc-waf-cost-verification.md)で、ECS+API Gateway(約0.2〜0.3秒)がAgentCore Runtime(約6秒)より約20倍速いという結果が出ており、ユーザーは「現状ECSの方が有利に見えるので、AgentCore Runtime側をチューニングまたはアーキテクチャ最適化して同等以上の速度を目指せないか」を検証したいとのこと
 - スコープ確認済み: **アプリコード(`server/src/*`)を変更し、再デプロイしながら検証してよい**(ユーザー承認済み)
 - **次回最初に試すべき、最も安価な仮説(未検証)**: §2.4の実測で判明した「リクエストごとに新しいコンテナが起動し、起動に約3.9秒かかる」という現象について、AgentCore Runtimeのレスポンスヘッダーに`mcp-session-id`・`x-amzn-bedrock-agentcore-runtime-session-id`というセッションIDが含まれていることを2026-08-21のCloudFront経由テストで確認済み(未活用のまま)。**同一セッションID を2回目以降のリクエストで使い回すと、コンテナが再利用され約3.9秒の起動コストを回避できるのではないか、という仮説がある**。これはアプリコード変更なしで検証でき(クライアント側でセッションIDヘッダーを送るだけ)、成立すれば「アーキテクチャ最適化でECSと同等以上の速度を実現する」という目標に直結する、最優先で試すべき仮説
 - その他の検証候補: サーバー実装(`server/src/index.ts`)の`sessionIdGenerator: undefined`(ステートレスStreamable HTTP)設定を、実際のセッションID発行に変更した場合の挙動変化。Node.js起動時間の削減(依存関係の遅延ロード等)
-- 前提: [07-vpc-waf-cost-verification.md §3.2の詰まった点4](./07-vpc-waf-cost-verification.md)で判明した「VPCモードにするとCloudWatch Logsへのログ配信が止まる」問題が未解決のため、**タイミング計測ログを仕込んでも現在はログが見えない**。チューニング検証を始める前に、`com.amazonaws.<region>.logs`のVPCエンドポイントを追加するか、一時的に`networkMode: PUBLIC`に戻すかの判断が必要
-- playground用ECRイメージの再ビルド・pushの手順は[07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)や本ファイル§4のterraform-playground-pattern4の手順を参考にできる
+- 前提: [07-internal-vpc-waf-cost-verification.md §3.2の詰まった点4](./07-internal-vpc-waf-cost-verification.md)で判明した「VPCモードにするとCloudWatch Logsへのログ配信が止まる」問題が未解決のため、**タイミング計測ログを仕込んでも現在はログが見えない**。チューニング検証を始める前に、`com.amazonaws.<region>.logs`のVPCエンドポイントを追加するか、一時的に`networkMode: PUBLIC`に戻すかの判断が必要
+- playground用ECRイメージの再ビルド・pushの手順は[07-internal-vpc-waf-cost-verification.md §2.4](./07-internal-vpc-waf-cost-verification.md)や本ファイル§4のterraform-playground-pattern4の手順を参考にできる
 
 ### 12.3 コストシミュレーターの作成
 
-- 背景: [02-cost-simulation.md](./02-cost-simulation.md)に「内訳の算出根拠(サービス別)」の表を追加済みだが、ユーザーからは「現在の約$50〜60ではよく分からないので、コストモデルを整理しながらシミュレーターを作ってほしい」との要望
+- 背景: [02-internal-cost-simulation.md](./02-internal-cost-simulation.md)に「内訳の算出根拠(サービス別)」の表を追加済みだが、ユーザーからは「現在の約$50〜60ではよく分からないので、コストモデルを整理しながらシミュレーターを作ってほしい」との要望
 - スコープ確認済み: **インタラクティブなWebページ形式**(トラフィック量・VPCモード有無・WAF有無等をスライダー/チェックボックスで調整でき、サービス別内訳と合計がリアルタイムに表示される)。Artifactとして公開する想定
-- 材料は揃っている: [02-cost-simulation.md](./02-cost-simulation.md)の単価表(vCPU $0.0895/時間、メモリ$0.00945/時間、Fargate/ALB/NAT/APIGW単価、VPCエンドポイント$0.014/時間/AZ、WAFv2 $5/月+$1/ルール等)をそのままロジックに落とし込める
+- 材料は揃っている: [02-internal-cost-simulation.md](./02-internal-cost-simulation.md)の単価表(vCPU $0.0895/時間、メモリ$0.00945/時間、Fargate/ALB/NAT/APIGW単価、VPCエンドポイント$0.014/時間/AZ、WAFv2 $5/月+$1/ルール等)をそのままロジックに落とし込める
 - 実装時の注意: Artifactを書く前に`artifact-design`スキルを読み込むこと(このセッションでは未実施)
 
 ### 進め方の推奨(次回セッション向け)
@@ -373,19 +373,19 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 | 項目 | 状態 |
 |---|---|
-| DCR実装(選択肢B) | **完了**(タスク1〜6+セキュリティレビュー)。`terraform-playground-pattern4`に実装、実機確認済み。詳細は[10-dcr-implementation.md](./10-dcr-implementation.md) |
+| DCR実装(選択肢B) | **完了**(タスク1〜6+セキュリティレビュー)。`terraform-playground-pattern4`に実装、実機確認済み。詳細は[10-internal-dcr-implementation.md](./10-internal-dcr-implementation.md) |
 | コストシミュレーター | **完了**。[Artifact公開済み](https://claude.ai/code/artifact/8f9d8cfc-aec8-4eb2-8970-6e3e1947f8c3)、既存資料の14数値を再現することを検証済み |
-| 応答時間チューニング(Phase 0) | **未着手**。次回セッション最優先。手順は[08-weekly-verification-plan.md §3](./08-weekly-verification-plan.md)に整理済み。あわせて§3.5・[13-weekly-verification-report.md §7.4](./13-weekly-verification-report.md)に「コンテナ起動オーバーヘッド自体を縮められるかもしれない」という追加候補(ウォームプール検証・コードデプロイモード比較)も次回検証項目として記録済み |
+| 応答時間チューニング(Phase 0) | **未着手**。次回セッション最優先。手順は[08-internal-weekly-verification-plan.md §3](./08-internal-weekly-verification-plan.md)に整理済み。あわせて§3.5・[13-internal-weekly-verification-report.md §7.4](./13-internal-weekly-verification-report.md)に「コンテナ起動オーバーヘッド自体を縮められるかもしれない」という追加候補(ウォームプール検証・コードデプロイモード比較)も次回検証項目として記録済み |
 
 ### 13.3 スコープ外で見つかった重大な追加成果
 
-- **【最重要・修正済み】x-cognito-subヘッダーによるクロステナントなりすまし脆弱性**: AgentCore Runtime経路で発見・実機確認・即日修正(設定変更のみ、コード変更不要)。詳細は[09-cross-tenant-impersonation-finding.md](./09-cross-tenant-impersonation-finding.md)。**AgentCore Runtimeは現在version 10**(修正反映済み)
-- **DCR実装後のセキュリティレビュー**: 4件の候補中3件を確定・修正(無審査アクセス付与、スコープ未検証、失効の最大5分遅延)。1件は誤検知として除外。詳細は[10-dcr-implementation.md §4.5](./10-dcr-implementation.md)
-- **Cognito→Auth0移行の机上見積もり**: [11-cognito-to-auth0-migration-estimate.md](./11-cognito-to-auth0-migration-estimate.md)。技術的に成立しそうだが月額$800〜の新規コストとデータレジデンシー懸念あり
-- **【次回最優先で試すべき、Auth0移行よりはるかに安い代替仮説(未検証)】**: AgentCore Runtimeの`allowedClients`を外し`allowedScopes`のみで運用すれば、Cognitoのままpattern3でもDCRが成立する可能性がある。また、pattern4もAPI Gateway REST API(v1)のネイティブ`COGNITO_USER_POOLS`オーソライザー(client ID指定が任意)に置き換えれば、自作Lambda Authorizerが不要になる可能性がある。詳細は[10-dcr-implementation.md §0.5](./10-dcr-implementation.md)、[08-weekly-verification-plan.md §2.9](./08-weekly-verification-plan.md)
-- **MCPプロトコルv2(2026-07-28)移行の影響調査**: [12-mcp-protocol-v2-upgrade-impact.md](./12-mcp-protocol-v2-upgrade-impact.md)。**重要な訂正**: 当初「v2 SDKは現状ベータ版」と誤って結論づけたが、追加確認で**v2は仕様と同時に2026-07-28に既にGA済み**と判明し訂正済み。「GAを待つ」という判断根拠は無くなっている
-- **Step1仕様確認シートへの回答**: [14-step1-spec-confirmation-answers.md](./14-step1-spec-confirmation-answers.md)。特にx-cognito-subヘッダーに関する質問は、上記の脆弱性発見と直結する内容だった
-- **今週の統合レポート**: [13-weekly-verification-report.md](./13-weekly-verification-report.md)(PDF化済み: `docs/13-weekly-verification-report.pdf`)。既存の06/07番と同フォーマット(TL;DR・AWS構成図・Mermaidシーケンス図・図の解説・出典)で、この週の全内容を1本のレポートに統合
+- **【最重要・修正済み】x-cognito-subヘッダーによるクロステナントなりすまし脆弱性**: AgentCore Runtime経路で発見・実機確認・即日修正(設定変更のみ、コード変更不要)。詳細は[09-internal-cross-tenant-impersonation-finding.md](./09-internal-cross-tenant-impersonation-finding.md)。**AgentCore Runtimeは現在version 10**(修正反映済み)
+- **DCR実装後のセキュリティレビュー**: 4件の候補中3件を確定・修正(無審査アクセス付与、スコープ未検証、失効の最大5分遅延)。1件は誤検知として除外。詳細は[10-internal-dcr-implementation.md §4.5](./10-internal-dcr-implementation.md)
+- **Cognito→Auth0移行の机上見積もり**: [11-internal-cognito-to-auth0-migration-estimate.md](./11-internal-cognito-to-auth0-migration-estimate.md)。技術的に成立しそうだが月額$800〜の新規コストとデータレジデンシー懸念あり
+- **【次回最優先で試すべき、Auth0移行よりはるかに安い代替仮説(未検証)】**: AgentCore Runtimeの`allowedClients`を外し`allowedScopes`のみで運用すれば、Cognitoのままpattern3でもDCRが成立する可能性がある。また、pattern4もAPI Gateway REST API(v1)のネイティブ`COGNITO_USER_POOLS`オーソライザー(client ID指定が任意)に置き換えれば、自作Lambda Authorizerが不要になる可能性がある。詳細は[10-internal-dcr-implementation.md §0.5](./10-internal-dcr-implementation.md)、[08-internal-weekly-verification-plan.md §2.9](./08-internal-weekly-verification-plan.md)
+- **MCPプロトコルv2(2026-07-28)移行の影響調査**: [12-internal-mcp-protocol-v2-upgrade-impact.md](./12-internal-mcp-protocol-v2-upgrade-impact.md)。**重要な訂正**: 当初「v2 SDKは現状ベータ版」と誤って結論づけたが、追加確認で**v2は仕様と同時に2026-07-28に既にGA済み**と判明し訂正済み。「GAを待つ」という判断根拠は無くなっている
+- **Step1仕様確認シートへの回答**: [14-internal-step1-spec-confirmation-answers.md](./14-internal-step1-spec-confirmation-answers.md)。特にx-cognito-subヘッダーに関する質問は、上記の脆弱性発見と直結する内容だった
+- **今週の統合レポート**: [13-internal-weekly-verification-report.md](./13-internal-weekly-verification-report.md)(PDF化済み: `docs/13-internal-weekly-verification-report.pdf`)。既存の06/07番と同フォーマット(TL;DR・AWS構成図・Mermaidシーケンス図・図の解説・出典)で、この週の全内容を1本のレポートに統合
 
 ### 13.4 PDF化パイプラインの重要な修正(次回以降に影響)
 
@@ -393,7 +393,7 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 - 原因: Mermaidの一括処理API(`mermaid.run()`)が、1ページに複数の図が並ぶ文書で、図同士の描画位置を取り違えることがある
 - 対応: `mermaid.render(id, definition)`を図ごとに明示的なユニークIDで個別呼び出しし、結果を該当のプレースホルダー要素にだけ差し込む方式に変更済み(スクリプトは修正済み、今後生成するPDFはこの修正が自動的に反映される)
-- 図が2〜3個程度の文書では発生しにくく、[13-weekly-verification-report.md](./13-weekly-verification-report.md)のように図が10個を超えるあたりから顕在化した。**今後、複数図を含む長いレポートをPDF化する際は、生成後に必ず全ページを目視確認すること**(`pdftoppm`で1ページずつPNG化して確認する手順が確立済み)
+- 図が2〜3個程度の文書では発生しにくく、[13-internal-weekly-verification-report.md](./13-internal-weekly-verification-report.md)のように図が10個を超えるあたりから顕在化した。**今後、複数図を含む長いレポートをPDF化する際は、生成後に必ず全ページを目視確認すること**(`pdftoppm`で1ページずつPNG化して確認する手順が確立済み)
 
 ### 13.5 現在のAWSリソース状態(playgroundアカウント、883660531246)
 
@@ -434,14 +434,14 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 | 項目 | 状態 |
 |---|---|
-| MCPプロトコルv2への載せ替え検証 | **完了(スパイクとして)**。`feature/mcp-protocol-v2-spike`ブランチで実装、LocalStackで動作確認済み。**mainには未マージ**(意図的にスパイク止まりの方針)。詳細は[12-mcp-protocol-v2-upgrade-impact.md §7](./12-mcp-protocol-v2-upgrade-impact.md) |
-| ECS(WAF・DCR)本番化検証・課題整理 | **完了**。既存`terraform-playground-pattern4`でのDCRデモ実演に加え、[10-dcr-implementation.md §0.5](./10-dcr-implementation.md)で未検証だった2つの仮説(AgentCore Runtime`allowedScopes`単独運用、ECS側REST APIネイティブ`COGNITO_USER_POOLS`オーソライザー)を実機で初検証し、いずれも成立を確認。WAFのSQLi未対応も新規発見。詳細は[15-ecs-production-readiness-gaps.md](./15-ecs-production-readiness-gaps.md) |
+| MCPプロトコルv2への載せ替え検証 | **完了(スパイクとして)**。`feature/mcp-protocol-v2-spike`ブランチで実装、LocalStackで動作確認済み。**mainには未マージ**(意図的にスパイク止まりの方針)。詳細は[12-internal-mcp-protocol-v2-upgrade-impact.md §7](./12-internal-mcp-protocol-v2-upgrade-impact.md) |
+| ECS(WAF・DCR)本番化検証・課題整理 | **完了**。既存`terraform-playground-pattern4`でのDCRデモ実演に加え、[10-internal-dcr-implementation.md §0.5](./10-internal-dcr-implementation.md)で未検証だった2つの仮説(AgentCore Runtime`allowedScopes`単独運用、ECS側REST APIネイティブ`COGNITO_USER_POOLS`オーソライザー)を実機で初検証し、いずれも成立を確認。WAFのSQLi未対応も新規発見。詳細は[15-internal-ecs-production-readiness-gaps.md](./15-internal-ecs-production-readiness-gaps.md) |
 | 応答時間チューニング(6秒問題) | **完了(Phase 0)**。セッションID再利用で約10倍高速化(6秒→0.5〜0.6秒)することを実機確認したが、効果の持続時間は30秒〜5分の間で失われることも判明(設定上の`idleRuntimeSessionTimeout`15分より短い) |
-| 今週の検証レポート作成 | **完了**。社内向け[16-weekly-verification-report-week3.md](./16-weekly-verification-report-week3.md)・クライアント向け[16-weekly-verification-report-week3-client.md](./16-weekly-verification-report-week3-client.md)(PDF化済み)を作成 |
+| 今週の検証レポート作成 | **完了**。社内向け[16-internal-weekly-verification-report-week3.md](./16-internal-weekly-verification-report-week3.md)・クライアント向け[16-external-weekly-verification-report-week3.md](./16-external-weekly-verification-report-week3.md)(PDF化済み)を作成 |
 
 ### 14.2 本番相当terraformのaudienceバグ修正パッチ
 
-[07-vpc-waf-cost-verification.md §2.4](./07-vpc-waf-cost-verification.md)で発見済みだった本番`terraform/apigateway.tf`の`audience`バグ(正当なトークンでも401になる)について、`fix/production-audience-config-proposal`ブランチとして修正パッチを用意した(`terraform validate`まで確認、本番へは未適用)。**次回セッション最優先で本番担当者への共有を推奨**。
+[07-internal-vpc-waf-cost-verification.md §2.4](./07-internal-vpc-waf-cost-verification.md)で発見済みだった本番`terraform/apigateway.tf`の`audience`バグ(正当なトークンでも401になる)について、`fix/production-audience-config-proposal`ブランチとして修正パッチを用意した(`terraform validate`まで確認、本番へは未適用)。**次回セッション最優先で本番担当者への共有を推奨**。
 
 ### 14.3 Gitブランチの状態(重要、mainには何もマージされていない)
 
@@ -559,8 +559,8 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 `feature/mcp-protocol-v2-spike`ブランチに、社内向け・クライアント向けの2種類を作成しPDF化済み(全ページ目視確認済み)。
 
-- 社内向け: `docs/18-weekly-verification-report-week4.md`(13ページ)。§1 DCR対応(§1.1でDCRとは何かを説明)、§2 WAF対応(今週新規検証)、§3 MCPプロトコルv2 SDK確認(ECS本位・Runtime参考)、§4 デモツール補足、§5 来週のアクションプラン
-- クライアント向け: `docs/18-weekly-verification-report-week4-client.md`(7ページ)。同じ構成を平易な言葉で説明、他レポートへの参照は含めず単体で完結させている(ユーザー指示)
+- 社内向け: `docs/18-internal-weekly-verification-report-week4.md`(13ページ)。§1 DCR対応(§1.1でDCRとは何かを説明)、§2 WAF対応(今週新規検証)、§3 MCPプロトコルv2 SDK確認(ECS本位・Runtime参考)、§4 デモツール補足、§5 来週のアクションプラン
+- クライアント向け: `docs/18-external-weekly-verification-report-week4.md`(7ページ)。同じ構成を平易な言葉で説明、他レポートへの参照は含めず単体で完結させている(ユーザー指示)
 
 ### 16.7 ブランチ状態(mainには何もマージされていない、要判断)
 
@@ -634,10 +634,10 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 | 成果物 | 内容 |
 |---|---|
-| [19-weekly-verification-plan-week5.md](./19-weekly-verification-plan-week5.md) | 今週の検証プラン(WAF・DCR・チェックリスト・商用調査)。§1.9にWAFの実施結果、§2.10にDCRの実施結果を追記済み |
-| [20-production-readiness-checklist.md](./20-production-readiness-checklist.md) | 本番運用チェックリスト。WAF(`WAF-NN`)・DCR(仕様番号)・Authorizer(`AUTHZ-NN`)を固定IDで管理し、自動テストの結果IDと1対1で対応させる |
-| [21-commercial-remote-mcp-operations-research.md](./21-commercial-remote-mcp-operations-research.md) | AgentCore Gateway・AWS参照アーキテクチャ・MCP仕様・Anthropicコネクタ仕様の机上調査。`OPS-01`〜`OPS-10`の追加行を提案 |
-| [22-weekly-verification-report-week5.md](./22-weekly-verification-report-week5.md) / [同クライアント向け](./22-weekly-verification-report-week5-client.md) | 今週の検証レポート。社内向け11ページ・クライアント向け10ページ、PDF化済み(全ページ目視確認済み) |
+| [19-internal-weekly-verification-plan-week5.md](./19-internal-weekly-verification-plan-week5.md) | 今週の検証プラン(WAF・DCR・チェックリスト・商用調査)。§1.9にWAFの実施結果、§2.10にDCRの実施結果を追記済み |
+| [20-internal-production-readiness-checklist.md](./20-internal-production-readiness-checklist.md) | 本番運用チェックリスト。WAF(`WAF-NN`)・DCR(仕様番号)・Authorizer(`AUTHZ-NN`)を固定IDで管理し、自動テストの結果IDと1対1で対応させる |
+| [21-internal-commercial-remote-mcp-operations-research.md](./21-internal-commercial-remote-mcp-operations-research.md) | AgentCore Gateway・AWS参照アーキテクチャ・MCP仕様・Anthropicコネクタ仕様の机上調査。`OPS-01`〜`OPS-10`の追加行を提案 |
+| [22-internal-weekly-verification-report-week5.md](./22-internal-weekly-verification-report-week5.md) / [同クライアント向け](./22-external-weekly-verification-report-week5.md) | 今週の検証レポート。社内向け11ページ・クライアント向け10ページ、PDF化済み(全ページ目視確認済み) |
 | `scripts/waf_attack_tests.py` | 攻撃パターン45件(A01〜A25)のハーネス。`X-Waf-Test-Id`でWAFログと突合できる |
 | `scripts/waf_log_correlate.py` | WAFログとハーネス結果の突合。どのルールが遮断したか、WAFが見た送信元IPは何かを判定する |
 | `scripts/dcr_conformance_tests.py` | RFC 7591 / 7592 / 8414 / 9728 / MCP認可の準拠性テスト。`--cleanup`でテストクライアントを削除 |
@@ -647,7 +647,7 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 ### 17.3 DCRの結果: 合格19→33、不合格16→2
 
-修正前の基準線を取ってから最小スコープの修正を適用し、再検証した。詳細は[19番 §2.10](./19-weekly-verification-plan-week5.md)。
+修正前の基準線を取ってから最小スコープの修正を適用し、再検証した。詳細は[19番 §2.10](./19-internal-weekly-verification-plan-week5.md)。
 
 **基準線で判明した、プランに無かった欠陥**:
 
@@ -666,11 +666,11 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 ### 17.4 WAFの結果: 主案(CloudFront + WAF)をBlockモードで検証、攻撃16件遮断・誤検知ゼロ
 
-詳細は[19番 §1.9](./19-weekly-verification-plan-week5.md)。45パターンの内訳は、WAFが403で遮断した攻撃16件(うち14件はWAFログで`terminatingRuleId`まで確認)、CloudFrontまたはサーバーが400/405/415で拒否した攻撃5件、記録のみの攻撃11件、そして**全件200で通過した正常系コーパス13件**である。
+詳細は[19番 §1.9](./19-internal-weekly-verification-plan-week5.md)。45パターンの内訳は、WAFが403で遮断した攻撃16件(うち14件はWAFログで`terminatingRuleId`まで確認)、CloudFrontまたはサーバーが400/405/415で拒否した攻撃5件、記録のみの攻撃11件、そして**全件200で通過した正常系コーパス13件**である。
 
 **数値の注意**: ハーネスの「合格35」は正常系13件の通過を含む合否判定の数であり、遮断件数ではない。レポート初稿でこれを「35件遮断」と誤記し、証跡JSONからの再計算で気づいて訂正した(§17.7)。
 
-**先週の結論を修正すべき発見(最重要)**: ALBにWAFをアタッチすると、**WAFが見る送信元IPはVPC Link ENIのプライベートIP(10.0.11.94)に集約される**。真のクライアントIPは`forwarded`ヘッダにしか無く、IPベースのレート制限・Geo・IPレピュテーションは全クライアントを同一IPとして扱うため機能しない。[18番 §2](./18-weekly-verification-report-week4.md)の「ALBにアタッチすれば対応可能」はボディ検査に限れば正しいが、恒久設計としては不十分。CloudFront構成では真のクライアントIPで評価でき、Geoラベルも正しく付与された。
+**先週の結論を修正すべき発見(最重要)**: ALBにWAFをアタッチすると、**WAFが見る送信元IPはVPC Link ENIのプライベートIP(10.0.11.94)に集約される**。真のクライアントIPは`forwarded`ヘッダにしか無く、IPベースのレート制限・Geo・IPレピュテーションは全クライアントを同一IPとして扱うため機能しない。[18番 §2](./18-internal-weekly-verification-report-week4.md)の「ALBにアタッチすれば対応可能」はボディ検査に限れば正しいが、恒久設計としては不十分。CloudFront構成では真のクライアントIPで評価でき、Geoラベルも正しく付与された。
 
 **全ルート保護**: `/register`のSQLiと`/token`のXSSもBLOCKされた。ALBアタッチではこれらの経路は保護できない。
 
@@ -678,7 +678,7 @@ DCR/CIMD対応が必要になるかどうかは、**外販サービスの提供�
 
 ### 17.5 REST API移行の採否(今週の最重点): **移行しないと判断**
 
-ユーザーが「今週中に判断」と指示した項目。**結論: REST API v1へは移行せず、CloudFront + WAF + HTTP API(主案d)を継続する。** 詳細と根拠は[19番 §1.10](./19-weekly-verification-plan-week5.md)。
+ユーザーが「今週中に判断」と指示した項目。**結論: REST API v1へは移行せず、CloudFront + WAF + HTTP API(主案d)を継続する。** 詳細と根拠は[19番 §1.10](./19-internal-weekly-verification-plan-week5.md)。
 
 REST移行の動機は4つあったが、
 
@@ -732,8 +732,8 @@ REST移行の動機は4つあったが、
 
 | # | 項目 | 内容 |
 |---|---|---|
-| B1 | REST API移行を見送る判断の承認 | 私が結論を出したがアーキテクチャの意思決定。根拠は[19番 §1.10](./19-weekly-verification-plan-week5.md)と[22番 §3](./22-weekly-verification-report-week5.md) |
-| B2 | 例外台帳4件の承認 | 意図的にCountのまま運用するルール。すべて「未承認(検証段階の暫定)」で[20番 §4](./20-production-readiness-checklist.md)に登録済み。本番適用前に承認が要る |
+| B1 | REST API移行を見送る判断の承認 | 私が結論を出したがアーキテクチャの意思決定。根拠は[19番 §1.10](./19-internal-weekly-verification-plan-week5.md)と[22番 §3](./22-internal-weekly-verification-report-week5.md) |
+| B2 | 例外台帳4件の承認 | 意図的にCountのまま運用するルール。すべて「未承認(検証段階の暫定)」で[20番 §4](./20-internal-production-readiness-checklist.md)に登録済み。本番適用前に承認が要る |
 | B3 | `WAF-12`のリスク受容 | JSON内にBase64で埋めたJavaシリアライズ列が検知されない。カスタムルールを作るか、影響の小ささで許容するか |
 | B4 | playgroundリソースの残置可否 | CloudFrontとWeb ACLで月額$6〜10が追加発生(既存の複製一式 約$46への上乗せ)。削除手順は§17.6 |
 | B5 | 未マージ5ブランチの整理 | `docs/README.md`の目次更新(15〜22番)がこれ待ちで止まっている |
@@ -742,7 +742,7 @@ REST移行の動機は4つあったが、
 
 | # | 項目 | 内容 |
 |---|---|---|
-| C1 | **先週のクライアント向け報告の訂正** | 先週「ALBにアタッチすれば対応可能」と報告した結論を今週のレポートで訂正している。[18番](./18-weekly-verification-report-week4.md)を既にクライアントへ共有済みであれば、訂正が届く形になる。送付前に確認が要る |
+| C1 | **先週のクライアント向け報告の訂正** | 先週「ALBにアタッチすれば対応可能」と報告した結論を今週のレポートで訂正している。[18番](./18-internal-weekly-verification-report-week4.md)を既にクライアントへ共有済みであれば、訂正が届く形になる。送付前に確認が要る |
 | C2 | クライアント向けレポートの文面 | QUICK様宛の10ページ。技術用語を平易な言葉に置き換えているが、その置き換えが意図どおりかは要確認 |
 | C3 | terraformの既知のドリフト | playgroundで`terraform plan`するとNATインスタンス2台の置き換えが提案される(`data.aws_ami`が最新AMIを拾うためで今回の作業とは無関係)。今回はすべて`-target`で回避した。`lifecycle { ignore_changes = [ami] }`を入れるかの判断が残っている |
 
@@ -764,7 +764,7 @@ REST移行の動機は4つあったが、
 | 疎通 | CloudFront経由・API Gateway直の両方で`tools/list`が200。XSSはCloudFront経由で403 |
 | テストクライアント | 全削除済み。Cognitoに残るのは`quick-mcp-poc-mcp-client`(静的)、`dcr-sanity-check-*`(§16以前)、`dcr-pattern4-token-helper-*`(ハーネス用、継続利用するなら残置)の3つ。`COUNTER#dcr`は0 |
 | 一時リソース | ALBプローブ用Web ACLは削除済み(terraformファイルも削除)。CloudFront検証用のCloudFront Functionも削除済み |
-| ハーネスの使い方 | `eval "$(python3 scripts/pattern4_token.py token)"`でトークン取得 → `scripts/waf_attack_tests.py` / `scripts/dcr_conformance_tests.py`を実行 → `scripts/update_checklist.py`で[20番](./20-production-readiness-checklist.md)へ転記。DCRテストは実行後に必ず`--cleanup`すること |
+| ハーネスの使い方 | `eval "$(python3 scripts/pattern4_token.py token)"`でトークン取得 → `scripts/waf_attack_tests.py` / `scripts/dcr_conformance_tests.py`を実行 → `scripts/update_checklist.py`で[20番](./20-internal-production-readiness-checklist.md)へ転記。DCRテストは実行後に必ず`--cleanup`すること |
 
 ---
 
@@ -947,7 +947,7 @@ MCP仕様(2026-07-28)は「`tools/list`の内容を**リクエストの資格情
 | ブロッカー | §18.4の記述 | 実際 | 根拠 |
 |---|---|---|---|
 | 5 | 「**59リソース**の唯一のstateがディスク上にある」 | **75リソース**(managed 75 / instances 82、ほかdata source 12) | `terraform-playground-pattern4/terraform.tfstate`を直接パースして計数。差は`for_each`で2インスタンスを持つ7リソース(`aws_eip.nat`、`aws_instance.nat`、`aws_route_table.private`、`aws_route_table_association.private`/`.public`、`aws_subnet.private`/`.public`)。**`moved`ブロックの作業量見積もりが変わる** |
-| 6 | 「アプリコードがDynamoDBテーブル名とリージョンを直書き(`server/src/db.ts:20`、`cli/src/db.ts:4`)」 | **ほぼ解消済み**。両ファイルとも`process.env.TABLE_NAME ?? "quick-mcp-poc-users"`。Week5の[docs/19 §2.1 F12](./19-weekly-verification-plan-week5.md)の対応が入っている | `server/src/db.ts:21`、`cli/src/db.ts:5`。残作業は`??`除去と`ecspresso/app/ecs-task-def.json:26-31`への`TABLE_NAME`追加の2点のみ |
+| 6 | 「アプリコードがDynamoDBテーブル名とリージョンを直書き(`server/src/db.ts:20`、`cli/src/db.ts:4`)」 | **ほぼ解消済み**。両ファイルとも`process.env.TABLE_NAME ?? "quick-mcp-poc-users"`。Week5の[docs/19 §2.1 F12](./19-internal-weekly-verification-plan-week5.md)の対応が入っている | `server/src/db.ts:21`、`cli/src/db.ts:5`。残作業は`??`除去と`ecspresso/app/ecs-task-def.json:26-31`への`TABLE_NAME`追加の2点のみ |
 | 1 | 「統合方向は playground → terraform」 | 方向は正しいが**1箇所だけ例外**。`terraform/ssm.tf:20-72`の`for_each`マップ + `aws_kms_secrets`パターンがplayground側より汎用で、`payload != ""`ガード(`:57,65`)がKMS再暗号化の二段階適用を支える | `secrets`モジュールのみ`terraform/`を正とする |
 
 なおブロッカー5の緊急度は据え置く。stateファイルにはSSMのプレースホルダ値と`random_password.origin_verify`の生成結果が含まれる。`.gitignore:3`(`*.tfstate`)で追跡対象外であることは確認済み。
@@ -984,7 +984,7 @@ MCP仕様(2026-07-28)は「`tools/list`の内容を**リクエストの資格情
 
 | ファイル | 内容 |
 |---|---|
-| [docs/23-weekly-verification-plan-week6.md](./23-weekly-verification-plan-week6.md)(新規) | Week6の作業プラン。上記の調査結果、8モジュールの構成と入出力、変数一覧、`moved.tf`の注意点、バックエンド方針、実施順序と判定基準 |
+| [docs/23-internal-weekly-verification-plan-week6.md](./23-internal-weekly-verification-plan-week6.md)(新規) | Week6の作業プラン。上記の調査結果、8モジュールの構成と入出力、変数一覧、`moved.tf`の注意点、バックエンド方針、実施順序と判定基準 |
 | [docs/fde/DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md)(新規) | 納品ブロッカー台帳。DB-01〜09を固定IDで管理し、根拠・影響・対処・状態を記録 |
 | [docs/README.md](./README.md) | 目次に`docs/23`行と**`fde/`ディレクトリ行**を追加(`fde/`は前セッションで作成されたが目次に未掲載だった) |
 | [docs/00-handoff.md](./00-handoff.md) | 本§19。§18.2の注記、§18.4の見出し、§18.8-1に訂正への参照を追記 |
@@ -1043,7 +1043,7 @@ infra/
    - `aws_cloudfront_distribution.edge` に `-/+` が出たら**即中断**
    - **`nat_ami_id` を先に固定すること**。`null` のままだと `data.aws_ami` が最新 AMI を拾い、NAT インスタンス2台の置き換えが提案される(§17 記録済みのドリフト)。これを受け入れ基準の妨げにしない
    - `resource_server_identifier` が `terraform output` の値と一致することを**適用前に**確認する
-2. **設計文書F1〜F6**([docs/23 §5](./23-weekly-verification-plan-week6.md))を `docs/fde/` へ。**F5(`WWW-Authenticate` / RFC 9728 の否定的知見)を最優先**。現在 `cloudfront_waf.tf:494-512` のコメントにしか存在せず、そのファイルは再構成で役目を終える(モジュール側にはコメントごと移設済みだが、独立した文書にしておく価値が高い)
+2. **設計文書F1〜F6**([docs/23 §5](./23-internal-weekly-verification-plan-week6.md))を `docs/fde/` へ。**F5(`WWW-Authenticate` / RFC 9728 の否定的知見)を最優先**。現在 `cloudfront_waf.tf:494-512` のコメントにしか存在せず、そのファイルは再構成で役目を終える(モジュール側にはコメントごと移設済みだが、独立した文書にしておく価値が高い)
 3. **primenumber の `resource_server_identifier` の実測**。`terraform/` は一度も apply されておらず state が無いため、`terraform.tfvars.example` は `CHANGEME` のまま。AWS 上の実リソースから確認が要る
 4. フェーズ3: AWS環境の整理とバージョニング。**削除は必ず事前確認を取る**(playgroundはtrocco・PetStore等と共用)
 5. フェーズ4: CI/CD方針の文書化(`docs/fde/CICD-DESIGN.md`)
@@ -1064,3 +1064,98 @@ infra/
 - **引き継ぎメモの「難所」は、着手前に実コードで裏を取る価値がある**。§18.8が最大の障害として名指しした循環参照は存在せず、根拠として引用された行番号は1世代古いディレクトリのものだった。一方で本物の循環は別の場所(`random_password.origin_verify`)にあり、こちらは指摘されていなかった。調査に半日かけたことで、無意味なカスタムドメイン先行導入を回避できた
 - **「〜が直書き」のようなブロッカー記述は、書かれた時点の事実でしかない**。DB-06は別トラック(Week5のDCR対応)で既に解消されていたが、ブロッカー一覧はそれを知らないまま残っていた。台帳化して状態欄を持たせたのはこのため
 - **数え間違いは作業量の見積もりを直撃する**。59と75では`moved`ブロックの手間が3割違う。stateのようなものは「読んだ記憶」ではなく毎回パースして数えること
+
+---
+
+## 20. docs命名のinternal/external化と納品ヒアリング準備(2026-09-15〜16実施)
+
+このセッションは3つの並行作業からなる。(A) Week5レポート([22](./22-internal-weekly-verification-report-week5.md))への図の追加、(B) QUICKへの納品を見据えたリポジトリ棚卸しとdocs命名の整理、(C) 納品ヒアリングシートの新規作成。**すべてコード作業のみで、AWS環境・Terraform stateへの変更は一切無い。**
+
+### 20.1 Week5レポートへの図の追加
+
+Week5レポート([22-internal-...](./22-internal-weekly-verification-report-week5.md)・[22-external-...](./22-external-weekly-verification-report-week5.md)、共に旧`week5.md`/`week5-client.md`)に、ユーザーから「アーキテクチャやシーケンス、WAFのテスト結果を図示させる」という指示を受けて8個のMermaid図を追加した。
+
+| 追加した図 | 内容 |
+|---|---|
+| DCR接続フロー(sequenceDiagram) | Claude→受付窓口→登録→認証→再接続の一連の流れに、今週の修正6点(F1〜F6)の位置を注記 |
+| ALB案 vs CloudFront案の比較(flowchart、subgraph2枚) | なぜALB配下だと送信元IPが集約されるかを構造的に図示 |
+| WAFルール優先度の評価順(flowchart LR、subgraph4グループ) | カスタム→レートベース→マネージド→観測の順で評価され、終端すると後続が評価されないことを図示。**初版はflowchart TBで縦に長く、PDFでページ境界をまたいで分断される問題があり、LR+subgraphへ組み替えて解消した** |
+| Count→Block切替の経緯(flowchart) | ALBでのCount観測→IP集約の発見→CloudFrontへ配置→誤検知の観測→調整→Block切替、という時系列 |
+| 45パターンの内訳(flowchart) | 攻撃32件(遮断16/他層拒否5/記録のみ11)と正常系13件の内訳 |
+| CloudFront Functionsの200/401応答比較(sequenceDiagram、`rect`で色分け) | オリジンのエラー応答時にviewer-response関数が実行されない制約を実測ベースで図示 |
+
+**内部版(22-internal)には、図とは別にユーザー指摘で「用語解説」表(冒頭、TL;DR前)も新規追加した。** DCR/RFC 7591等/WAF/Web ACL/`terminatingRuleId`/VPC Link/ENI/Managed Login/ExplicitAuthFlows/CloudFront Functions/Lambda@Edge/CIMD/FISC等、レポート内で使う技術用語15項目を解説する。外部版(22-external)には元々平易な用語解説があったが、内部版には無かった(過去のレポート全般で「用語解説は外部版のみ」という慣習になっていたため、指摘を受けて内部版にも技術者向けの版を追加した形)。
+
+**PDF化して全ページを目視確認済み**(サブエージェント2回、`pdftoppm`で全ページ画像化→Read)。図の重なり・生テキスト露出・文字化け・右端切れ、いずれも無し。WAFルール優先度図のページ分断も解消を確認。
+
+### 20.2 リポジトリ棚卸しとdocs命名のinternal/external化
+
+ユーザーから「QUICKのGitHubリポジトリに納品するため、リポジトリの整理とREADMEへのファイル一覧、納品対象/内部限定の仕分けをしたい」という依頼を受け、まず調査専用エージェント(general-purpose、編集禁止)でリポジトリ全体を棚卸しした。主な発見:
+
+- **`infra/`が唯一の納品対象Terraformであり、`terraform/`と`terraform-playground-pattern4/`は旧世代・残置**(前セッション§19で作成した通り)。README等にこの位置づけの明記が無いと、納品先が誤って旧世代を使う事故リスクがある
+- **`terraform/ssm.tf:35,39`にKMS暗号文がコミットされている**。primenumberのKMSキー紐付きで、別アカウントでは復号不能([DB-04](./fde/DELIVERY-BLOCKERS.md#db-04-kms暗号文が特定アカウントの鍵に紐づく)で既知)
+- **スクリプト・Terraformにアカウントの直書きが多数**(`grep`で洗い出し済み。棚卸し結果は本セッションのAgent実行ログに詳細あり、要約はこの節)
+- **平文パスワード/トークン/APIキーの直書きは0件**。ただしアカウントID・エンドポイントURL・Cognito Pool ID等は複数箇所に残る
+- **PDF 9本(計25MB)がリポジトリの大半を占めるgit容量**。ソースはコミットされているが、tfstateの誤コミットは無し(`.gitignore`が機能している)
+
+この調査結果とユーザーの追加指示(「PDFはローカル保存にするのでアントラック」「internal/externalプレフィックスに」)を受けて、以下を実施した。
+
+**PDFのgit追跡除外**:`git rm --cached`で9本を除外し、`.gitignore`に`*.pdf`を追加。ローカルのファイル自体は削除していない。
+
+**docsレポートのリネーム**: `docs/README.md`目次にある番号付きレポート(00・RESUME_PROMPTを除く01〜23の28ファイル、対応PDFも同様)を、`NN-<内容>.md`→`NN-internal-<内容>.md`、`NN-<内容>-client.md`→`NN-external-<内容>.md`に一括リネームした(`git mv`)。狙いは「内部限定/対外提出」をファイル名自体で自明にすること。適用範囲は**docsのレポートファイル名のみ**(ユーザーに確認済み。トップレベルディレクトリ(`infra/`・`terraform/`等)へのプレフィックス付与は見送り)。
+
+リネームに伴い、全docsファイル・`docs/README.md`・`CLAUDE.md`・`scripts/`配下のPythonスクリプト・`infra/modules/mcp-server-agentcore/README.md`・`infra/scripts/generate-moved.py`・`web-demo/README.md`内の相互参照(Markdownリンク、コメント中のファイルパス言及)を機械的に置換した。リンク切れチェック(project標準のPythonワンライナー)で0件を確認済み。
+
+`docs/README.md`の目次テーブルに「区分」列(internal/external)と、区分の意味を説明する注記を追加。「図の再生成方法」節にPDFがgitignore対象である旨も追記した。
+
+**このリネームはリポジトリ全体の納品可否の仕分けそのものではない**(README上の注記にも明記した)。ディレクトリ単位の納品可否判断は§20.3のヒアリングシートに委ねている。
+
+### 20.3 納品ヒアリングシートの新規作成
+
+[docs/fde/DELIVERY-HEARING-SHEET.md](./fde/DELIVERY-HEARING-SHEET.md)を新規作成した。ユーザーからの依頼は「検証はprimenumber内部のAWSリソースで行っているが、納品物は顧客(QUICK)環境になるため、ヒアリングすべき事項と、開発/顧客環境で変える部分を整理したい」というもの。
+
+構成は5節: (1) ヒアリング事項24項目をA〜G群に分類(最優先5項目を明示。特に**カスタムドメインの有無**が`resource_server_identifier`を決め、これは後から変更すると発行済みクライアントのスコープが失われるため最優先)、(2) ヒアリングの進め方(3回に分けるflowchart)、(3) 開発/顧客環境の差分一覧(そのまま持ち込むと壊れるもの5点、`terraform.tfvars`で変更する項目一覧、コード側で変更が必要なもの)、(4) ヒアリング前にこちらで完了させておくべき作業、(5) ヒアリングでも決められないまま残る論点。
+
+既存の[DELIVERY-BLOCKERS.md](./fde/DELIVERY-BLOCKERS.md)(「別のAWSアカウントで動かせるか」を問う台帳)とは責務を分けており、本シートは「QUICK側の意思決定が要る事項」を問う。`docs/README.md`のfde行にもこのファイルへのリンクを追加した。
+
+### 20.4 セッション終了時点の状態
+
+| 項目 | 状態 |
+|---|---|
+| ブランチ | `feature/week6-terraform-modularization`(§19から継続、**未push**) |
+| 変更内容 | すべて**未コミット**(ユーザーから明示のコミット指示が無かったため。§19までの`infra/`新設は既に別コミットとして入っている)。**このセッションではコミットしない方針**でユーザーと合意し、終了した |
+| AWS環境 | 変更無し。`plan`/`apply`とも未実行 |
+| `infra/modules/secrets/` | **§19.8から持ち越し、未解消**。サンドボックスの権限規則で今回も削除できていない |
+
+### 20.4-1 【重要】並行セッションによるコンフリクトの懸念(引き継ぎ時に発覚)
+
+このセッションの終了直前、**同じリポジトリで別のセッションが並行してリポジトリ整理を行っており、そちらも未コミットである**ことが判明した。`ListAgents`で確認したところ、このマシン上に以下のピアセッションが存在する。
+
+| セッション | 開始 | 備考 |
+|---|---|---|
+| quick-agentcore-poc-b7 [273871] | 9時間前 | - |
+| quick-agentcore-poc-34 [c9476c] | 23時間前 | **ユーザーによれば「昨日作業していたセッション」= リポジトリ整理を行っている本人** |
+
+**このリポジトリには`git worktree`が1つしかない**(`git worktree list`で確認済み)。つまり全セッションが**同一の作業ディレクトリ・同一のブランチ(`feature/week6-terraform-modularization`)を共有**しており、互いの未コミット変更がファイルシステム上でそのまま衝突しうる。worktreeによる分離は行われていない。
+
+**次回セッション再開時に必ず確認すること**:
+
+1. **再開直後にまず`git status`を取り、本メモの§20.4に記載した変更内容(28ファイルのリネーム、PDF除外、`docs/README.md`・`docs/00-handoff.md`更新、`docs/fde/DELIVERY-HEARING-SHEET.md`新規)と一致しているか照合する。** 一致しない場合、quick-agentcore-poc-34セッション側で追加の変更が入っている可能性が高い
+2. **一致しない場合は、いきなり上書き・`git checkout`・`git stash`等をせず、差分の由来を先に特定する。** 本セッションの変更は§20.1〜20.3に全て記録済みなので、それと差分を取れば「本セッションの変更」と「もう一方のセッションの変更」を切り分けられる
+3. **もう一方のセッション(quick-agentcore-poc-34)がリポジトリ整理として具体的に何をしているかは、本セッションでは未確認のまま終了した。** ユーザーに直接確認するか、`ListAgents`→`SendMessage`でそのセッションに状況を尋ねることを推奨する
+4. **コミットは両セッションのうちどちらか一方が完了・整理してから、1回にまとめて行うことを推奨する。** 同じ内容(docsリネーム等)を両セッションが別々にコミットしようとすると、片方が無駄になるか、コンフリクトが発生する
+
+**ユーザーへの申し送り**: 本セッションでは意図的にコミットを行わず終了した。もう一方のセッション(quick-agentcore-poc-34、リポジトリ整理中)と作業内容が重複している可能性があるため、**次にこのリポジトリで作業を再開する際は、まずどちらのセッションの変更を正とするかをユーザーに確認すること**。
+
+### 20.5 次回セッションの着手順
+
+1. **今回の変更をコミットするかどうかの確認**。リネーム(28ファイル+PDF)・`.gitignore`・`docs/README.md`・`docs/00-handoff.md`・`docs/fde/DELIVERY-HEARING-SHEET.md`(新規)・スクリプト内リンク修正が未コミットのまま残っている。`git status`で全量を確認してからコミットすること
+2. **`infra/modules/secrets/`の削除**(§19.8から継続)。`rm -rf infra/modules/secrets`をユーザー側で実行するか、`/sandbox`で`./secrets`のdeny範囲を調整する
+3. **§19.9の着手順(plan実行、backend用S3バケット作成等)は未着手のまま**。フェーズ2の残りとして引き続き有効
+4. **納品ヒアリングの実施**。§20.3のヒアリングシートを使い、特に最優先5項目(H-A1, H-A3, H-C1, H-D1, H-E1)から着手する。回答が得られ次第、シートに追記し`infra/environments/quick/terraform.tfvars`へ反映する
+5. **リポジトリの納品対象/内部限定の仕分け**は、ヒアリング結果を待たずに着手可能な部分がある(§20.2の棚卸し結果、`terraform/`・`terraform-playground-pattern4/`・`web-demo/`・`docs/fde/`を内部限定とする方針など)。ディレクトリ単位でのREADME整備や`.gitattributes`的な仕分けは次回の課題として残っている
+
+### 20.6 学び
+
+- **「用語解説は対外版だけに付ける」という過去の暗黙の慣習は、内部版の読者(エンジニア以外のレビュアー含む)にとって不親切になりうる**。内部版でも、その回だけ登場する専門用語(RFC番号、AWSサービス固有語)は解説した方が良いというフィードバックを得た。今後の内部レポートでも、初出の専門用語が多い回は用語解説の追加を検討する
+- **ファイル名のリネームは「見た目の変更」で済まず、相互参照の全数更新とリンク切れチェックが必須**。今回は28ファイル+スクリプト9本に波及した。`git mv`後に機械的な文字列置換とリンク切れチェックのワンライナーを流す、という手順を踏まないと参照だけが古いまま残る

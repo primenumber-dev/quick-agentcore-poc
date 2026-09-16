@@ -1,7 +1,7 @@
 # AgentCore Runtime移行検証: Claude CodeからのリモートMCP接続とECS+API Gatewayとの比較
 
 > **この章で分かること**
-> 既存のAPI Gateway + ECS構成(パターン4)から、AgentCore Runtime単体(パターン3)へMCPサーバーを載せ替えた場合に、実際にClaude Codeのような外部MCPクライアントから疎通させるには何をどう変更する必要があったかを、実機検証で得た構成図・シーケンス図・認証フロー・手順として整理する。[01-architecture-comparison.md](./01-architecture-comparison.md)の一般比較、[03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md)のIAM/SigV4検証を踏まえ、今回は**OAuth経由での外部クライアント接続**という観点を深掘りする。
+> 既存のAPI Gateway + ECS構成(パターン4)から、AgentCore Runtime単体(パターン3)へMCPサーバーを載せ替えた場合に、実際にClaude Codeのような外部MCPクライアントから疎通させるには何をどう変更する必要があったかを、実機検証で得た構成図・シーケンス図・認証フロー・手順として整理する。[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)の一般比較、[03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md)のIAM/SigV4検証を踏まえ、今回は**OAuth経由での外部クライアント接続**という観点を深掘りする。
 
 検証日: 2026-08-18 | 検証方法: playgroundアカウントでの実機構築・実際のClaude Code CLIからのエンドツーエンド疎通確認
 
@@ -23,7 +23,7 @@
 
 ## 1. 検証の目的
 
-[00-handoff.md](./00-handoff.md)で完了していたのは、boto3 + SigV4署名 + `x-cognito-sub`自己申告ヘッダーという簡略構成での疎通確認(IAM認証のみ、なりすまし対策が本番同等ではない)。これは[01-architecture-comparison.md](./01-architecture-comparison.md)で「本番採用時の注意」として明記した通り、Custom JWT Authorizerを導入しない限り本番展開すべきでない構成だった。
+[00-handoff.md](./00-handoff.md)で完了していたのは、boto3 + SigV4署名 + `x-cognito-sub`自己申告ヘッダーという簡略構成での疎通確認(IAM認証のみ、なりすまし対策が本番同等ではない)。これは[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)で「本番採用時の注意」として明記した通り、Custom JWT Authorizerを導入しない限り本番展開すべきでない構成だった。
 
 今回は「実際にClaude.ai/Claude CodeのようなMCPクライアントから、AWS SigV4を知らない一般的なOAuthクライアントとして接続できるか」を検証した。これは課金制サービスとして外販する上で、パターン3(AgentCore Runtime)が現実的な選択肢たり得るかを左右する重要な論点である。
 
@@ -282,9 +282,9 @@ aws bedrock-agentcore-control update-agent-runtime \
 ## 8. 本番移行に向けた残課題
 
 - **Cognitoインスタンスの統合**: 今回はplaygroundの検証専用Cognito(`agentcore-mcp-pool`)を使用した。本番展開時は、本番相当アカウントの`quick-mcp-poc-users`プール(実クライアントデータを含む)に対して同じCustom JWT Authorizer設定を行うか、複数プールを跨いだ認証設計を検討する必要がある
-- **ネットワーク閉域性**: 現状`networkMode: PUBLIC`のまま。[05-security-compliance-verification.md](./05-security-compliance-verification.md)で指摘した通り、閉域網対応にはVPCモード+PrivateLinkへの切り替えが別途必要(未検証)
+- **ネットワーク閉域性**: 現状`networkMode: PUBLIC`のまま。[05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)で指摘した通り、閉域網対応にはVPCモード+PrivateLinkへの切り替えが別途必要(未検証)
 - **Claude.ai Web版での確認**: 組織がTeam/Enterpriseプランのため、Web版のカスタムコネクタ追加はOrganization Ownerでないと実施できず、今回はClaude Code CLI経由での検証にとどまった。Web版での動作確認にはOwner権限を持つ担当者の協力が必要
-- **マルチテナント分離との関係**: [05-security-compliance-verification.md](./05-security-compliance-verification.md)で述べた`customClaims`によるテナント分離は今回未検証。Custom JWT Authorizerの基本疎通が確認できた今、次のステップとして着手可能
+- **マルチテナント分離との関係**: [05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md)で述べた`customClaims`によるテナント分離は今回未検証。Custom JWT Authorizerの基本疎通が確認できた今、次のステップとして着手可能
 
 ## 9. 結論
 
@@ -299,10 +299,10 @@ aws bedrock-agentcore-control update-agent-runtime \
 
 **社内ドキュメント**
 - [00-handoff.md § 9](./00-handoff.md) — 本検証の詳細な作業ログ
-- [01-architecture-comparison.md](./01-architecture-comparison.md) — パターン3/4の一般比較、「本番採用時の注意」
-- [03-agentcore-runtime-verification.md](./03-agentcore-runtime-verification.md) — IAM/SigV4方式での初回疎通検証
-- [04-ecs-apigateway-verification.md](./04-ecs-apigateway-verification.md) — パターン4の稼働確認
-- [05-security-compliance-verification.md](./05-security-compliance-verification.md) — ネットワーク閉域性・マルチテナント分離の比較検証
+- [01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md) — パターン3/4の一般比較、「本番採用時の注意」
+- [03-internal-agentcore-runtime-verification.md](./03-internal-agentcore-runtime-verification.md) — IAM/SigV4方式での初回疎通検証
+- [04-internal-ecs-apigateway-verification.md](./04-internal-ecs-apigateway-verification.md) — パターン4の稼働確認
+- [05-internal-security-compliance-verification.md](./05-internal-security-compliance-verification.md) — ネットワーク閉域性・マルチテナント分離の比較検証
 
 **AWS公式ドキュメント**
 - [Authenticate and authorize with Inbound Auth and Outbound Auth](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-oauth.html)

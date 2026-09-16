@@ -1,7 +1,7 @@
 # AgentCore Runtime 疎通検証ログ
 
 > **この章で分かること**
-> パターン3(AgentCore Runtime単体)を実際にデプロイし、MCPプロトコルで疎通するまでの一部始終。詰まった点とその原因・対応も含む、再現性のための実務ログ。構成図・比較は[01-architecture-comparison.md](./01-architecture-comparison.md)を参照。
+> パターン3(AgentCore Runtime単体)を実際にデプロイし、MCPプロトコルで疎通するまでの一部始終。詰まった点とその原因・対応も含む、再現性のための実務ログ。構成図・比較は[01-internal-architecture-comparison.md](./01-internal-architecture-comparison.md)を参照。
 
 検証日: 2026-08-14 〜 2026-08-17
 

@@ -1,9 +1,9 @@
 """WAF攻撃パターンテストハーネス(pattern4: ECS + API Gateway 向け)。
 
-docs/19-weekly-verification-plan-week5.md §1.4 の攻撃パターンカタログ(A01〜A25)をデータ駆動で
+docs/19-internal-weekly-verification-plan-week5.md §1.4 の攻撃パターンカタログ(A01〜A25)をデータ駆動で
 実行し、各リクエストが WAF で遮断されたか(403)、サーバーに到達したか(200/400等)を記録する。
 各リクエストには `X-Waf-Test-Id: <run-id>-<A##>` を付与し、WAFログ(httpRequest.headers)と
-突合できるようにする。docs/20-production-readiness-checklist.md の WAF-1x 行の証跡になる。
+突合できるようにする。docs/20-internal-production-readiness-checklist.md の WAF-1x 行の証跡になる。
 
 使い方:
   eval "$(python3 scripts/pattern4_token.py bootstrap)"     # トークン取得(初回)
